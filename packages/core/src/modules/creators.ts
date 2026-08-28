@@ -15,12 +15,9 @@ export const createRnvModule = <OKey = never, Payload = object>(opts: CreateRnvM
         tasks: createTaskMap<any, any>({ tasks: opts.tasks, ownerID: opts.name, ownerType: opts.type }),
         getContext,
         initContextPayload: () => {
+            if (!opts.contextPayload) return;
             const ctx = getContext();
-            const payload = opts.contextPayload;
-            if (payload) {
-                const ctxPayload = ctx.payload;
-                ctx.payload = { ...ctxPayload, ...payload };
-            }
+            Object.assign(ctx.payload, opts.contextPayload);
         },
     };
 

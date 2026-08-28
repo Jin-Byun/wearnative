@@ -1,146 +1,141 @@
-import { program } from 'commander';
-import fs from 'fs';
-import path from 'path';
 import {
-    logError,
-    getContext,
-    generateStringFromTaskOption,
-    RnvTaskCoreOptionPresets,
-    RnvContextProgram,
-    RnvApiSpinner,
-    RnvApiPrompt,
-    RnvApiLogger,
-    createRnvApi,
-    createRnvContext,
-    logInitialize,
-    loadWorkspacesConfigSync,
-    registerEngine,
-    executeRnvCore,
-    getConfigProp,
-    doResolve,
-    exitRnvCore,
-    registerRnvTasks,
-} from '@rnv/core';
-import TelemetrySDK from '@rnv/sdk-telemetry';
-import { Telemetry } from '@rnv/sdk-telemetry';
-import EngineCore from '@rnv/engine-core';
-
-import Spinner from './ora';
-import Prompt from './prompt';
-import Logger, { logSummary } from './logger';
-
-const terminateProcesses = (): void => {
-    const { runningProcesses } = getContext();
-    try {
-        runningProcesses.forEach((p) => {
-            p.kill();
-        });
-    } catch (e) {
-        console.log(e);
-    }
-    runningProcesses.length = 0;
-};
+	createRnvApi,
+	createRnvContext,
+	doResolve,
+	executeRnvCore,
+	exitRnvCore,
+	generateStringFromTaskOption,
+	getConfigProp,
+	getContext,
+	loadWorkspacesConfigSync,
+	logError,
+	logInitialize,
+	type RnvApiLogger,
+	type RnvApiPrompt,
+	type RnvApiSpinner,
+	type RnvContextProgram,
+	RnvTaskCoreOptionPresets,
+	registerEngine,
+} from "@rnv/core";
+import EngineCore from "@rnv/engine-core";
+import { program } from "commander";
+import fs from "fs";
+import path from "path";
+import Logger, { logSummary } from "./logger";
+import Spinner from "./ora";
+import Prompt from "./prompt";
 
 export const run = ({ RNV_HOME_DIR }: { RNV_HOME_DIR?: string }) => {
-    const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json')).toString());
-    let cmdValue = '';
-    let cmdOption = '';
+	const packageJson = JSON.parse(
+		fs.readFileSync(path.join(__dirname, "../package.json")).toString(),
+	);
+	let cmdValue = "";
+	let cmdOption = "";
 
-    program.version(packageJson.version, '-v, --version', 'output current version');
+	program.version(
+		packageJson.version,
+		"-v, --version",
+		"output current version",
+	);
 
-    RnvTaskCoreOptionPresets.withCore().forEach((param) => {
-        program.option(generateStringFromTaskOption(param), param.description);
-    });
+	for (const param of RnvTaskCoreOptionPresets.withCore()) {
+		program.option(generateStringFromTaskOption(param), param.description);
+	}
 
-    program.allowUnknownOption(true); // integration options are not known ahead of time
-    program.helpOption(false);
+	program.allowUnknownOption(true); // integration options are not known ahead of time
+	program.helpOption(false);
 
-    // Make both arguments optional un order to allow `$ rnv` top level command
-    program.arguments('[cmd] [option]').action((cmd, option) => {
-        cmdValue = cmd;
-        cmdOption = option;
-    });
+	// Make both arguments optional un order to allow `$ rnv` top level command
+	program.arguments("[cmd] [option]").action((cmd, option) => {
+		cmdValue = cmd;
+		cmdOption = option;
+	});
 
-    program.parse(process.argv);
+	program.parse(process.argv);
 
-    process.on('SIGINT', () => {
-        terminateProcesses();
-        process.exit(0);
-    });
+	process.on("SIGINT", () => {
+		terminateProcesses();
+		process.exit(0);
+	});
 
-    // This looks weird but commander default help is actual function.
-    // if you pass --help it will override it with undefined
-    // So we need to check if it's not a function to output help
-    // if (program.opts().help) {
-
-    //program.outputHelp();
-    // Let's use alternative name for this flag
-    // program.opts().help = true;
-    // }
-
-    // If the first argument is a flag, then the subCommand is missing
-    // this occurs when rnv has to execute unknown commands (ie intergration commands)
-    // commander does not handle this scenario automatically
-    if (cmdOption && (cmdOption.startsWith('--') || cmdOption.startsWith('-'))) {
-        cmdOption = '';
-    }
-    executeRnv({
-        cmd: cmdValue,
-        subCmd: cmdOption,
-        program,
-        process,
-        spinner: Spinner,
-        prompt: Prompt,
-        logger: Logger,
-        RNV_HOME_DIR,
-    })
-        .then(() => {
-            logSummary();
-            exitRnvCore(0);
-        })
-        .catch((e: unknown) => {
-            terminateProcesses();
-            logError(e);
-            logSummary();
-            exitRnvCore(1);
-        });
+	// If the first argument is a flag, then the subCommand is missing
+	// this occurs when rnv has to execute unknown commands (ie intergration commands)
+	// commander does not handle this scenario automatically
+	if (cmdOption?.startsWith("-")) {
+		cmdOption = "";
+	}
+	executeRnv({
+		cmd: cmdValue,
+		subCmd: cmdOption,
+		program,
+		process,
+		spinner: Spinner,
+		prompt: Prompt,
+		logger: Logger,
+		RNV_HOME_DIR,
+	})
+		.then(() => {
+			logSummary();
+			exitRnvCore(0);
+		})
+		.catch((e: unknown) => {
+			terminateProcesses();
+			logError(e);
+			logSummary();
+			exitRnvCore(1);
+		});
 };
 
-export const executeRnv = async ({
-    cmd,
-    subCmd,
-    process,
-    program,
-    spinner,
-    prompt,
-    logger,
-    RNV_HOME_DIR,
+ async function executeRnv ({
+	cmd,
+	subCmd,
+	process,
+	program,
+	spinner,
+	prompt,
+	logger,
+	RNV_HOME_DIR,
 }: {
-    cmd: string;
-    subCmd: string;
-    process: NodeJS.Process;
-    program: RnvContextProgram;
-    spinner: RnvApiSpinner;
-    prompt: RnvApiPrompt;
-    logger: RnvApiLogger;
-    RNV_HOME_DIR?: string;
-}) => {
-    // set mono and ci if json is enabled
-    if (program.opts().json) {
-        program.opts().mono = true;
-        program.opts().ci = true;
-    }
+	cmd: string;
+	subCmd: string;
+	process: NodeJS.Process;
+	program: RnvContextProgram;
+	spinner: RnvApiSpinner;
+	prompt: RnvApiPrompt;
+	logger: RnvApiLogger;
+	RNV_HOME_DIR?: string;
+}) {
+	// set mono and ci if json is enabled
+	if (program.opts().json) {
+		program.opts().mono = true;
+		program.opts().ci = true;
+	}
 
-    createRnvApi({ spinner, prompt, analytics: Telemetry, logger, getConfigProp, doResolve });
-    createRnvContext({ program, process, cmd, subCmd, RNV_HOME_DIR });
+	createRnvApi({
+		spinner,
+		prompt,
+		logger,
+		getConfigProp,
+		doResolve,
+	});
+	createRnvContext({ program, process, cmd, subCmd, RNV_HOME_DIR });
 
-    logInitialize();
-    loadWorkspacesConfigSync();
+	logInitialize();
+	loadWorkspacesConfigSync();
 
-    Telemetry.initialize();
-    // Example of how to register set of tasks manually
-    registerRnvTasks(TelemetrySDK.tasks);
-    await registerEngine(EngineCore);
+	await registerEngine(EngineCore);
 
-    await executeRnvCore();
+	await executeRnvCore();
+};
+
+function terminateProcesses (): void {
+	const { runningProcesses } = getContext();
+	try {
+	  for (const p of runningProcesses) {
+			  p.kill();
+			}
+	} catch (e) {
+		console.log(e);
+	}
+	runningProcesses.length = 0;
 };

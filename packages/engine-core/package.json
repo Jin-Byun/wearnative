@@ -22,23 +22,22 @@
     "scripts": {
         "bootstrap": "yarn && yarn build && npm link",
         "build": "yarn clean && yarn compile",
-        "clean": "rimraf -I ./lib && rimraf -I tsconfig.tsbuildinfo",
         "compile": "tsc -b tsconfig.json",
         "compile:prod": "tsc -b tsconfig.json",
         "lint": "eslint . --ext .ts",
         "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
-        "@rnv/sdk-utils": "1.10.0-rc.1",
-        "@types/tar": "6.1.13",
+        "@rnv/sdk-utils": "workspace:*",
+        "@types/tar": "catalog:",
         "iocane": "4.0.0",
-        "kill-port": "1.6.1",
-        "lodash": "4.17.21",
+        "kill-port": "catalog:",
+        "lodash": "catalog:",
         "tar": "6.2.1",
-        "typescript": "5.2.2"
+        "typescript": "catalog:"
     },
     "peerDependencies": {
-        "@rnv/core": "^1.10.0-rc.1"
+        "@rnv/core": "workspace:*"
     },
     "private": "false",
     "publishConfig": {

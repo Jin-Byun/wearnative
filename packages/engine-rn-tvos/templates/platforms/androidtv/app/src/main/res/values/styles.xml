@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-
-<!--
-Generate by ReNative (https://renative.org)
-BASE: packages/sdk-android/templateFiles/styles_xml.json
--->
-
-{{PLUGIN_STYLES_XML_FILE}}

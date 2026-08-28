@@ -1,19 +1,19 @@
 /* eslint-disable no-console */
-import _chalk from 'chalk';
+
 import {
-    RnvContext,
+    generateDefaultChalk,
     getApi,
     getContext,
     isSystemWin,
-    generateDefaultChalk,
-    RnvApiLogger,
-    RnvApiChalk,
-    RnvApiChalkFn,
+    type RnvApiChalk,
+    type RnvApiChalkFn,
+    type RnvApiLogger,
+    type RnvContext,
 } from '@rnv/core';
+import _chalk from 'chalk';
 import path from 'path';
 
 const ICN_ROCKET = isSystemWin ? 'RNV' : '🚀';
-// const ICN_UNICORN = isSystemWin ? 'unicorn' : '🦄';
 const _chalkCols = generateDefaultChalk();
 const _chalkMono = {
     ..._chalkCols,
@@ -24,27 +24,22 @@ const colorBlue = { r: 10, g: 116, b: 230 }; // '#0a74e6'
 let currentChalk: RnvApiChalk = _chalk;
 let chalkBlue: any = _chalk.rgb(colorBlue.r, colorBlue.g, colorBlue.b);
 
-// const RNV = 'ReNative';
 const PRIVATE_PARAMS = ['-k', '--key'];
 let _isInfoEnabled = false;
 let _infoFilter: Array<string> = [];
-// let _c: RnvContext;
 let _isMono = false;
 let _defaultColor: any = _chalkCols.white;
 let _highlightColor = _chalkCols.white;
-// let _analytics: AnalyticsApi;
 let _jsonOnly: boolean;
 
 export const chalk = (): RnvApiChalk => currentChalk || _chalk;
 
 export const logInitialize = () => {
-    // cnf();
     const ctx = getContext();
 
     _isInfoEnabled = !!ctx.program.opts().info;
     _jsonOnly = !!ctx.program.opts().json;
     _infoFilter = ctx.program.opts().info?.split?.(',');
-    // _analytics = analytics;
 
     if (ctx.program.opts().mono) {
         _isMono = true;
@@ -52,7 +47,6 @@ export const logInitialize = () => {
         chalkBlue = _chalkMono.white;
     }
     _updateDefaultColors();
-    // RNV = getCurrentCommand();
     if (!_jsonOnly) logWelcome();
 };
 
@@ -60,7 +54,6 @@ export const logWelcome = () => {
     const ctx = getContext();
     if (ctx.program?.opts().help || ctx.program?.opts().noIntro) return;
     const shortLen = 64;
-    // prettier-ignore
     let str = _defaultColor(`
 ┌─────────────────────────────────────────────────────────────────┐
 │ ${chalkBlue('██████╗')} ███████╗${chalkBlue('███╗   ██╗')} █████╗ ████████╗██╗${chalkBlue('██╗   ██╗')}███████╗ │
@@ -85,21 +78,9 @@ export const logWelcome = () => {
             str += printIntoBox(`${currentChalk.yellow('WARNING: this is a prerelease version.')}`, shortLen);
         }
     }
-    // str += printIntoBox(
-    //     `${currentChalk.grey('https://renative.org')} | Start Time: ${currentChalk.grey(
-    //         ctx.timeStart.toLocaleString()
-    //     )}`,
-    //     shortLen
-    // );
-    // str += printIntoBox(`      ${ICN_ROCKET} ${currentChalk.yellow('Firing up!...')}`);
     str += printIntoBox(`$ ${_highlightColor(getCurrentCommand(true))}`, shortLen);
     if (ctx.timeStart) {
-        // str += printIntoBox(`      Start Time: ${currentChalk.grey(ctx.timeStart.toLocaleString())}`);
-    }
-    // str += printIntoBox('');
-    // str += printBoxEnd();
     str += _defaultColor('└─────────────────────────────────────────────────────────────────┘');
-    // str += '\n';
 
     console.log(str);
 };
@@ -120,31 +101,6 @@ export function stripAnsi(string: string) {
 
     return string.replace(ansiRegex(), '');
 }
-
-// const cnf = () => {
-//     if (!_c) {
-//         _configureLogger(global.RNV_CONFIG, global.RNV_ANALYTICS);
-//     }
-//     return _c;
-// };
-
-// const _configureLogger = (c: RnvContext, analytics: AnalyticsApi) => {
-//     // ctx.logging.logMessages = [];
-
-//     // _c = c;
-//     // if (!ctx.timeStart) ctx.timeStart = new Date();
-//     _currentProcess = c.process;
-//     _isInfoEnabled = !!c.program.opts().info;
-//     _jsonOnly = !!c.program.opts().json;
-//     _infoFilter = c.program.opts().info?.split?.(',');
-//     // _isMono = c.program.opts().mono;
-//     _analytics = analytics;
-//     // if (_isMono) {
-//     //     currentChalk = _chalkMono;
-//     // }
-//     // _updateDefaultColors();
-//     // RNV = getCurrentCommand();
-// };
 
 const _updateDefaultColors = () => {
     _defaultColor = currentChalk.white;
@@ -263,15 +219,11 @@ export const logSummary = (opts?: { header?: string; headerStyle?: 'success' | '
     ctx.timeEnd = new Date();
     timeString = `| ${ctx.timeEnd.toLocaleString()}`;
 
-    // let envString = '';
-    // if (ctx.process) {
-    //     envString = `${ctx.process.platform} | ${ctx.process.arch} | node v${ctx.process.versions?.node}`;
-    // }
     const defaultHeaderStyle = ctx.logging.containsError
         ? 'error'
         : ctx.logging.containsWarning
-        ? 'warning'
-        : 'success';
+          ? 'warning'
+          : 'success';
     const headerStyle = opts?.headerStyle || defaultHeaderStyle;
 
     const headerPrefix =
@@ -286,22 +238,20 @@ export const logSummary = (opts?: { header?: string; headerStyle?: 'success' | '
             headerStyle === 'success'
                 ? currentChalk.green.bold
                 : headerStyle === 'warning'
-                ? currentChalk.yellow.bold
-                : headerStyle === 'error'
-                ? currentChalk.green.red
-                : (v: string) => v;
+                  ? currentChalk.yellow.bold
+                  : headerStyle === 'error'
+                    ? currentChalk.green.red
+                    : (v: string) => v;
     }
     let str = printBoxStart(
         `${headerChalk(headerTextPlain)} ${timeString} | rnv@${ctx.rnvVersion}`,
         getCurrentCommand()
     );
 
-    // str += printIntoBox(`ReNative Version: ${_highlightColor(ctx.rnvVersion)}`);
     if (ctx.files?.project?.package?.name && ctx.files?.project?.package?.version) {
         str += printIntoBox(
             `Project: ${currentChalk.gray(`${ctx.files.project.package.name}@${ctx.files.project.package.version}`)}`
         );
-        // str += printIntoBox(`Project Version: ${currentChalk.gray(ctx.files.project.package.version)}`);
     }
 
     if (ctx.buildConfig?.workspaceID) {
@@ -311,10 +261,6 @@ export const logSummary = (opts?: { header?: string; headerStyle?: 'success' | '
         str += printIntoBox(`Platform (-p): ${_highlightColor(ctx.platform)}`);
     }
     if (ctx.runtime?.engine) {
-        // let addon = '';
-        // if (ctx.platform) {
-        //     addon = ` ($.platforms.${ctx.platform}.engine)`;
-        // }
         str += printIntoBox(`Engine: ${currentChalk.gray(ctx.runtime?.engine?.id || '')}`);
     }
     if (ctx.runtime?.currentTemplate) {
@@ -341,9 +287,6 @@ export const logSummary = (opts?: { header?: string; headerStyle?: 'success' | '
         str += printIntoBox(`Reset Project and Assets (-R): ${_highlightColor(!!ctx.program?.opts()?.resetHard)}`);
     }
     if (ctx.runtime?.availablePlatforms?.length) {
-        // const plats = ctx.runtime.availablePlatforms.map((v) => `${currentChalk.gray(v)}`);
-        // str += printArrIntoBox(plats, 'Supported Platforms: ');
-
         str += printIntoBox(`Supported Platforms: ${currentChalk.gray(ctx.runtime.availablePlatforms.join(', '))}`);
     }
 
@@ -358,11 +301,8 @@ export const logSummary = (opts?: { header?: string; headerStyle?: 'success' | '
         );
     }
 
-    // str += printIntoBox('');
-
     str += logContent.replace(/\n\s*\n\s*\n/g, '\n\n');
 
-    // str += printIntoBox('');
     if (ctx.runtime?.platformBuildsProjectPath) {
         str += printIntoBox(
             `Project location: ${currentChalk.gray(_sanitizePaths(ctx.runtime.platformBuildsProjectPath || ''))}`
@@ -406,21 +346,10 @@ const _generateRelativePaths = () => {
 _generateRelativePaths();
 
 const _sanitizePaths = (msg: string) => {
-    // const ctx = getContext();
-    // let dir
-    // const config = ctx.files?.project?.config;
-    // if(config && config.isMonorepo) {
-    //     if()
-    // }
-
     if (msg?.replace) {
         CWD_ARR.forEach((v) => {
             msg = msg.replace(new RegExp(v.path, 'g'), v.relative);
         });
-        // return msg
-        //     .replace(new RegExp(CWD, 'g'), '.')
-        //     .replace(new RegExp(CWD_UP, 'g'), '..')
-        //     .replace(new RegExp(CWD_UP_UP, 'g'), '../..');
     }
     return msg;
 };
@@ -534,7 +463,6 @@ export const logExitTask = (task: string) => {
             message: stripAnsi(_sanitizePaths(task)),
         });
     }
-    // const taskCount = getLogCounter(task, true);
     const msg = `${currentChalk.green('task:')} ${currentChalk.green('✔')} ${task}`;
 
     console.log(msg);
@@ -636,7 +564,6 @@ export const logError = (e: Error | string | unknown, opts?: { skipAnalytics: bo
             arch: ctx.process?.arch,
             node: ctx.process?.versions?.node,
         };
-        api.analytics.captureException(err, { extra });
     }
     if (ctx.logging) {
         ctx.logging.containsError = true;
@@ -699,7 +626,6 @@ export const printArrIntoBox = (arr: Array<string>, prefix = '') => {
             i++;
         }
         stringArr += `${v}, `;
-        // stringArr[i] += `${c.platformDefaults[v].icon} ${currentChalk.white(v)}, `;
     });
     if (i === 0 && prefix.length) {
         output += printIntoBox(`${_defaultColor(prefix)}${_defaultColor(stringArr.slice(0, -2))}`);

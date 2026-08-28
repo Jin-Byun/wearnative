@@ -28,7 +28,6 @@ export const selectPlatformIfRequired = async (
                     `Task "${knownTaskInstance?.task}" has only one supported platform: "${platforms[0]}". Automatically selecting it.`
                 );
                 c.platform = platforms[0];
-                // c.program.opts().platform = c.platform;
                 // after making UTs, this doesn't work - no changes happen, so commenting it out
             } else {
                 const { platform } = await inquirerPrompt({
@@ -63,37 +62,21 @@ export const getTaskNameFromCommand = (): string | undefined => {
     return taskName;
 };
 
-export const generateStringFromTaskOption = (opt: RnvTaskOption) => {
-    let cmd = '';
-    if (opt.shortcut) {
-        cmd += `-${opt.shortcut}, `;
-    }
-    cmd += `--${opt.key}`;
-    if (opt.altKey) {
-        cmd += `, --${opt.altKey}`;
-    }
-    if (opt.isVariadic) {
-        if (opt.isRequired) {
-            cmd += ` <value...>`;
-        } else {
-            cmd += ` [value...]`;
-        }
-    } else if (opt.isValueType) {
-        if (opt.isRequired) {
-            cmd += ` <value>`;
-        } else {
-            cmd += ` [value]`;
-        }
-    }
-    return cmd;
+const valueBracket = (vr: boolean, vt: boolean, ir: boolean): string => {
+  if (!vr && !vt) return '';
+  const s = `value${vr ? '...' : ''}`;
+  return ir ? ` <${s}>` : ` [${s}]`
+}
+export const generateStringFromTaskOption = ({shortcut, key, altKey, isVariadic, isRequired, isValueType}: RnvTaskOption) => {
+  const sc = shortcut ? `-${shortcut}, ` : '';
+  const ak = shortcut ? `, --${altKey}` : '';
+    return `${sc}--${key}${ak}${valueBracket(isVariadic, isValueType, isRequired)}`;
 };
 
 // const ACCEPTED_CONDITIONS = ['platform', 'target', 'appId', 'scheme'] as const;
 
 export const shouldSkipTask = ({ taskName }: { taskName: string }) => {
     const c = getContext();
-    // const task = taskKey as RenativeConfigRnvTaskName;
-    // const originTask = originRnvTaskName as RenativeConfigRnvTaskName;
     const tasks = c.buildConfig?.tasks;
     c.runtime.platform = c.platform;
     if (!tasks) return false;
@@ -102,57 +85,5 @@ export const shouldSkipTask = ({ taskName }: { taskName: string }) => {
         const skipTaskArr = c.program.opts().skipTasks.split(',');
         if (skipTaskArr.includes(taskName)) return true;
     }
-
-    // if (Array.isArray(tasks)) {
-    //     for (let k = 0; k < tasks.length; k++) {
-    //         const t = tasks[k];
-    //         if (t.name === task) {
-    //             if (t.filter) {
-    //                 const conditions = t.filter.split('&');
-    //                 let conditionsToMatch = conditions.length;
-    //                 conditions.forEach((con: string) => {
-    //                     const conArr = con.split('=');
-    //                     const conKey = conArr[0] as ACKey;
-    //                     if (ACCEPTED_CONDITIONS.includes(conKey)) {
-    //                         const rt = c.runtime;
-    //                         if (rt[conKey] === conArr[1]) {
-    //                             conditionsToMatch--;
-    //                         }
-    //                     } else {
-    //                         logWarning(
-    //                             `Condition ${con} not valid. only following keys are valid: ${ACCEPTED_CONDITIONS.join(
-    //                                 ','
-    //                             )} SKIPPING...`
-    //                         );
-    //                     }
-    //                 });
-    //                 if (conditionsToMatch === 0) {
-    //                     if (t.ignore) {
-    //                         _logSkip(task);
-    //                         return true;
-    //                     }
-    //                 }
-    //             } else if (t.ignore) {
-    //                 _logSkip(task);
-    //                 return true;
-    //             }
-    //         }
-    //     }
-    // } else if (c.platform) {
-    //     const ignoreTask = tasks[task]?.platform?.[c.platform]?.ignore;
-    //     if (ignoreTask) {
-    //         _logSkip(task);
-    //         return true;
-    //     }
-    //     if (!originTask) {
-    //         return false;
-    //     }
-    //     const ignoreTasks = tasks[originTask]?.platform?.[c.platform]?.ignoreTasks || [];
-    //     if (ignoreTasks.includes(task)) {
-    //         logInfo(`Task ${task} marked to skip during rnv ${originTask}. SKIPPING...`);
-    //         return true;
-    //     }
-    // }
-
     return false;
 };

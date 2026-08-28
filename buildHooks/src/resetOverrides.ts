@@ -1,45 +1,62 @@
 // npx rnv hooks run -x resetOverrides
 import {
-    RnvFileName,
-    fsExistsSync,
-    fsReadFileSync,
-    logSuccess,
-    removeDirSync,
-    revertOverrideToOriginal,
-} from '@rnv/core';
-import path from 'path';
+	fsExistsSync,
+	fsReadFileSync,
+	logSuccess,
+	RnvFileName,
+	removeDirSync,
+	revertOverrideToOriginal,
+} from "@rnv/core";
+import path from "path";
 
 export const resetOverrides = async () => {
-    const overrideDir = path.join(process.cwd(), '.rnv', 'overrides');
+	const overrideDir = path.join(process.cwd(), ".rnv", "overrides");
 
-    const appliedOverrideFilePath = path.join(overrideDir, RnvFileName.appliedOverride);
+	const appliedOverrideFilePath = path.join(
+		overrideDir,
+		RnvFileName.appliedOverride,
+	);
 
-    if (fsExistsSync(appliedOverrideFilePath)) {
-        const appliedOverrides = JSON.parse(fsReadFileSync(appliedOverrideFilePath).toString());
+	if (fsExistsSync(appliedOverrideFilePath)) {
+		const appliedOverrides = JSON.parse(
+			fsReadFileSync(appliedOverrideFilePath).toString(),
+		);
 
-        Object.keys(appliedOverrides).forEach((moduleName) => {
-            const appliedVersion = appliedOverrides[moduleName].version;
-            const packageJsonPath = path.join(process.cwd(), 'node_modules', moduleName, RnvFileName.package);
+		Object.keys(appliedOverrides).forEach((moduleName) => {
+			const appliedVersion = appliedOverrides[moduleName].version;
+			const packageJsonPath = path.join(
+				process.cwd(),
+				"node_modules",
+				moduleName,
+				RnvFileName.package,
+			);
 
-            if (fsExistsSync(packageJsonPath)) {
-                const packageContent = JSON.parse(fsReadFileSync(packageJsonPath).toString());
-                const currentVersion = packageContent.version;
+			if (fsExistsSync(packageJsonPath)) {
+				const packageContent = JSON.parse(
+					fsReadFileSync(packageJsonPath).toString(),
+				);
+				const currentVersion = packageContent.version;
 
-                if (currentVersion === appliedVersion) {
-                    const packageOverrides = appliedOverrides[moduleName];
-                    Object.keys(packageOverrides).forEach((filePath) => {
-                        if (filePath !== 'version') {
-                            const backupPath = path.join(overrideDir, moduleName, filePath);
-                            const destinationPath = path.join(process.cwd(), 'node_modules', moduleName, filePath);
+				if (currentVersion === appliedVersion) {
+					const packageOverrides = appliedOverrides[moduleName];
+					Object.keys(packageOverrides).forEach((filePath) => {
+						if (filePath !== "version") {
+							const backupPath = path.join(overrideDir, moduleName, filePath);
+							const destinationPath = path.join(
+								process.cwd(),
+								"node_modules",
+								moduleName,
+								filePath,
+							);
 
-                            revertOverrideToOriginal(destinationPath, backupPath);
-                        }
-                    });
-                }
-            }
-        });
-        removeDirSync(overrideDir);
-        return logSuccess('Plugin overrides have been reverted successfully');
-    }
-    return logSuccess(`Plugin overrides have not been applied yet`);
+							revertOverrideToOriginal(destinationPath, backupPath);
+						}
+					});
+				}
+			}
+		});
+		removeDirSync(overrideDir);
+		return logSuccess("Plugin overrides have been reverted successfully");
+	}
+	return logSuccess(`Plugin overrides have not been applied yet`);
 };

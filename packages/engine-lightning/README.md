@@ -1,3 +1,0 @@
-# @rnv/engine-lightning
-
-WIP

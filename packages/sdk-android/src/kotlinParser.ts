@@ -3,38 +3,6 @@ import path from 'path';
 import { getBuildFilePath, getEntryFile, getAppId, addSystemInjects } from '@rnv/sdk-utils';
 import { Context, getContext } from './getContext';
 
-// const JS_BUNDLE_DEFAULTS: Partial<Record<RnvPlatformKey, string>> = {
-//     // Android Wear does not support webview required for connecting to packager. this is hack to prevent RN connectiing to running bundler
-//     androidwear: '"assets://index.androidwear.bundle"',
-// };
-
-// export const parseFlipperSync = (c: Context, scheme: 'debug' | 'release') => {
-//     const appFolder = getAppFolder();
-//     const { platform } = c;
-
-//     const appId = getAppId(c, c.platform);
-//     // console.log('appId', appId);
-//     const javaPackageArray = appId?.split('.') || [];
-
-//     const javaPackagePath = `app/src/${scheme}/java/${javaPackageArray.join('/')}`;
-//     mkdirSync(path.join(appFolder, javaPackagePath), { recursive: true });
-
-//     const templatePath = `app/src/${scheme}/java/rnv_template/ReactNativeFlipper.kt`;
-//     const applicationPath = `${javaPackagePath}/ReactNativeFlipper.java`;
-
-//     const injects: OverridesOptions = [{ pattern: '{{APPLICATION_ID}}', override: getAppId() }];
-
-//     addSystemInjects(injects);
-
-//     writeCleanFile(
-//         getBuildFilePath(templatePath),
-//         path.join(appFolder, applicationPath),
-//         injects,
-//         undefined,
-//         c
-//     );
-// };
-
 export const parseMainApplicationSync = () => {
     const c = getContext();
     const appFolder = getAppFolder();
@@ -42,28 +10,7 @@ export const parseMainApplicationSync = () => {
 
     if (!platform) return;
 
-    // const appId = getAppId(c, c.platform);
-    // console.log('appId', appId);
-    // const javaPackageArray = appId?.split('.') || [];
-
-    // const javaPackagePath = `app/src/main/java/${javaPackageArray.join('/')}`;
-    // mkdirSync(path.join(appFolder, javaPackagePath), { recursive: true });
-
     const templatePath = 'app/src/main/java/rnv_template/MainApplication.kt';
-    // const applicationPath = `${javaPackagePath}/MainApplication.java`;
-    // const bundleAssets = getConfigProp('bundleAssets');
-
-    // const bundleDefault = JS_BUNDLE_DEFAULTS[platform];
-    // const bundleFile: string =
-    //     getGetJsBundleFile(c, platform) || bundleAssets
-    //         ? `"assets://${getEntryFile(c, platform)}.bundle"`
-    //         : bundleDefault || '"super.getJSBundleFile()"';
-    // const bundlerIp = getIP() || '10.0.2.2';
-    // if (!bundleAssets) {
-    //     c.payload.pluginConfigAndroid.pluginApplicationDebugServer +=
-    //         '    var mPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)\n';
-    //     c.payload.pluginConfigAndroid.pluginApplicationDebugServer += `    mPreferences?.edit()?.putString("debug_http_host", "${bundlerIp}:${c.runtime.port}")?.apply()\n`;
-    // }
 
     const injects: OverridesOptions = [
         { pattern: '{{APPLICATION_ID}}', override: getAppId() },

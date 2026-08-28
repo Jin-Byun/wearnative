@@ -1,4 +1,4 @@
-import { GetConfigPropFn, RnvApi, RnvApiLogger, RnvApiPrompt, RnvApiSpinner, RnvContextAnalytics } from './types';
+import { GetConfigPropFn, RnvApi, RnvApiLogger, RnvApiPrompt, RnvApiSpinner } from './types';
 import { generateApiDefaults } from './defaults';
 import { getApi } from './provider';
 import { DoResolveFn } from '../system/types';
@@ -6,7 +6,6 @@ import { DoResolveFn } from '../system/types';
 export const createRnvApi = (_api?: {
     spinner: RnvApiSpinner;
     prompt: RnvApiPrompt;
-    analytics: RnvContextAnalytics;
     logger: RnvApiLogger;
     getConfigProp: GetConfigPropFn;
     doResolve: DoResolveFn;
@@ -21,15 +20,8 @@ export const createRnvApi = (_api?: {
 
     api.spinner = _api?.spinner || api.spinner;
     api.prompt = _api?.prompt || api.prompt;
-    api.analytics = _api?.analytics || api.analytics;
     api.logger = _api?.logger || api.logger;
     api.isDefault = false;
-
-    // api.fsExistsSync = fsExistsSync;
-    // api.fsReadFileSync = fsReadFileSync;
-    // api.fsReaddirSync = fsReaddirSync;
-    // api.fsWriteFileSync = fsWriteFileSync;
-    // api.path = path;
 
     global.RNV_API = api;
 };

@@ -1,10 +1,28 @@
 {
-    "extends": "@flexn/typescript-config/tsconfig.lib.node.json",
-    "compilerOptions": {
-        "outDir": "./lib",
-        "rootDir": "./src",
-        "lib": ["ES2021.String"]
+  "extends": "./tsconfig.lib.node.json",
+  "compilerOptions": {
+    "declaration": true,
+    "resolveJsonModule": true,
+    "target": "es5",
+    "jsx": "preserve",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "declarationMap": true,
+    "noImplicitAny": true,
+    "outDir": "./lib",
+    "rootDirs": ["./src", "../engine-core/src", "../core/src"],
+    "lib": ["ES2021.String", "dom"],
+    "paths": {
+      "@rnv/engine-core": ["../engine-core/src/index.ts"],
+      "@rnv/core": ["../core/src/index.ts"],
     },
-    "include": ["./src/**/*", "./src/**/*.json", "./types.d.ts"],
-    "exclude": ["node_modules", "./src/**/*.test.ts"]
+  },
+  "include": ["./src/**/*", "./src/**/*.json", "./types.d.ts"],
+  "exclude": ["node_modules", "./src/**/*.test.ts"],
 }

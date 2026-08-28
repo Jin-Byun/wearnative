@@ -151,21 +151,6 @@ export const configureConfigOverrides = async (data: NewProjectData) => {
     }
 };
 
-export const telemetryNewProject = async (data: NewProjectData) => {
-    // Do not log telementry when developing rnv
-    if (getContext().paths.IS_LINKED) return;
-    try {
-        const { inputs } = data;
-        getApi().analytics.captureEvent({
-            type: 'newProject',
-            template: inputs.template?.packageName,
-            platforms: inputs.supportedPlatforms,
-        });
-    } catch (e) {
-        logDebug(e);
-    }
-};
-
 export const generateProjectOverview = (data: NewProjectData) => {
     const { inputs } = data;
 

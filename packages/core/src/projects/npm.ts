@@ -228,8 +228,6 @@ export const installPackageDependencies = async (failOnError = false) => {
         if (
             Array.isArray(plats) &&
             (plats.includes('android') ||
-                plats.includes('androidtv') ||
-                plats.includes('firetv') ||
                 plats.includes('androidwear'))
         ) {
             if (!c.files.project.configLocal) {

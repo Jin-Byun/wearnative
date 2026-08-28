@@ -7,40 +7,7 @@ const Question = async (data: NewProjectData) => {
     const { platform } = c.program.opts();
     const { inputs, files } = data;
 
-    // TODO: grouped platforms
-    // const orderedPlatforms = [
-    //     PlatformName.web,
-    //     inquirerSeparator('Mobile:')
-    //     // Mobile
-    //     PlatformName.ios,
-    //     PlatformName.android,
-    //     PlatformName.tizenmobile,
-    //     PlatformName.kaios,
-    //     inquirerSeparator('TV:')
-    //     // TV
-    //     PlatformName.androidtv,
-    //     PlatformName.firetv,
-    //     PlatformName.webtv,
-    //     PlatformName.tizen,
-    //     PlatformName.tvos,
-    //     PlatformName.webos,
-    //     inquirerSeparator('Desktop:')
-    //     //Desktop
-    //     PlatformName.macos,
-    //     PlatformName.windows,
-    //     PlatformName.linux,
-    //     inquirerSeparator('Wareables:')
-    //     //Wareables
-    //     PlatformName.tizenwatch,
-    //     PlatformName.androidwear,
-    //     inquirerSeparator('Other:')
-    //     // Other
-    //     PlatformName.chromecast,
-    //     PlatformName.xbox,
-    // ]
-
     const supportedPlatforms =
-        // files.template.renativeTemplateConfig?.templateConfig?.renative_json?..supportedPlatforms ||
         files.template.renativeConfig?.defaults?.supportedPlatforms || [];
 
     supportedPlatforms.sort((a, b) => RnvPlatforms.indexOf(a) - RnvPlatforms.indexOf(b));

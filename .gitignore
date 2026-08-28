@@ -89,7 +89,7 @@ metro.config.local.js
 platformBuilds
 platformAssets
 
-# Other 
+# Other
 #
 .binlog
 *.binlog
@@ -97,3 +97,5 @@ platformAssets
 vendor
 .watchman-cookie-*
 .rollup.cache
+
+.github

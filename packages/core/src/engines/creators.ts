@@ -1,6 +1,6 @@
 import { generateEngineExtensions } from '.';
 import { getContext } from '../context/provider';
-import { RnvModule } from '../modules/types';
+import type { RnvModule } from '../modules/types';
 import { createTaskMap } from '../tasks/creators';
 import { RnvPlatformKey } from '../types';
 import { extractEngineId } from './nameExtractor';

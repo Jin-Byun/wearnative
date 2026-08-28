@@ -25,7 +25,6 @@
         "../sdk-apple",
         "../sdk-kaios",
         "../sdk-react-native",
-        "../sdk-telemetry",
         "../sdk-tizen",
         "../sdk-utils",
         "../sdk-webos",

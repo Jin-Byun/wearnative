@@ -1,0 +1,141 @@
+PS C:\Projects\T\rnvTutorial\test> npx rnv run -p androidwear
+
+│ $ rnv run -p androidwear
+info: Current engine: @rnv/engine-rn (C:\Projects\T\rnvTutorial\test\node_modules\@rnv\engine-rn)
+task: ○ run ↺1
+task: ○ configure ↺1
+task: ○ platform configure ↺1
+task: ○ project configure ↺1
+task: ○ workspace configure ↺1
+task: ✔ workspace configure
+task: ○ app configure ↺1
+info: Current app config: app
+task: ✔ app configure
+info: C:\Projects\T\rnvTutorial\test\node_modules\@react-native-community\cli-platform-ios\build\tools\listIOSDevices.js overridden by: \@rnv\config-templates\pluginTemplates\@react-native-community\cli-platform-ios\overrides@12.3.6.json
+info: C:\Projects\T\rnvTutorial\test\node_modules\@react-native-community\cli-platform-ios\build\tools\listIOSDevices.js overridden by: \@rnv\config-templates\pluginTemplates\@react-native-community\cli-platform-ios\overrides@12.3.6.json
+info: C:\Projects\T\rnvTutorial\test\node_modules\@react-native-community\cli-platform-ios\build\commands\runIOS\index.js overridden by: \@rnv\config-templates\pluginTemplates\@react-native-community\cli-platform-ios\overrides@12.3.6.json
+info: C:\Projects\T\rnvTutorial\test\node_modules\@react-native-community\cli-platform-ios\build\commands\runIOS\index.js overridden by: \@rnv\config-templates\pluginTemplates\@react-native-community\cli-platform-ios\overrides@12.3.6.json
+info: C:\Projects\T\rnvTutorial\test\node_modules\@react-native-community\cli-platform-ios\build\commands\runIOS\index.js overridden by: \@rnv\config-templates\pluginTemplates\@react-native-community\cli-platform-ios\overrides@12.3.6.json
+info: C:\Projects\T\rnvTutorial\test\node_modules\@react-native-community\cli-platform-ios\build\commands\runIOS\index.js overridden by: \@rnv\config-templates\pluginTemplates\@react-native-community\cli-platform-ios\overrides@12.3.6.json
+info: C:\Projects\T\rnvTutorial\test\node_modules\@react-native-community\cli\build\bin.js overridden by: \@rnv\config-templates\pluginTemplates\@react-native-community\cli\overrides.json
+task: ✔ project configure
+info: Current Build Scheme: debug
+task: ○ sdk configure ↺1
+task: ✔ sdk configure
+task: ✔ platform configure
+info: Found custom assetFolderPlatform: android. Will use it instead of default androidwear
+info: Found custom assetSources at C:\Projects\T\rnvTutorial\test\node_modules\@flexn\assets-renative-outline\assets\android. Will be used to generate assets.
+task: ✔ configure
+⠋ Executing: "C:\Android\platform-tools\adb.exe" devices -l(node:12368) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ Executing: "C:\Android\platform-tools\adb.exe" devices -l
+✔ Executing: "C:\Android\emulator\emulator.exe" -list-avds
+✔ Executing: "C:\Android\platform-tools\adb.exe" devices -l
+looking for active emulators: attempt 1/25
+✔ Executing: "C:\Android\platform-tools\adb.exe" kill-server
+✔ Executing: "C:\Android\platform-tools\adb.exe" start-server
+✔ Executing: "C:\Android\platform-tools\adb.exe" devices -l
+✔ Waiting for emulator to boot...
+✔ Waiting for emulator to boot...-tools\adb.exe" -s emulator-5554 shell wm size
+✔ Waiting for emulator to boot...-tools\adb.exe" -s emulator-5554 shell wm size
+✔ Executing: "C:\Android\platform-tools\adb.exe" -s emulator-5554 shell wm size
+✔ Executing: "C:\Android\platform-tools\adb.exe" -s emulator-5554 shell wm density
+✔ Executing: "C:\Android\platform-tools\adb.exe" -s emulator-5554 shell getprop
+info: ✔ Found active emulator! emulator-5554. Will use it
+task: ○ start ↺1
+task: ○ configureSoft ↺1
+task: ○ app configure ↺2
+task: ✔ app configure
+info: Current Build Scheme: debug
+task: ○ sdk configure ↺2
+task: ✔ sdk configure
+task: ✔ configureSoft
+
+Dev server running at: http://127.0.0.1:8084/index.bundle?platform=android
+
+task: ✔ start
+⠧ Waiting for bundler to finish...warn =================================================================================================
+warn From React Native 0.73, your project's Metro config should extend '@react-native/metro-config'
+warn or it will fail to build. Please copy the template at:
+warn https://github.com/facebook/react-native/blob/main/packages/react-native/template/metro.config.js
+warn This warning will be removed in future (https://github.com/facebook/metro/issues/1018).
+warn =================================================================================================
+⠇ Waiting for bundler to finish...info Welcome to React Native v0.73
+⠏ Waiting for bundler to finish...info Starting dev server on port 8084...
+
+                        ▒▒▓▓▓▓▒▒
+                     ▒▓▓▓▒▒░░▒▒▓▓▓▒
+                  ▒▓▓▓▓░░░▒▒▒▒░░░▓▓▓▓▒
+                 ▓▓▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▓▓
+                 ▓▓░░░░░▒▓▓▓▓▓▓▒░░░░░▓▓
+                 ▓▓░░▓▓▒░░░▒▒░░░▒▓▒░░▓▓
+                 ▓▓░░▓▓▓▓▓▒▒▒▒▓▓▓▓▒░░▓▓
+                 ▓▓░░▓▓▓▓▓▓▓▓▓▓▓▓▓▒░░▓▓
+                 ▓▓▒░░▒▒▓▓▓▓▓▓▓▓▒░░░▒▓▓
+                  ▒▓▓▓▒░░░▒▓▓▒░░░▒▓▓▓▒
+                     ▒▓▓▓▒░░░░▒▓▓▓▒
+                        ▒▒▓▓▓▓▒▒
+
+
+                Welcome to Metro v0.80.12
+              Fast - Scalable - Integrated
+
+
+✔ Waiting for bundler to finish...
+info: ANDROID PACKAGE STARTING...
+⠙ Executing: C:\Projects\T\rnvTutorial\test\node_modules\.bin\react-native.cmd bundle --platform android --dev false --assets-dest C:\Projects\T\rnvTutorial\test\platformBuilds\app_androidwear\app\src\main\res --entry-file index.js --bundle-output C:\Projects\T\rnvTutorial\test\platformBuilds\app_androidwear\app\src\main\assets\index.bundle --config=metro.config.jsinfo React Native v0.87.0 is now available (your project is running on v0.73.4).
+info Changelog: https://github.com/facebook/react-native/releases/tag/v0.87.0
+info Diff: https://react-native-community.github.io/upgrade-helper/?from=0.87.0
+✔ Executing: C:\Projects\T\rnvTutorial\test\node_modules\.bin\react-native.cmd bundle --platform android --dev false --assets-dest C:\Projects\T\rnvTutorial\test\platformBuilds\app_androidwear\app\src\main\res --entry-file index.js --bundle-output C:\Projects\T\rnvTutorial\test\platformBuilds\app_androidwear\app\src\main\assets\index.bundle --config=metro.config.js
+info: ANDROID PACKAGE FINISHED
+
+  WARNING: You should run npx react-native@latest to ensure you're always using the most current version of the CLI. NPX has cached version (0.73.4) != current release (0.87.0)
+
+info Building the app...
+Starting a Gradle Daemon, 1 incompatible and 1 stopped Daemons could not be reused, use --status for details
+Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+
+> Task :app:installDebug
+Installing APK 'app-debug.apk' on 'wearRound(AVD) - 14' for :app:debug
+Installed on 1 device.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 1m 31s
+63 actionable tasks: 5 executed, 58 up-to-date
+info Connecting to the development server...
+8084
+info Installing the app on the device "emulator-5554"...
+Performing Streamed Install
+Success
+info Starting the app on "emulator-5554"...
+Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.test.test/.MainActivity }
+┌─────────────────────────────────────────────────────────────────┐
+│ ✔ BUNDLER STARTED | 2026-08-25, 9:09:43 p.m. | rnv@             │
+│ $ rnv run -p androidwear                                        │
+├─────────────────────────────────────────────────────────────────┤
+│ Project: test@0.1.0                                             │
+│ Workspace: rnv                                                  │
+│ Platform (-p): androidwear                                      │
+│ Engine: @rnv/engine-rn                                          │
+│ Template: @rnv/template-starter                                 │
+│ App Config (-c): app                                            │
+│ Build Scheme (-s): debug                                        │
+│ Target (-t): wearRound                                          │
+│ Supported Platforms: androidwear                                │
+│ Env Info: win32 | x64 | node v24.15.0                           │
+│ Executed Time: 0h:3m:29s:894ms                                  │
+│ info: ✔ Found active emulator! emulator-5554. Will use it
+│ You are trying to run global rnv command in your current project.
+│ This might lead to unexpected behaviour.
+│ Run your rnv command with npx prefix:
+│ npx rnv run -p androidwear
+│ Project location: C:\Projects\T\rnvTutorial\test\platformBuilds\app_androidwear
+└─────────────────────────────────────────────────────────────────┘
+ BUNDLE  ./index.js
+
+ LOG  Running "RNVApp" with {"rootTag":11}

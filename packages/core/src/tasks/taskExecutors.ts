@@ -2,7 +2,6 @@ import { logDefault, logInitTask, logExitTask, chalk, logRaw, logInfo, logToSumm
 import { executePipe } from '../buildHooks';
 import type { RnvContext } from '../context/types';
 import type { RnvTask } from './types';
-import { getApi } from '../api/provider';
 import { getContext } from '../context/provider';
 import { RnvTaskName } from '../enums/taskName';
 import { generateStringFromTaskOption, shouldSkipTask } from './taskHelpers';
@@ -43,7 +42,7 @@ export const executeTask = async (opts: {
 
     if (availableTasks.match.length === 0 && !isOptional) {
         logToSummary(`Current task registry:
-${availableTasks.available.map((t) => `${t.task} ${chalk().gray(t.ownerID)}`).join('\n')}        
+${availableTasks.available.map((t) => `${t.task} ${chalk().gray(t.ownerID)}`).join('\n')}
 `);
         return Promise.reject(`Task "${taskName}" not found in registry!`);
     }
@@ -79,11 +78,6 @@ export const initializeTask = async (taskInstance: RnvTask | undefined) => {
 
     c.runtime.task = task;
     executedTasks = {};
-
-    getApi().analytics.captureEvent({
-        type: task,
-        platform: c.platform,
-    });
 
     await _executeTaskInstance({ taskInstance, originTaskName: task, isFirstTask: true });
     return true;

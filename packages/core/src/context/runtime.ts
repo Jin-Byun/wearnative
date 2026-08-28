@@ -53,32 +53,7 @@ export const configureRuntimeDefaults = async () => {
         c.runtime.hosted = hosted && c.runtime.currentPlatform?.isWebHosted;
 
         if (c.buildConfig.defaults?.supportedPlatforms) {
-            // c.runtime.supportedPlatforms = [];
             c.runtime.availablePlatforms = c.buildConfig.defaults?.supportedPlatforms || [];
-            // c.buildConfig.defaults.supportedPlatforms.forEach((platform) => {
-            //     //TODO: migrate to singular platform engine
-            //     const engine = getEngineRunnerByPlatform(platform);
-            //     if (engine) {
-            //         const dir = engine.originalTemplatePlatformsDir;
-
-            //         let isConnected = false;
-            //         let isValid = false;
-            //         const pDir = c.paths.project.platformTemplatesDirs?.[platform];
-            //         if (pDir) {
-            //             isValid = true;
-            //             isConnected = pDir?.includes?.(getRealPath(dir) || 'UNDEFINED');
-            //         }
-            //         const port = c.buildConfig.defaults?.ports?.[platform] || c.runtime.currentPlatform?.defaultPort;
-            //         const cp: RnvContextPlatform = {
-            //             engine,
-            //             platform,
-            //             isConnected,
-            //             port,
-            //             isValid,
-            //         };
-            //         c.runtime.supportedPlatforms.push(cp);
-            //     }
-            // });
         }
     }
     return true;

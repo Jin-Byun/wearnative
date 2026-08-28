@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect } from 'react';
 import { Text, Image, TouchableOpacity, TouchableOpacityProps } from 'react-native';
-import { RNPhotoEditor } from 'react-native-photo-editor';
+import { RNImageEditor } from '@thienmd/react-native-image-editor';
 import RNFS from 'react-native-fs';
 import RNFetchBlob from 'rn-fetch-blob';
 import { useLoggerContext } from '../../context';
@@ -29,7 +29,7 @@ export const PhotoEditorButton = forwardRef<React.ElementRef<typeof TouchableOpa
             fetchAndMovePhoto();
         }, []);
         const handlePhotoEditor = () => {
-            RNPhotoEditor.Edit({
+            RNImageEditor.Edit({
                 path: photoPath,
                 onDone: () => {
                     logDebug('on done');

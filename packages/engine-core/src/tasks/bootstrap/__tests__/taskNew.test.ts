@@ -3,7 +3,6 @@ import taskNew from '../taskNew';
 import {
     initNewProject,
     saveProgressIntoProjectConfig,
-    telemetryNewProject,
     processChdirToProject,
 } from '../questionHelpers';
 import { NewProjectData } from '../types';
@@ -111,7 +110,6 @@ describe('taskNew tests', () => {
         expect(confirmGit).toHaveBeenCalledWith(payload);
         expect(bookmarkTemplate).toHaveBeenCalledWith(payload);
         expect(appConfigs).toHaveBeenCalledWith(payload);
-        expect(telemetryNewProject).toHaveBeenCalledWith(payload);
         expect(configTemplates).toHaveBeenCalled();
         expect(projectFolder).toHaveBeenCalled();
         expect(installProject).toHaveBeenCalled();

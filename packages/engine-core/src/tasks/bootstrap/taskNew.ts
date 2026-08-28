@@ -31,7 +31,6 @@ import {
     generateProjectOverview,
     initNewProject,
     saveProgressIntoProjectConfig,
-    telemetryNewProject,
     processChdirToProject,
 } from './questionHelpers';
 import { TaskOptions } from '../../taskOptions';
@@ -77,8 +76,6 @@ export default createTask({
         await inquiryAppConfigs(payload);
         await inquiryHandlePeerDepsNpm();
         await inquiryInstallEngines(payload);
-        // Telementry
-        await telemetryNewProject(payload);
 
         await inquiryProjectInstall(payload);
 

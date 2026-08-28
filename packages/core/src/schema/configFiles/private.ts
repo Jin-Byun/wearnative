@@ -12,24 +12,7 @@ export const zodConfigFilePrivate = z
             ),
         platforms: z
             .object({
-                android: zodPrivatePlatformAndroid,
-                androidtv: zodPrivatePlatformAndroid,
                 androidwear: zodPrivatePlatformAndroid,
-                firetv: zodPrivatePlatformAndroid,
-                ios: zodPrivatePlatformGeneric,
-                tvos: zodPrivatePlatformGeneric,
-                tizen: zodPrivatePlatformGeneric,
-                tizenmobile: zodPrivatePlatformGeneric,
-                tizenwatch: zodPrivatePlatformGeneric,
-                webos: zodPrivatePlatformGeneric,
-                web: zodPrivatePlatformGeneric,
-                webtv: zodPrivatePlatformGeneric,
-                chromecast: zodPrivatePlatformGeneric,
-                kaios: zodPrivatePlatformGeneric,
-                macos: zodPrivatePlatformGeneric,
-                linux: zodPrivatePlatformGeneric,
-                windows: zodPrivatePlatformGeneric,
-                xbox: zodPrivatePlatformGeneric,
             })
             .partial(),
     })

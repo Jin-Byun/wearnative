@@ -62,16 +62,15 @@
     },
     "scripts": {
         "build": "yarn clean && yarn compile",
-        "clean": "rimraf -I ./lib && rimraf -I tsconfig.tsbuildinfo",
         "compile": "tsc -b tsconfig.json",
         "compile:prod": "tsc -b tsconfig.json",
         "prepublishOnly": "yarn clean && yarn compile:prod",
         "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
-        "@rnv/cli": "1.10.0-rc.1",
-        "@rnv/config-templates": "1.10.0-rc.1",
-        "tslib": "2.5.2"
+        "@rnv/cli": "workspace:*",
+        "@rnv/config-templates": "workspace:*",
+        "tslib": "catalog:"
     },
     "private": "false",
     "publishConfig": {

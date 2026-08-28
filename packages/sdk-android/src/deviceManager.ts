@@ -606,11 +606,7 @@ const _parseDevicesResult = async (
             if (skipTargetCheck) return true; // return everything if skipTargetCheck is used
             if (device.isNotEligibleAndroid) return false;
             const matches =
-                (platform === 'android' && device.isTablet) ||
                 (platform === 'androidwear' && device.isWear) ||
-                (platform === 'androidtv' && device.isTV) ||
-                (platform === 'firetv' && device.isTV) ||
-                (platform === 'android' && device.isMobile);
             logDebug('getDeviceType - filter', {
                 device,
                 matches,

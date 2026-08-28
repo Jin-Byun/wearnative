@@ -9,8 +9,6 @@ export type RnvApi = {
     isDefault: boolean;
     spinner: RnvApiSpinner;
     prompt: RnvApiPrompt;
-    analytics: RnvContextAnalytics;
-    // chalk: RnvApiChalk;
     logger: RnvApiLogger;
     fsExistsSync: typeof fs.existsSync;
     fsReadFileSync: (dest: fs.PathLike | undefined) => Buffer;

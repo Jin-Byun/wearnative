@@ -6,7 +6,6 @@ import { configureRuntimeDefaults } from './context/runtime';
 import { findSuitableTask } from './tasks/taskFinder';
 import { updateRenativeConfigs } from './plugins';
 import { loadDefaultConfigTemplates } from './configs';
-import { getApi } from './api/provider';
 import { RnvTask } from './tasks/types';
 import { runInteractiveWizard } from './tasks/wizard';
 import { initializeTask } from './tasks/taskExecutors';
@@ -16,12 +15,8 @@ import { checkAndUpdateProjectIfRequired } from './projects/update';
 
 export const exitRnvCore = async (code: number) => {
     const ctx = getContext();
-    const api = getApi();
-
     if (ctx.process) {
-        api.analytics.teardown().then(() => {
             ctx.process.exit(code);
-        });
     }
 };
 
@@ -36,12 +31,13 @@ const _installAndRegisterAllEngines = async () => {
 
 export const executeRnvCore = async () => {
     const c = getContext();
-
-    await loadDefaultConfigTemplates();
-    await configureRuntimeDefaults();
-    await checkAndMigrateProject();
-    await updateRenativeConfigs();
-    await checkAndUpdateProjectIfRequired();
+    await Promise.all([
+    loadDefaultConfigTemplates(),
+    configureRuntimeDefaults(),
+    checkAndMigrateProject(),
+    updateRenativeConfigs(),
+    checkAndUpdateProjectIfRequired(),
+    ])
 
     // TODO: rename to something more meaningful or DEPRECATE entirely
     if (c.program.opts().npxMode) {
@@ -51,9 +47,11 @@ export const executeRnvCore = async () => {
     // for "rnv" we simply load all engines upfront
     const { configExists } = c.paths.project;
     if (!c.command && configExists) {
-        await _installAndRegisterAllEngines();
-        await loadRnvModulesFromProject();
-        return runInteractiveWizard();
+      await Promise.all([
+        _installAndRegisterAllEngines(),
+        loadRnvModulesFromProject(),
+      ])
+      return runInteractiveWizard();
     }
 
     let initTask: RnvTask | undefined;

@@ -36,13 +36,8 @@ export const createRnvContext = (ctxOpts?: CreateContextOptions) => {
     let haltExecution = false;
     if (!!ctxOpts && !!global.RNV_CONTEXT) {
         // Handle direct initialize of context
-        if (!global.RNV_CONTEXT?.isDefault) {
-            if (!isJestMode) {
-                haltExecution = true;
-            }
-        } else {
-            // if isDefault=true, we can safely reinitialize
-            // as it means we are not fully initialized yet
+        if (!global.RNV_CONTEXT?.isDefault && !isJestMode) {
+              haltExecution = true;
         }
     } else if (!ctxOpts) {
         // Handle new imports of @rnv/core
@@ -50,12 +45,10 @@ export const createRnvContext = (ctxOpts?: CreateContextOptions) => {
             if (!isJestMode) {
                 // Initial empty context to be initialized
                 global.RNV_CONTEXT = generateContextDefaults();
-                return;
-            } else {
-                // We are in jest test mode. (multiple imports will occur due to mocking of imports in tests)
-                // We do not initialize context but do not throw error
-                return;
             }
+            // if in jest test mode. (multiple imports will occur due to mocking of imports in tests)
+            // We do not initialize context but do not throw error
+            return;
         }
         // Full Context already initialized. Another @rnv/core instance has been just imported
         haltExecution = true;
@@ -64,19 +57,17 @@ export const createRnvContext = (ctxOpts?: CreateContextOptions) => {
     if (haltExecution) {
         const msg =
             'This usually happens if you have multiple versions of @rnv/core dependencies located in your project or you are running project with global rnv (without npx).';
-        const err = new Error(`
+        throw new Error(`
 
-FATAL: Multiple instances of @rnv/core detected: 
+FATAL: Multiple instances of @rnv/core detected:
 
-1 (${global.RNV_CONTEXT.timeStart.toISOString()}) 
+1 (${global.RNV_CONTEXT.timeStart.toISOString()})
   ${global.RNV_CONTEXT.paths?.rnvCore?.dir || 'UNKNOWN (can happen if running older versions of RNV)'}
-2 (${new Date().toISOString()}) 
+2 (${new Date().toISOString()})
   ${path.join(__dirname, '../..')}
 
 ${msg}
 `);
-
-        throw err;
     }
 
     const c: RnvContext = generateContextDefaults();

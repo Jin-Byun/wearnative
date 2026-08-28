@@ -229,7 +229,7 @@ export const RnvTaskCoreOptionPresets = createTaskOptionsPreset({
     withCore: [
         RnvTaskOptions.scheme, // temporary workaround
         RnvTaskOptions.engine, // temporary workaround
-        RnvTaskOptions.platform, // platform is necessary to be accepted as base for the `rnv` command to work with enginie plugins
+        RnvTaskOptions.platform, // platform is necessary to be accepted as base for the `rnv` command to work with engine plugins
         RnvTaskOptions.info,
         RnvTaskOptions.ci,
         RnvTaskOptions.mono,

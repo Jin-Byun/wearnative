@@ -23,7 +23,6 @@
     },
     "scripts": {
         "build": "yarn clean && yarn compile",
-        "clean": "rimraf -I ./lib && rimraf -I tsconfig.tsbuildinfo",
         "compile": "tsc -b tsconfig.json",
         "compile:prod": "tsc -b tsconfig.json",
         "prepublishOnly": "yarn clean && yarn compile:prod",
@@ -31,29 +30,28 @@
     },
     "dependencies": {
         "ajv": "7.0.0-beta.0",
-        "deepmerge": "3.2.0",
+        "deepmerge": "catalog:",
         "envinfo": "7.13.0",
         "esbuild": "^0.12.1",
         "execa": "5.1.1",
-        "lodash": "4.17.21",
+        "lodash": "catalog:",
         "ncp": "2.0.0",
         "netcat": "1.5.0",
         "resolve": "^1.0.0",
-        "rimraf": "2.6.2",
         "semver": "^7.5.3",
         "shelljs": "0.8.5",
         "source-map-support": "0.5.13",
         "svg2js": "0.0.4-alpha1",
-        "tslib": "2.5.2",
+        "tslib": "catalog:",
         "type-fest": "4.14.0",
-        "typescript": "5.2.2",
-        "zod": "3.23.8"
+        "typescript": "catalog:",
+        "zod": "catalog:"
     },
     "devDependencies": {
         "@types/envinfo": "7.8.4"
     },
     "peerDependencies": {
-        "@rnv/config-templates": "^1.10.0-rc.1"
+        "@rnv/config-templates": "workspace:*"
     },
     "private": "false",
     "publishConfig": {
