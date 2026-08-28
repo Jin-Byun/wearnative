@@ -32,21 +32,15 @@ const populateLinkingInfo = (ctx: RnvContext) => {
 export const createRnvContext = (ctxOpts?: CreateContextOptions) => {
     // console.trace('CREATE_RNV_CONTEXT', !!ctxOpts, !!global.RNV_CONTEXT, global.RNV_CONTEXT?.isDefault);
 
-    const isJestMode = process.env.JEST_WORKER_ID !== undefined;
     let haltExecution = false;
     if (!!ctxOpts && !!global.RNV_CONTEXT) {
         // Handle direct initialize of context
-        if (!global.RNV_CONTEXT?.isDefault && !isJestMode) {
+        if (!global.RNV_CONTEXT?.isDefault) {
               haltExecution = true;
         }
     } else if (!ctxOpts) {
         // Handle new imports of @rnv/core
         if (!global.RNV_CONTEXT) {
-            if (!isJestMode) {
-                // Initial empty context to be initialized
-                global.RNV_CONTEXT = generateContextDefaults();
-            }
-            // if in jest test mode. (multiple imports will occur due to mocking of imports in tests)
             // We do not initialize context but do not throw error
             return;
         }

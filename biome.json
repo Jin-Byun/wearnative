@@ -50,15 +50,6 @@
     "javascript": {
       "globals": [
         "CoreManager",
-        "describe",
-        "test",
-        "it",
-        "expect",
-        "beforeEach",
-        "afterEach",
-        "beforeAll",
-        "afterAll",
-        "jest"
       ],
         "formatter": {
             "quoteStyle": "single",

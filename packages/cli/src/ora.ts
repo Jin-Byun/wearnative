@@ -83,32 +83,6 @@ class Ora {
         this.text = this.#options.text;
         this.prefixText = this.#options.prefixText;
         this.indent = this.#options.indent;
-
-        if (process.env.NODE_ENV === 'test') {
-            this._stream = this.#stream;
-            this._isEnabled = this.#isEnabled;
-
-            Object.defineProperty(this, '_linesToClear', {
-                get() {
-                    return this.#linesToClear;
-                },
-                set(newValue) {
-                    this.#linesToClear = newValue;
-                },
-            });
-
-            Object.defineProperty(this, '_frameIndex', {
-                get() {
-                    return this.#frameIndex;
-                },
-            });
-
-            Object.defineProperty(this, '_lineCount', {
-                get() {
-                    return this.#lineCount;
-                },
-            });
-        }
     }
 
     get indent() {
