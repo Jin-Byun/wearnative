@@ -1,3 +1,10 @@
+import type { ExecaChildProcess } from 'execa';
+import type { CamelCasedProperties } from 'type-fest';
+import type { NpmPackageFile } from '../configs/types';
+import type { RnvEngine, RnvEnginePlatform } from '../engines/types';
+import type { RnvModule } from '../modules/types';
+import type { RnvPlugin } from '../plugins/types';
+import type { DependencyMutation } from '../projects/types';
 import type {
     ConfigFileApp,
     ConfigFileBuildConfig,
@@ -11,19 +18,12 @@ import type {
     ConfigFileWorkspace,
     ConfigFileWorkspaces,
     ConfigProp,
-    ConfigPropKey,
+    ConfigPropKey
 } from '../schema/types';
-import type { RnvEngine, RnvEnginePlatform } from '../engines/types';
 import type { OverridesOptions } from '../system/types';
+import type { ProgramOptionsKey } from '../tasks/taskOptions';
+import type { ParamKeys, TaskOptionValue } from '../tasks/types';
 import type { RnvPlatform, RnvPlatformKey } from '../types';
-import type { NpmPackageFile } from '../configs/types';
-import { type ProgramOptionsKey } from '../tasks/taskOptions';
-import { type ExecaChildProcess } from 'execa';
-import { type RnvPlugin } from '../plugins/types';
-import type { DependencyMutation } from '../projects/types';
-import { CamelCasedProperties } from 'type-fest';
-import { RnvModule } from '../modules/types';
-import { ParamKeys, TaskOptionValue } from '../tasks/types';
 
 export type CreateContextOptions = {
     program: RnvContextProgram<ProgramOptionsKey>;

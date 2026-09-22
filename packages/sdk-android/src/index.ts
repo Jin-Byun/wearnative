@@ -1,18 +1,18 @@
-export * from './runner';
-export * from './deviceManager';
 export * from './constants';
+export * from './deviceManager';
 export * from './installer';
-export * from './jetifier';
-import taskTargetLaunch from './tasks/taskTargetLaunch';
-import taskTargetList from './tasks/taskTargetList';
-import taskSdkConfigure from './tasks/taskSdkConfigure';
+export * from './runner';
+
+import { createRnvModule, DEFAULTS, type GetContextType } from '@rnv/core';
+import taskBuild from './tasks/taskBuild';
+import taskConfigure from './tasks/taskConfigure';
 import taskLog from './tasks/taskLog';
 import taskPackage from './tasks/taskPackage';
-import taskConfigure from './tasks/taskConfigure';
 import taskRun from './tasks/taskRun';
-import taskBuild from './tasks/taskBuild';
-import { DEFAULTS, GetContextType, createRnvModule } from '@rnv/core';
-import { Payload } from './types';
+import taskSdkConfigure from './tasks/taskSdkConfigure';
+import taskTargetLaunch from './tasks/taskTargetLaunch';
+import taskTargetList from './tasks/taskTargetList';
+import type { Payload } from './types';
 
 const RnvModule = createRnvModule({
     tasks: [
@@ -23,7 +23,7 @@ const RnvModule = createRnvModule({
         taskPackage,
         taskConfigure,
         taskRun,
-        taskBuild,
+        taskBuild
     ],
     name: '@rnv/sdk-android',
     type: 'internal',
@@ -72,9 +72,9 @@ const RnvModule = createRnvModule({
             supportLibVersion: '',
             targetSdkVersion: DEFAULTS.targetSdkVersion,
             settingsGradleInclude: '',
-            settingsGradleProject: '',
-        },
-    } as Payload,
+            settingsGradleProject: ''
+        }
+    } as Payload
 });
 
 export default RnvModule;

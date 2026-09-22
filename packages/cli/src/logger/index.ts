@@ -1,58 +1,45 @@
-/* eslint-disable no-console */
+import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
+import { getContext, isSystemWin, type RnvApiLogger, type RnvContext } from '@rnv/core';
+import { Chalk, type ChalkInstance } from 'chalk';
 
-import {
-    generateDefaultChalk,
-    getApi,
-    getContext,
-    isSystemWin,
-    type RnvApiChalk,
-    type RnvApiChalkFn,
-    type RnvApiLogger,
-    type RnvContext,
-} from '@rnv/core';
-import _chalk from 'chalk';
-import path from 'path';
-
+const { log } = console;
 const ICN_ROCKET = isSystemWin ? 'RNV' : '🚀';
-const _chalkCols = generateDefaultChalk();
-const _chalkMono = {
-    ..._chalkCols,
-};
-
-const colorBlue = { r: 10, g: 116, b: 230 }; // '#0a74e6'
-
-let currentChalk: RnvApiChalk = _chalk;
-let chalkBlue: any = _chalk.rgb(colorBlue.r, colorBlue.g, colorBlue.b);
-
 const PRIVATE_PARAMS = ['-k', '--key'];
+
+const colorBlue = '#0a74e6';
+
+export const chalk = new Chalk({ level: 1 });
+const chalkBlue = chalk.hex(colorBlue);
+
 let _isInfoEnabled = false;
 let _infoFilter: Array<string> = [];
-let _isMono = false;
-let _defaultColor: any = _chalkCols.white;
-let _highlightColor = _chalkCols.white;
+const _defaultColor = chalk.white;
+const _highlightColor = chalk.bold.white;
 let _jsonOnly: boolean;
 
-export const chalk = (): RnvApiChalk => currentChalk || _chalk;
-
+const isHelp = (ctx?: RnvContext): boolean => {
+    if (!ctx) {
+        ctx = getContext();
+    }
+    return !!ctx.program?.opts().help;
+};
 export const logInitialize = () => {
     const ctx = getContext();
 
-    _isInfoEnabled = !!ctx.program.opts().info;
-    _jsonOnly = !!ctx.program.opts().json;
     _infoFilter = ctx.program.opts().info?.split?.(',');
+    _jsonOnly = !!ctx.program.opts().json;
+    _isInfoEnabled = !!_infoFilter?.length;
 
     if (ctx.program.opts().mono) {
-        _isMono = true;
-        currentChalk = _chalkMono;
-        chalkBlue = _chalkMono.white;
+        chalk.level = 0;
     }
-    _updateDefaultColors();
     if (!_jsonOnly) logWelcome();
 };
 
 export const logWelcome = () => {
     const ctx = getContext();
-    if (ctx.program?.opts().help || ctx.program?.opts().noIntro) return;
+    if (isHelp(ctx) || ctx.program?.opts().noIntro) return;
     const shortLen = 64;
     let str = _defaultColor(`
 ┌─────────────────────────────────────────────────────────────────┐
@@ -67,89 +54,70 @@ export const logWelcome = () => {
     if (ctx.files?.rnv?.package?.version) {
         ctx.rnvVersion = ctx.files.rnv.package.version;
         str += printIntoBox(
-            currentChalk.grey(
-                `${!_isMono ? ICN_ROCKET : 'RNV'} v:${
+            chalk.grey(
+                `${chalk.level ? ICN_ROCKET : 'RNV'} v:${
                     ctx.rnvVersion
-                } | ${'renative.org'} | ${ctx.timeStart.toLocaleString()}`
+                } | 'renative.org' | ${ctx.timeStart.toLocaleString()}`
             ),
             shortLen
         );
         if (ctx.rnvVersion?.includes?.('alpha')) {
-            str += printIntoBox(`${currentChalk.yellow('WARNING: this is a prerelease version.')}`, shortLen);
+            str += printIntoBox(`${chalk.yellow('WARNING: this is a prerelease version.')}`, shortLen);
         }
     }
     str += printIntoBox(`$ ${_highlightColor(getCurrentCommand(true))}`, shortLen);
     if (ctx.timeStart) {
-    str += _defaultColor('└─────────────────────────────────────────────────────────────────┘');
-
-    console.log(str);
+        str += _defaultColor('└─────────────────────────────────────────────────────────────────┘');
+    }
+    log(str);
 };
-
-function ansiRegex({ onlyFirst = false } = {}) {
-    const pattern = [
-        '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
-        '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))',
-    ].join('|');
-
-    return new RegExp(pattern, onlyFirst ? undefined : 'g');
-}
 
 export function stripAnsi(string: string) {
-    if (typeof string !== 'string') {
-        throw new TypeError(`Expected a \`string\`, got \`${typeof string}\``);
+    try {
+        return stripVTControlCharacters(string);
+    } catch (err) {
+        if (typeof string !== 'string') {
+            throw new TypeError(`Expected a \`string\`, got \`${typeof string}\``);
+        }
+        throw new Error(`Unexpected Error: ${err}`);
     }
-
-    return string.replace(ansiRegex(), '');
 }
-
-const _updateDefaultColors = () => {
-    _defaultColor = currentChalk.white;
-    _highlightColor = currentChalk.bold.white; //currentChalk.bold;
-};
-_updateDefaultColors();
 
 export const logAndSave = (msg: string, skipLog?: boolean) => {
     const ctx = getContext();
-    if (ctx.logging?.logMessages && !ctx.logging?.logMessages.includes(msg)) ctx.logging?.logMessages.push(msg);
-    if (!skipLog) console.log(`${msg}`);
+    if (ctx.logging?.logMessages && !ctx.logging.logMessages.includes(msg)) ctx.logging?.logMessages.push(msg);
+    if (!skipLog) log(`${msg}`);
 };
 
 const _printJson = (obj: PrintJsonPayload) => {
     // sanitize
     if (obj.task) {
-        obj.task = obj.task.trim().replace('[', '').replace(']', '');
+        obj.task = obj.task.trim().replace(/[[\]]/g, '');
     }
-    console.log(JSON.stringify(obj));
+    log(JSON.stringify(obj));
 };
 
 export const getCurrentCommand = (excludeDollar = false) => {
     const ctx = getContext();
 
     const argArr = ctx.process.argv.slice(2);
-    let hideNext = false;
-    const output = argArr
-        .map((v: string) => {
-            if (hideNext) {
-                hideNext = false;
-                return '********';
-            }
-            if (PRIVATE_PARAMS.includes(v)) {
-                hideNext = true;
-            }
-
-            return v;
-        })
-        .join(' ');
-    const dollar = excludeDollar ? '' : '$ ';
-    const npx = ctx.paths.IS_NPX_MODE ? 'npx ' : '';
-    return `${dollar}${npx}rnv ${output}`;
+    const n = argArr.length;
+    let msg = `${excludeDollar ? '' : '$ '}${ctx.paths.IS_NPX_MODE ? 'npx ' : ''}rnv`;
+    for (let i = 0; i < n; i++) {
+        let v = argArr[i];
+        if (PRIVATE_PARAMS.includes(v)) {
+            v += ' ********';
+            i++;
+        }
+        msg += ` ${v}`;
+    }
+    return msg;
 };
 
 export const logToSummary = (v: string) => {
     const ctx = getContext();
-    if (ctx.program?.opts().help) return;
-    const _v = _sanitizePaths(v);
-    ctx.logging.logMessages.push(`\n${_v}`);
+    if (isHelp(ctx)) return;
+    ctx.logging.logMessages.push(`\n${_sanitizePaths(v)}`);
 };
 
 export const logRaw = (...args: Array<string>) => {
@@ -157,68 +125,72 @@ export const logRaw = (...args: Array<string>) => {
         return _printJson({
             type: 'rawLog',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(JSON.stringify(args))),
+            message: stripAnsi(_sanitizePaths(JSON.stringify(args)))
         });
     }
-    console.log.apply(null, args);
+    log.apply(null, args);
 };
 
 export const logSummary = (opts?: { header?: string; headerStyle?: 'success' | 'warning' | 'error' | 'none' }) => {
     const ctx = getContext();
-    if (ctx.program?.opts().help) return;
+    if (isHelp(ctx)) return;
     if (_jsonOnly) {
-        if (!ctx.logging.logMessages || !ctx.logging.logMessages.length) {
-            return;
-        } else {
-            const cleanedMessages = ctx.logging.logMessages
-                .map(stripAnsi)
-                .map((msg) => {
-                    const headerEndIndex = msg.indexOf(':') + 1;
-                    const header = msg.slice(0, headerEndIndex).trim();
-                    const items = msg
-                        .slice(headerEndIndex)
-                        .split('\n')
-                        .map((line) => line.trim())
-                        .filter((line) => line);
-                    return `${header} ${items.join(', ')}`;
-                })
-                .join('');
-            return _printJson({
-                type: 'summaryLog',
-                task: stripAnsi(_getCurrentTask()),
-                message: cleanedMessages,
-            });
-        }
-    }
-
-    if (ctx.program?.opts().noSummary) {
-        if (!ctx.logging.logMessages || !ctx.logging.logMessages.length) {
-            return;
-        } else {
-            console.log(ctx.logging.logMessages.join('').replace(/\n\s*\n\s*\n/g, '\n\n'));
+        if (!ctx.logging.logMessages?.length) {
             return;
         }
-    }
-
-    if (ctx.paths.project.configExists && !ctx.paths.IS_NPX_MODE && !ctx.paths.IS_LINKED) {
-        logAndSave(chalk().yellow('You are trying to run global rnv command in your current project.'), true);
-        logAndSave(chalk().yellow('This might lead to unexpected behaviour.'), true);
-        logAndSave(chalk().yellow('Run your rnv command with npx prefix:'), true);
-        logAndSave(chalk().bold('npx ' + getCurrentCommand(true)), true);
-    }
-
-    let logContent = ''; //= printIntoBox(`All good as ${ICN_UNICORN} `);
-    if (ctx.logging.logMessages && ctx.logging.logMessages.length) {
-        logContent = '';
-        ctx.logging.logMessages.forEach((m) => {
-            logContent += `│ ${m}\n`;
+        const cleanedMessages = ctx.logging.logMessages
+            .map((raw) => {
+                const msg = stripAnsi(raw);
+                const headerEndIndex = msg.indexOf(':') + 1;
+                const header = msg.slice(0, headerEndIndex).trim();
+                const items = msg
+                    .slice(headerEndIndex)
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter((line) => line)
+                    .join(', ');
+                return `${header} ${items}`;
+            })
+            .join('');
+        return _printJson({
+            type: 'summaryLog',
+            task: stripAnsi(_getCurrentTask()),
+            message: cleanedMessages
         });
     }
 
-    let timeString = '';
-    ctx.timeEnd = new Date();
-    timeString = `| ${ctx.timeEnd.toLocaleString()}`;
+    if (ctx.program?.opts().noSummary) {
+        if (ctx.logging.logMessages?.length) {
+            log(ctx.logging.logMessages.join('').replace(/\n\s*\n\s*\n/g, '\n\n'));
+        }
+        return;
+    }
 
+    if (ctx.paths.project.configExists && !ctx.paths.IS_NPX_MODE && !ctx.paths.IS_LINKED) {
+        logAndSave(chalk.yellow('You are trying to run global rnv command in your current project.'), true);
+        logAndSave(chalk.yellow('This might lead to unexpected behaviour.'), true);
+        logAndSave(chalk.yellow('Run your rnv command with npx prefix:'), true);
+        logAndSave(chalk.bold(`npx ${getCurrentCommand(true)}`), true);
+    }
+
+    const headerData = {
+        error: {
+            prefix: '⨯ ',
+            chalk: chalk.red.bold
+        },
+        warning: {
+            prefix: '⚠ ',
+            chalk: chalk.yellow.bold
+        },
+        success: {
+            prefix: '✔ ',
+            chalk: chalk.green.bold
+        },
+        none: {
+            prefix: '',
+            chalk
+        }
+    };
     const defaultHeaderStyle = ctx.logging.containsError
         ? 'error'
         : ctx.logging.containsWarning
@@ -226,194 +198,167 @@ export const logSummary = (opts?: { header?: string; headerStyle?: 'success' | '
           : 'success';
     const headerStyle = opts?.headerStyle || defaultHeaderStyle;
 
-    const headerPrefix =
-        headerStyle === 'success' ? '✔ ' : headerStyle === 'warning' ? '⚠ ' : headerStyle === 'error' ? '⨯ ' : '';
-    const headerTextPlain = `${headerPrefix}${opts?.header || 'SUMMARY'}`;
-    let headerChalk;
+    const headerTextPlain = `${headerData[headerStyle].prefix}${opts?.header || 'SUMMARY'}`;
 
-    if (_isMono) {
-        headerChalk = currentChalk.white;
-    } else {
-        headerChalk =
-            headerStyle === 'success'
-                ? currentChalk.green.bold
-                : headerStyle === 'warning'
-                  ? currentChalk.yellow.bold
-                  : headerStyle === 'error'
-                    ? currentChalk.green.red
-                    : (v: string) => v;
-    }
-    let str = printBoxStart(
-        `${headerChalk(headerTextPlain)} ${timeString} | rnv@${ctx.rnvVersion}`,
+    const str = new Array<string>(18); // currently has 18 fields.
+    ctx.timeEnd = new Date();
+    str[14] = printIntoBox(`Executed Time: ${chalk.gray(_msToTime(ctx.timeEnd.getTime() - ctx.timeStart.getTime()))}`);
+
+    str[0] = printBoxStart(
+        `${headerData[headerStyle].chalk(headerTextPlain)} | ${ctx.timeEnd.toLocaleString()} | rnv@${ctx.rnvVersion}`,
         getCurrentCommand()
     );
 
-    if (ctx.files?.project?.package?.name && ctx.files?.project?.package?.version) {
-        str += printIntoBox(
-            `Project: ${currentChalk.gray(`${ctx.files.project.package.name}@${ctx.files.project.package.version}`)}`
-        );
-    }
-
-    if (ctx.buildConfig?.workspaceID) {
-        str += printIntoBox(`Workspace: ${currentChalk.gray(ctx.buildConfig.workspaceID)}`);
-    }
-    if (ctx.platform) {
-        str += printIntoBox(`Platform (-p): ${_highlightColor(ctx.platform)}`);
-    }
-    if (ctx.runtime?.engine) {
-        str += printIntoBox(`Engine: ${currentChalk.gray(ctx.runtime?.engine?.id || '')}`);
-    }
-    if (ctx.runtime?.currentTemplate) {
-        str += printIntoBox(`Template: ${currentChalk.gray(ctx.runtime?.currentTemplate)}`);
-    }
-    if (ctx.buildConfig?._meta?.currentAppConfigId) {
-        str += printIntoBox(`App Config (-c): ${_highlightColor(ctx.buildConfig._meta?.currentAppConfigId)}`);
-    }
-    if (ctx.runtime?.scheme) {
-        str += printIntoBox(`Build Scheme (-s): ${_highlightColor(ctx.runtime?.scheme)}`);
-    }
-    if (ctx.runtime?.bundleAssets) {
-        str += printIntoBox(
-            `Bundle assets ($.platforms.${ctx.platform}.bundleAssets): ${_highlightColor(!!ctx.runtime?.bundleAssets)}`
-        );
-    }
-    if (ctx.runtime?.target) {
-        str += printIntoBox(`Target (-t): ${_highlightColor(ctx.runtime?.target)}`);
-    }
-    if (ctx.program?.opts()?.reset) {
-        str += printIntoBox(`Reset Project (-r): ${_highlightColor(!!ctx.program?.opts()?.reset)}`);
-    }
-    if (ctx.program?.opts()?.resetHard) {
-        str += printIntoBox(`Reset Project and Assets (-R): ${_highlightColor(!!ctx.program?.opts()?.resetHard)}`);
-    }
-    if (ctx.runtime?.availablePlatforms?.length) {
-        str += printIntoBox(`Supported Platforms: ${currentChalk.gray(ctx.runtime.availablePlatforms.join(', '))}`);
-    }
-
-    if (ctx.process) {
-        const envString = `${ctx.process.platform} | ${ctx.process.arch} | node v${ctx.process.versions?.node}`;
-        str += printIntoBox(`Env Info: ${currentChalk.gray(envString)}`);
-    }
-
-    if (ctx.timeEnd) {
-        str += printIntoBox(
-            `Executed Time: ${currentChalk.gray(_msToTime(ctx.timeEnd.getTime() - ctx.timeStart.getTime()))}`
-        );
-    }
-
-    str += logContent.replace(/\n\s*\n\s*\n/g, '\n\n');
-
     if (ctx.runtime?.platformBuildsProjectPath) {
-        str += printIntoBox(
-            `Project location: ${currentChalk.gray(_sanitizePaths(ctx.runtime.platformBuildsProjectPath || ''))}`
+        str[16] = printIntoBox(
+            `Project location: ${chalk.gray(_sanitizePaths(ctx.runtime.platformBuildsProjectPath || ''))}`
         );
     }
-    str += printBoxEnd();
+    str[17] = printBoxEnd();
 
-    console.log(str);
+    if (ctx.files?.project?.package?.name && ctx.files?.project?.package?.version) {
+        str[1] = printIntoBox(
+            `Project: ${chalk.gray(`${ctx.files.project.package.name}@${ctx.files.project.package.version}`)}`
+        );
+    }
+    const { buildConfig, platform, runtime, program, process } = ctx;
+    if (buildConfig) {
+        if (buildConfig.workspaceID) {
+            str[2] = printIntoBox(`Workspace: ${chalk.gray(buildConfig.workspaceID)}`);
+        }
+        if (buildConfig._meta?.currentAppConfigId) {
+            str[6] = printIntoBox(`App Config (-c): ${_highlightColor(buildConfig._meta.currentAppConfigId)}`);
+        }
+    }
+    if (platform) {
+        str[3] = printIntoBox(`Platform (-p): ${_highlightColor(platform)}`);
+    }
+    if (runtime) {
+        if (runtime.engine) {
+            str[4] = printIntoBox(`Engine: ${chalk.gray(runtime.engine.id || '')}`);
+        }
+        if (runtime.currentTemplate) {
+            str[5] = printIntoBox(`Template: ${chalk.gray(runtime.currentTemplate)}`);
+        }
+        if (runtime.scheme) {
+            str[7] = printIntoBox(`Build Scheme (-s): ${_highlightColor(runtime.scheme)}`);
+        }
+        if (runtime.bundleAssets) {
+            str[8] = printIntoBox(
+                `Bundle assets ($.platforms.${platform}.bundleAssets): ${_highlightColor(!!runtime.bundleAssets)}`
+            );
+        }
+        if (runtime.target) {
+            str[9] = printIntoBox(`Target (-t): ${_highlightColor(runtime.target)}`);
+        }
+        if (runtime.availablePlatforms?.length) {
+            str[12] = printIntoBox(`Supported Platforms: ${chalk.gray(runtime.availablePlatforms.join(', '))}`);
+        }
+    }
+    if (program) {
+        if (program.opts()?.reset) {
+            str[10] = printIntoBox(`Reset Project (-r): ${_highlightColor(!!program.opts().reset)}`);
+        }
+        if (program.opts()?.resetHard) {
+            str[11] = printIntoBox(`Reset Project and Assets (-R): ${_highlightColor(!!program.opts().resetHard)}`);
+        }
+    }
+
+    if (process) {
+        const envString = `${process.platform} | ${process.arch} | node v${process.versions?.node}`;
+        str[13] = printIntoBox(`Env Info: ${chalk.gray(envString)}`);
+    }
+
+    if (ctx.logging.logMessages?.length) {
+        str[15] = ctx.logging.logMessages
+            .map((m) => `│ ${m}`)
+            .join('\n')
+            .replace(/\n\s*\n\s*\n/g, '\n\n');
+    }
+
+    log(str.filter((v) => v).join(''));
 };
 
-const _msToTime = (seconds: number) => {
-    let s = seconds;
-    const ms = s % 1000;
-    s = (s - ms) / 1000;
-    const secs = s % 60;
-    s = (s - secs) / 60;
-    const mins = s % 60;
-    const hrs = (s - mins) / 60;
+const _msToTime = (diff: number) => {
+    const ms = diff % 1000;
+    diff = (diff / 1000) | 0;
+    const secs = diff % 60;
+    diff = (diff / 60) | 0;
+    const mins = diff % 60;
+    const hrs = diff / 60;
 
-    return `${hrs}h:${mins}m:${secs}s:${ms}ms`;
+    return `${hrs.toFixed(0)}h:${mins}m:${secs}s:${ms}ms`;
 };
 
 const _getCurrentTask = () => {
     const ctx = getContext();
-    return ctx._currentTask ? currentChalk.grey(`○ ${ctx._currentTask}:`) : '';
+    if (!ctx._currentTask) return '';
+    return chalk.grey(`○ ${ctx._currentTask}:`);
 };
 
-const CWD_ARR: { path: string; relative: string }[] = [];
-
-const _generateRelativePaths = () => {
-    const cwd = process.cwd();
-    const cwdArr = cwd.split(path.sep);
-    let relativeUp = '.';
-    for (let i = 1; i < cwdArr.length; i++) {
-        const absoluteUp = path.join(cwd, relativeUp).normalize();
-        CWD_ARR.push({ path: absoluteUp, relative: relativeUp });
-        relativeUp += i > 1 ? '/..' : '.';
+const cwd = process.cwd().normalize();
+const CWD_ARR: Array<{ path: string; relative: string }> = Array.from(
+    {
+        length: cwd.split(path.sep).length - 1
+    },
+    (_, i) => {
+        if (i === 0) return { path: cwd, relative: '.' };
+        const relative = '/..'.repeat(i).slice(1);
+        return { path: path.join(cwd, relative), relative };
     }
-};
-
-_generateRelativePaths();
+);
 
 const _sanitizePaths = (msg: string) => {
-    if (msg?.replace) {
-        CWD_ARR.forEach((v) => {
-            msg = msg.replace(new RegExp(v.path, 'g'), v.relative);
-        });
+    if (msg?.replaceAll) {
+        for (const { path, relative } of CWD_ARR) {
+            msg = msg.replaceAll(path, relative);
+        }
     }
     return msg;
 };
 
 const TASK_COUNTER: Record<string, number> = {};
 
-export const logTask = (task: string, customChalk?: string | RnvApiChalkFn) => {
-    const ctx = getContext();
-    if (ctx.program?.opts().help) return;
-    if (!TASK_COUNTER[task]) TASK_COUNTER[task] = 0;
-    TASK_COUNTER[task] += 1;
-    const taskCount = currentChalk.grey(`[${TASK_COUNTER[task]}]`);
+export const logTask = (task: string, customChalk?: string | ChalkInstance) => {
+    if (isHelp()) return;
+    const taskCount = getLogCounter(task);
 
     if (_jsonOnly) {
         return _printJson({
             type: 'task',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(typeof customChalk === 'string' ? customChalk : task)),
+            message: stripAnsi(_sanitizePaths(typeof customChalk === 'string' ? customChalk : task))
         });
     }
-
-    let msg = '';
-    if (typeof customChalk === 'string') {
-        msg = `${currentChalk.green(`[task]${_getCurrentTask()}`)} ${task}${taskCount} ${currentChalk.grey(
-            customChalk
-        )}`;
-    } else if (customChalk) {
-        msg = customChalk(`[task]${_getCurrentTask()} ${task}${taskCount}`);
-    } else {
-        msg = `${currentChalk.green(`[task]${_getCurrentTask()}`)} ${task}${taskCount}`;
+    if (!_isInfoEnabled) {
+        return;
     }
-
-    if (_isInfoEnabled) {
-        // TODO: temporary. will be activated under different flag
-        console.log(_sanitizePaths(msg));
-    }
+    const taskChalk = typeof customChalk === 'function' ? customChalk : chalk.green;
+    const chalkMessage = typeof customChalk === 'string' ? customChalk : '';
+    const msg = `${taskChalk(`[task]${_getCurrentTask()}`)} ${task}${taskCount} ${chalkMessage}`;
+    log(_sanitizePaths(msg));
 };
 
-export const logDefault = (task: string, customChalk?: string | RnvApiChalkFn) => {
-    const ctx = getContext();
-    if (ctx.program?.opts().help) return;
+export const logDefault = (task: string, customChalk?: string | ChalkInstance) => {
+    if (isHelp()) return;
     const taskCount = getLogCounter(task);
 
     if (_jsonOnly) {
         return _printJson({
             type: 'log',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(typeof customChalk === 'string' ? customChalk : task)),
+            message: stripAnsi(_sanitizePaths(typeof customChalk === 'string' ? customChalk : task))
         });
     }
-
-    let msg = '';
-    if (typeof customChalk === 'string') {
-        msg = `[log]${_getCurrentTask()} ${task}${taskCount} ${currentChalk.grey(customChalk)}`;
-    } else if (customChalk) {
-        msg = customChalk(`[log]${_getCurrentTask()} ${task} ${taskCount}`);
-    } else {
-        msg = `[log]${_getCurrentTask()} ${task} ${taskCount}`;
+    if (!_isInfoEnabled) {
+        return;
     }
 
-    if (_isInfoEnabled) {
-        // TODO: temporary. will be activated under different flag
-        console.log(_sanitizePaths(msg));
-    }
+    const thisChalk = typeof customChalk === 'function' ? customChalk : chalk;
+    const chalkMessage = typeof customChalk === 'string' ? chalk.grey(customChalk) : '';
+    const msg = thisChalk(`[log]${_getCurrentTask()} ${task} ${taskCount} ${chalkMessage}`);
+
+    log(_sanitizePaths(msg));
 };
 
 const getLogCounter = (task: string, skipAddition = false) => {
@@ -422,27 +367,24 @@ const getLogCounter = (task: string, skipAddition = false) => {
         TASK_COUNTER[task] += 1;
     }
 
-    const taskCount = currentChalk.grey(`↺${TASK_COUNTER[task]}`);
+    const taskCount = chalk.grey(`↺${TASK_COUNTER[task]}`);
     return taskCount;
 };
 
 export const logInitTask = (task: string) => {
-    const ctx = getContext();
-    if (ctx.program?.opts().help) return;
+    if (isHelp()) return;
     const taskCount = getLogCounter(task);
 
     if (_jsonOnly) {
         return _printJson({
             type: 'taskInit',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(task)),
+            message: stripAnsi(_sanitizePaths(task))
         });
     }
-    const msg = !_isMono
-        ? `${chalkBlue.bold('task:')} ○ ${task} ${taskCount}`
-        : `${currentChalk.white('task:')} ○ ${task} ${taskCount}`;
+    const msg = `${chalkBlue.bold('task:')} ○ ${task} ${taskCount}`;
 
-    console.log(msg);
+    log(msg);
 };
 
 type PrintJsonPayload = {
@@ -454,29 +396,28 @@ type PrintJsonPayload = {
 };
 
 export const logExitTask = (task: string) => {
-    const ctx = getContext();
-    if (ctx.program?.opts().help) return;
+    if (isHelp()) return;
     if (_jsonOnly) {
         return _printJson({
             type: 'taskExit',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(task)),
+            message: stripAnsi(_sanitizePaths(task))
         });
     }
-    const msg = `${currentChalk.green('task:')} ${currentChalk.green('✔')} ${task}`;
+    const msg = `${chalk.green('task:')} ${chalk.green('✔')} ${task}`;
 
-    console.log(msg);
+    log(msg);
 };
 
 export const logHook = (hook = '', msg = '') => {
-    const ctx = getContext();
-    if (ctx.program?.opts().help) return;
+    if (isHelp()) return;
     if (_jsonOnly) {
         const payload: PrintJsonPayload = { type: 'hook', hook, message: stripAnsi(_sanitizePaths(msg)) };
-        if (_getCurrentTask()) payload.task = stripAnsi(_getCurrentTask());
+        const task = _getCurrentTask();
+        if (task) payload.task = stripAnsi(task);
         return _printJson(payload);
     }
-    console.log(`${`[hook]`} ${_sanitizePaths(msg)}`);
+    log(`${`[hook]`} ${_sanitizePaths(msg)}`);
 };
 
 export const logWarning = (msg: string | boolean | unknown, opts?: { skipSanitizePaths?: boolean }) => {
@@ -488,46 +429,45 @@ export const logWarning = (msg: string | boolean | unknown, opts?: { skipSanitiz
             type: 'log',
             level: 'warning',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(msgSn),
+            message: stripAnsi(msgSn)
         });
     }
     ctx.logging.containsWarning = true;
-    logAndSave(currentChalk.yellow(`warn: ${_getCurrentTask()} ${msgSn}`));
+    logAndSave(chalk.yellow(`warn: ${_getCurrentTask()} ${msgSn}`));
 };
 
 export const logInfo = (msg: string) => {
-    const ctx = getContext();
-    if (ctx.program?.opts().help) return;
+    if (isHelp()) return;
     if (_jsonOnly) {
         return _printJson({
             type: 'log',
             level: 'info',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(msg)),
+            message: stripAnsi(_sanitizePaths(msg))
         });
     }
-    console.log(`${_highlightColor('info:')} ${_sanitizePaths(msg)}`);
+    log(`${_highlightColor('info:')} ${_sanitizePaths(msg)}`);
 };
 
 export const logDebug = (...args: Array<string>) => {
-    if (_isInfoEnabled) {
-        if (_jsonOnly) {
-            return _printJson({
-                type: 'log',
-                level: 'debug',
-                task: stripAnsi(_getCurrentTask()),
-                message: stripAnsi(_sanitizePaths(args.join(' '))),
-            });
+    if (!_isInfoEnabled) {
+        return;
+    }
+    if (_jsonOnly) {
+        return _printJson({
+            type: 'log',
+            level: 'debug',
+            task: stripAnsi(_getCurrentTask()),
+            message: stripAnsi(_sanitizePaths(args.join(' ')))
+        });
+    }
+    if (_infoFilter) {
+        const [firstArg] = args;
+        if (firstArg && _infoFilter.some((v) => firstArg.includes(v))) {
+            log.apply(null, args);
         }
-        if (_infoFilter) {
-            const firstArg = args[0];
-
-            if (_infoFilter.filter((v) => firstArg?.includes?.(v)).length) {
-                console.log.apply(null, args);
-            }
-        } else {
-            console.log.apply(null, args);
-        }
+    } else {
+        log.apply(null, args);
     }
 };
 
@@ -538,49 +478,35 @@ export const logSuccess = (msg: string) => {
         return _printJson({
             type: 'success',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(msg)),
+            message: stripAnsi(_sanitizePaths(msg))
         });
     }
-    logAndSave(`${currentChalk.magenta(`info: ✔`)} ${_sanitizePaths(msg)}`);
+    logAndSave(`${chalk.magenta(`info: ✔`)} ${_sanitizePaths(msg)}`);
 };
 
-export const logError = (e: Error | string | unknown, opts?: { skipAnalytics: boolean }) => {
-    let err = '';
-    if (typeof e === 'string') {
-        err = e;
-    } else if (e instanceof Error) {
-        err = e.message;
-    }
+export const logError = (e: Error | string | unknown) => {
     const ctx = getContext();
-    const api = getApi();
-    if (!opts?.skipAnalytics) {
-        const extra = {
-            command: getCurrentCommand(),
-            version: ctx.rnvVersion,
-            engine: ctx.runtime?.engine?.id,
-            platform: ctx.platform,
-            bundleAssets: !!ctx.runtime?.bundleAssets,
-            os: ctx.process?.platform,
-            arch: ctx.process?.arch,
-            node: ctx.process?.versions?.node,
-        };
-    }
     if (ctx.logging) {
         ctx.logging.containsError = true;
     }
 
     if (_jsonOnly) {
+        let err = '';
+        if (typeof e === 'string') {
+            err = e;
+        } else if (e instanceof Error) {
+            err = e.message;
+        }
         _printJson({
             type: 'log',
             level: 'error',
             task: stripAnsi(_getCurrentTask()),
-            message: stripAnsi(_sanitizePaths(err)),
+            message: stripAnsi(_sanitizePaths(err))
         });
-    } else if (e && e instanceof Error) {
-        logAndSave(currentChalk.red(`error: ⨯ ${_getCurrentTask()} ${e.stack || e}\n`));
-    } else {
-        logAndSave(currentChalk.red(`error: ⨯ ${_getCurrentTask()} ${e}`));
+        return;
     }
+    const logMessage = e instanceof Error ? `${e.stack || e}\n` : e;
+    logAndSave(chalk.red(`error: ⨯ ${_getCurrentTask()} ${logMessage}`));
 };
 
 export const logAppInfo = (c: RnvContext) => {
@@ -590,59 +516,34 @@ export const logAppInfo = (c: RnvContext) => {
 };
 
 export const printIntoBox = (str: string, maxLen = 64) => {
-    let output = _defaultColor('│ ');
-
-    const strLenDiff = str.length - stripAnsi(str).length;
-    output += _defaultColor(str);
-    const len = maxLen - (str.length - strLenDiff);
-    if (len > 0) {
-        for (let i = 0; i < len; i++) {
-            output += ' ';
-        }
-        output += _defaultColor('│\n');
-    } else {
-        output += _defaultColor('\n');
-    }
-
-    return output;
+    const len = maxLen - stripAnsi(str).length;
+    const padEnd = len > 0 ? `${' '.repeat(len)}|` : '';
+    return _defaultColor(`│ ${str}${padEnd}\n`);
 };
 
 export const printArrIntoBox = (arr: Array<string>, prefix = '') => {
     if (_jsonOnly) return arr.join(',');
 
-    let output = '';
-    let stringArr = '';
-    let i = 0;
-    arr.forEach((v) => {
-        const l = i === 0 ? 60 - _defaultColor(prefix).length : 60;
-        if (stringArr.length > l) {
-            if (i === 0 && prefix.length) {
-                output += printIntoBox(`${_defaultColor(prefix)}${_defaultColor(stringArr)}`);
-            } else {
-                output += printIntoBox(_defaultColor(stringArr));
+    let stringArr = prefix;
+    return arr
+        .reduce((acc, v) => {
+            if (stringArr.length > 60) {
+                acc += printIntoBox(_defaultColor(stringArr));
+                stringArr = '';
             }
-
-            stringArr = '';
-            i++;
-        }
-        stringArr += `${v}, `;
-    });
-    if (i === 0 && prefix.length) {
-        output += printIntoBox(`${_defaultColor(prefix)}${_defaultColor(stringArr.slice(0, -2))}`);
-    } else {
-        output += printIntoBox(_defaultColor(stringArr.slice(0, -2)));
-    }
-
-    return output;
+            stringArr += `${v}, `;
+            return acc;
+        }, '')
+        .concat('', printIntoBox(_defaultColor(stringArr.slice(0, -2))));
 };
 
-export const printBoxStart = (str: string, str2?: string) => {
-    let output = _defaultColor('┌─────────────────────────────────────────────────────────────────┐\n');
-    output += printIntoBox(str);
-    output += printIntoBox(str2 || '');
-    output += _defaultColor('├─────────────────────────────────────────────────────────────────┤\n');
-    return output;
-};
+export const printBoxStart = (str: string, str2 = '') =>
+    _defaultColor(`
+┌─────────────────────────────────────────────────────────────────┐
+${printIntoBox(str)}
+${printIntoBox(str2)}
+├─────────────────────────────────────────────────────────────────┤
+`);
 
 export const printBoxEnd = () => _defaultColor('└─────────────────────────────────────────────────────────────────┘');
 
@@ -670,7 +571,7 @@ const Logger: RnvApiLogger = {
     printBoxEnd,
     printBoxStart,
     printIntoBox,
-    chalk,
+    chalk
 };
 
 export default Logger;

@@ -1,71 +1,64 @@
-import path from 'path';
+import path from 'node:path';
 import {
+    CoreEnvVars,
+    chalk,
+    DEFAULTS,
+    ExecOptionsPresets,
+    execCLI,
     executeAsync,
     getAppFolder,
     getConfigProp,
+    getContext,
+    inquirerPrompt,
     isSystemWin,
-    chalk,
     logDefault,
     logInfo,
-    logSuccess,
-    DEFAULTS,
-    CoreEnvVars,
-    ExecOptionsPresets,
-    getContext,
-    execCLI,
-    inquirerPrompt,
+    logSuccess
 } from '@rnv/core';
-import { EnvVars } from './env';
 import { getEntryFile } from '@rnv/sdk-utils';
+import { EnvVars } from './env';
 
 export const packageReactNativeAndroid = async () => {
     const c = getContext();
     logDefault('packageAndroid');
     const { platform } = c;
-
-    if (!c.platform) return;
+    if (!platform) return;
 
     const bundleAssets = getConfigProp('bundleAssets') === true;
-
     if (!bundleAssets && platform !== 'androidwear') {
-        logInfo(`bundleAssets in scheme ${chalk().bold.white(c.runtime.scheme)} marked false. SKIPPING PACKAGING...`);
+        logInfo(`bundleAssets in scheme ${chalk.bold.white(c.runtime.scheme)} marked false. SKIPPING PACKAGING...`);
         return true;
     }
 
     const outputFile = getEntryFile();
-
     const appFolder = getAppFolder();
-    let reactNative = c.runtime.runtimeExtraProps?.reactNativePackageName || 'react-native';
-
-    if (isSystemWin) {
-        reactNative = path.normalize(`${process.cwd()}/node_modules/.bin/react-native.cmd`);
-    }
+    const AssetsDest = path.join(appFolder, 'app', 'src', 'main', 'res');
+    const bundleOutput = path.join(AssetsDest, '..', 'assets', `${outputFile}.bundle`).replaceAll(' ', '\\ ');
+    const reactNative = isSystemWin
+        ? path.join(path.normalize(process.cwd()), 'node_modules', '.bin', 'react-native.cmd')
+        : c.runtime.runtimeExtraProps?.reactNativePackageName || 'react-native';
 
     logInfo('ANDROID PACKAGE STARTING...');
 
     try {
-        let cmd = `${reactNative} bundle --platform android --dev false --assets-dest ${path
-            .join(appFolder, 'app', 'src', 'main', 'res')
-            .replace(/ /g, '\\ ')} --entry-file ${
-            c.buildConfig.platforms?.[c.platform]?.entryFile
-        }.js --bundle-output ${path
-            .join(appFolder, 'app', 'src', 'main', 'assets', `${outputFile}.bundle`)
-            .replace(/ /g, '\\ ')} --config=metro.config.js`;
+        let cmd = `${reactNative} bundle --platform android --dev false --assets-dest ${AssetsDest.replaceAll(
+            ' ',
+            '\\ '
+        )} --entry-file ${c.buildConfig.platforms?.[platform]?.entryFile}.js --bundle-output ${bundleOutput} --config=metro.config.js`;
 
         if (getConfigProp('enableSourceMaps')) {
-            cmd += ` --sourcemap-output ${path
-                .join(appFolder, 'app', 'src', 'main', 'assets', `${outputFile}.bundle.map`)
-                .replace(/ /g, '\\ ')}`;
+            cmd += ` --sourcemap-output ${bundleOutput}.map`;
         }
 
         await executeAsync(cmd, {
-            env: {
-                ...CoreEnvVars.BASE(),
-                ...CoreEnvVars.RNV_EXTENSIONS(),
-                ...EnvVars.RNV_REACT_NATIVE_PATH(),
-                ...EnvVars.RNV_APP_ID(),
-                ...EnvVars.RNV_SKIP_LINKING(),
-            },
+            env: Object.assign(
+                {},
+                CoreEnvVars.BASE(),
+                CoreEnvVars.RNV_EXTENSIONS(),
+                EnvVars.RNV_REACT_NATIVE_PATH(),
+                EnvVars.RNV_APP_ID(),
+                EnvVars.RNV_SKIP_LINKING()
+            )
         });
 
         logInfo('ANDROID PACKAGE FINISHED');
@@ -105,11 +98,11 @@ export const runReactNativeAndroid = async (device: { udid?: string } | undefine
                 ...EnvVars.RCT_METRO_PORT(),
                 ...EnvVars.RNV_REACT_NATIVE_PATH(),
                 ...EnvVars.RNV_APP_ID(),
-                ...EnvVars.RNV_SKIP_LINKING(),
+                ...EnvVars.RNV_SKIP_LINKING()
             },
             cwd: appFolder,
             // To display react-native CLI logs in RNV executed terminal
-            ...ExecOptionsPresets.INHERIT_OUTPUT_NO_SPINNER,
+            ...ExecOptionsPresets.INHERIT_OUTPUT_NO_SPINNER
         });
     };
 
@@ -121,23 +114,22 @@ export const runReactNativeAndroid = async (device: { udid?: string } | undefine
             const { confirm } = await inquirerPrompt({
                 name: 'confirm',
                 type: 'confirm',
-                message: `Failed to build the app. Try to uninstall and retry?`,
+                message: `Failed to build the app. Try to uninstall and retry?`
             });
 
             if (confirm) {
                 try {
                     await execCLI('androidAdb', `uninstall ${packageId}`, { silent: true });
-                } catch (e) {
+                } catch {
                     return Promise.reject(`Failed to uninstall ${packageId}`);
                 }
 
                 return await executeCommand();
-            } else {
-                if (typeof error === 'string') {
-                    return Promise.reject(error);
-                } else if (error instanceof Error) {
-                    return Promise.reject(error.message);
-                }
+            }
+            if (typeof error === 'string') {
+                return Promise.reject(error);
+            } else if (error instanceof Error) {
+                return Promise.reject(error.message);
             }
         } else {
             if (typeof error === 'string') {
@@ -180,12 +172,12 @@ export const buildReactNativeAndroid = async () => {
             ...CoreEnvVars.RNV_EXTENSIONS(),
             ...EnvVars.RNV_REACT_NATIVE_PATH(),
             ...EnvVars.RNV_APP_ID(),
-            ...EnvVars.RNV_SKIP_LINKING(),
-        },
+            ...EnvVars.RNV_SKIP_LINKING()
+        }
     });
 
     logSuccess(
-        `Your APK is located in ${chalk().cyan(
+        `Your APK is located in ${chalk.cyan(
             path.join(appFolder, `app/build/outputs/${outputAab ? 'bundle' : 'apk'}/${signingConfig.toLowerCase()}`)
         )} .`
     );

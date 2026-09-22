@@ -1,21 +1,21 @@
-import lGet from 'lodash/get';
 import {
     chalk,
-    logToSummary,
     configureRuntimeDefaults,
-    readObjectSync,
-    fsExistsSync,
-    validateRenativeProjectSchema,
-    RnvTaskName,
     createTask,
+    fsExistsSync,
+    logToSummary,
+    RnvTaskName,
+    readObjectSync,
+    validateRenativeProjectSchema
 } from '@rnv/core';
+import lGet from 'lodash/get';
 
 const configTargets = [
     'workspace.config',
     'workspace.project.config',
     'workspace.appConfig.configs',
     'project.config',
-    'appConfig.configs',
+    'appConfig.configs'
 ];
 
 export default createTask({
@@ -49,15 +49,15 @@ export default createTask({
                 const result = validateRenativeProjectSchema(cObj);
                 if (!result.success) {
                     hasErrors = true;
-                    errMsg += chalk().yellow(`\nInvalid schema in ${cPath}. ISSUES:\n\n`);
+                    errMsg += chalk.yellow(`\nInvalid schema in ${cPath}. ISSUES:\n\n`);
                     result.error.errors?.forEach((err) => {
-                        errMsg += chalk().yellow(`${chalk().grey(err.path)}: ${err.message}`);
+                        errMsg += chalk.yellow(`${chalk.grey(err.path)}: ${err.message}`);
                     });
                 }
                 // if (!valid) {
                 //     hasErrors = true;
                 //     // console.log('ERROR', ajv.errors);
-                //     errMsg += chalk().yellow(
+                //     errMsg += chalk.yellow(
                 //         `\nInvalid schema in ${
                 //             // cPath}. ISSUES: ${JSON.stringify(ajv.errors, null, 2)}\n`);
                 //             cPath
@@ -65,11 +65,11 @@ export default createTask({
                 //     );
                 //     if (typeof ajv !== 'boolean' && ajv) {
                 //         ajv.errors?.forEach((err) => {
-                //             errMsg += chalk().yellow(
-                //                 `${chalk().grey(err.dataPath === '' ? '/' : err.dataPath)}: ${err.message} ${Object.keys(
+                //             errMsg += chalk.yellow(
+                //                 `${chalk.grey(err.dataPath === '' ? '/' : err.dataPath)}: ${err.message} ${Object.keys(
                 //                     err.params
                 //                 )
-                //                     .map((k) => `=> ${chalk().red(err.params[k])}`)
+                //                     .map((k) => `=> ${chalk.red(err.params[k])}`)
                 //                     .join('\n')}\n`
                 //             );
                 //         });
@@ -79,11 +79,11 @@ export default createTask({
         });
 
         if (!hasErrors) {
-            errMsg += chalk().green(`PASSED ${configPaths.length} files`);
+            errMsg += chalk.green(`PASSED ${configPaths.length} files`);
         }
 
         logToSummary(errMsg);
     },
     task: RnvTaskName.doctor,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

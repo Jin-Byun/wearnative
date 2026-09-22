@@ -1,2 +1,0 @@
-# @rnv/sdk-apple
-

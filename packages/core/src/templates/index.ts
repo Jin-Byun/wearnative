@@ -1,20 +1,20 @@
 import path from 'path';
-import {
-    copyFolderContentsRecursiveSync,
-    copyFileSync,
-    mergeObjects,
-    readObjectSync,
-    fsExistsSync,
-    fsLstatSync,
-} from '../system/fs';
-import { chalk, logError, logInfo, logWarning, logDefault, logDebug } from '../logger';
-import { doResolve } from '../system/resolve';
-import { RnvContext } from '../context/types';
-import { RnvFileName } from '../enums/fileName';
 import { getContext } from '../context/provider';
+import type { RnvContext } from '../context/types';
+import { RnvFileName } from '../enums/fileName';
 import { RnvFolderName } from '../enums/folderName';
+import { chalk, logDebug, logDefault, logError, logInfo, logWarning } from '../logger';
 import { checkIfProjectAndNodeModulesExists } from '../projects/npm';
 import type { ConfigFileProject, ConfigFileTemplate } from '../schema/types';
+import {
+    copyFileSync,
+    copyFolderContentsRecursiveSync,
+    fsExistsSync,
+    fsLstatSync,
+    mergeObjects,
+    readObjectSync
+} from '../system/fs';
+import { doResolve } from '../system/resolve';
 
 export const configureTemplateFiles = async () => {
     logDefault('configureTemplateFiles');
@@ -23,7 +23,7 @@ export const configureTemplateFiles = async () => {
 
     const templateConfig = readObjectSync<ConfigFileTemplate>(c.paths.template.configTemplate);
 
-    let mergedObj = _getProjectTemplateMergedConfig(templateConfig);
+    const mergedObj = _getProjectTemplateMergedConfig(templateConfig);
     const includedPaths = mergedObj?.templateConfig?.includedPaths;
 
     if (includedPaths) {
@@ -99,9 +99,9 @@ const _applyTemplate = async (c: RnvContext) => {
     }
     if (!fsExistsSync(c.paths.template.configTemplate)) {
         logWarning(
-            `Template file ${chalk().bold.white(
+            `Template file ${chalk.bold.white(
                 c.paths.template.configTemplate
-            )} does not exist. check your ${chalk().bold.white(c.paths.template.dir)}. skipping`
+            )} does not exist. check your ${chalk.bold.white(c.paths.template.dir)}. skipping`
         );
         return true;
     }
@@ -139,10 +139,10 @@ const _copyIncludedPaths = (c: RnvContext, name: string) => {
     if (!fsExistsSync(destPath) && fsExistsSync(sourcePath)) {
         try {
             if (fsLstatSync(sourcePath).isDirectory()) {
-                logInfo(`Missing directory ${chalk().bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
+                logInfo(`Missing directory ${chalk.bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
                 copyFolderContentsRecursiveSync(sourcePath, destPath);
             } else {
-                logInfo(`Missing file ${chalk().bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
+                logInfo(`Missing file ${chalk.bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
                 copyFileSync(sourcePath, destPath);
             }
         } catch (e) {

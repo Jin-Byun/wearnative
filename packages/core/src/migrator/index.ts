@@ -1,7 +1,7 @@
 import { logDefault } from '../logger';
 
 // NOTE: Only support last 3 major releases. i.e: 0.31, 0.30, 0.29
-export const checkAndMigrateProject = async () => {
+export const checkAndMigrateProject = () => {
     logDefault('checkAndMigrateProject');
     const migrator = {
         targetVersion: '^0.37',
@@ -9,7 +9,7 @@ export const checkAndMigrateProject = async () => {
         commands: [],
         folders: [],
         configs: [],
-        files: [],
+        files: []
     };
     // Cli Commands
     //

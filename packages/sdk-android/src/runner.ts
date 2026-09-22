@@ -1,81 +1,79 @@
-import path from 'path';
-import net from 'net';
+import net from 'node:net';
+import path from 'node:path';
 import {
-    inquirerPrompt,
-    execaCommand,
+    chalk,
     copyAssetsFolder,
     copyBuildsFolder,
-    parseFonts,
-    parsePlugins,
-    fsExistsSync,
     copyFileSync,
-    mkdirSync,
-    getRealPath,
-    updateObjectSync,
-    fsWriteFileSync,
+    execaCommand,
+    execCLI,
     executeAsync,
+    fsExistsSync,
+    fsWriteFileSync,
     getAppFolder,
     getConfigProp,
+    getRealPath,
+    inquirerPrompt,
     isPlatformActive,
     isSystemWin,
-    updateRenativeConfigs,
-    chalk,
-    logDefault,
-    logWarning,
     logDebug,
-    logSuccess,
-    logRaw,
+    logDefault,
     logError,
-    RnvPlatform,
     logInfo,
-    RnvPlatformKey,
-    execCLI,
+    logRaw,
+    logSuccess,
+    logWarning,
+    mkdirSync,
+    parseFonts,
+    parsePlugins,
+    type RnvPlatform,
+    type RnvPlatformKey,
+    updateObjectSync,
+    updateRenativeConfigs
 } from '@rnv/core';
-import { parseAndroidManifestSync } from './manifestParser';
+import { generateEnvVarsFile, packageReactNativeAndroid, runReactNativeAndroid } from '@rnv/sdk-react-native';
+import { getEntryFile, updateDefaultTargets } from '@rnv/sdk-utils';
+import { ANDROID_COLORS, ANDROID_STRINGS, ANDROID_STYLES, CLI_ANDROID_ADB } from './constants';
 import {
-    parseMainActivitySync,
-    parseSplashActivitySync,
-    parseMainApplicationSync,
-    injectPluginKotlinSync,
-} from './kotlinParser';
-import {
-    parseAppBuildGradleSync,
-    parseBuildGradleSync,
-    parseSettingsGradleSync,
-    parseGradlePropertiesSync,
-    injectPluginGradleSync,
-    parseAndroidConfigObject,
-} from './gradleParser';
-import { parseGradleWrapperSync } from './gradleWrapperParser';
-import { parseValuesXml } from './xmlValuesParser';
-import { ejectGradleProject } from './ejector';
-import { AndroidDevice } from './types';
-import {
-    resetAdb,
+    askForNewEmulator,
+    checkForActiveEmulator,
+    composeDevicesArray,
+    connectToWifiDevice,
     getAndroidTargets,
     launchAndroidSimulator,
-    checkForActiveEmulator,
-    askForNewEmulator,
-    connectToWifiDevice,
-    composeDevicesArray,
+    resetAdb
 } from './deviceManager';
-import { ANDROID_COLORS, ANDROID_STRINGS, ANDROID_STYLES, CLI_ANDROID_ADB } from './constants';
-import { runReactNativeAndroid, packageReactNativeAndroid, generateEnvVarsFile } from '@rnv/sdk-react-native';
-import { getEntryFile, updateDefaultTargets } from '@rnv/sdk-utils';
-import { Context, getContext } from './getContext';
+import { ejectGradleProject } from './ejector';
+import { type Context, getContext } from './getContext';
+import {
+    injectPluginGradleSync,
+    parseAndroidConfigObject,
+    parseAppBuildGradleSync,
+    parseBuildGradleSync,
+    parseGradlePropertiesSync,
+    parseSettingsGradleSync
+} from './gradleParser';
+import { parseGradleWrapperSync } from './gradleWrapperParser';
+import {
+    injectPluginKotlinSync,
+    parseMainActivitySync,
+    parseMainApplicationSync,
+    parseSplashActivitySync
+} from './kotlinParser';
+import { parseAndroidManifestSync } from './manifestParser';
+import type { AndroidDevice } from './types';
+import { getConfigPropArray } from './utils';
+import { parseValuesXml } from './xmlValuesParser';
 
 export const packageAndroid = async () => {
     logDefault('packageAndroid');
-
     return packageReactNativeAndroid();
 };
 
 export const getAndroidDeviceToRunOn = async () => {
     const c = getContext();
-
     const defaultTarget = c.runtime.target;
     logDefault('getAndroidDeviceToRunOn', `default:${defaultTarget}`);
-
     if (!c.platform) return;
 
     const { target, device } = c.program.opts();
@@ -88,56 +86,47 @@ export const getAndroidDeviceToRunOn = async () => {
     }
 
     const devicesAndEmulators = await getAndroidTargets(false, false, !!device);
-
     const activeDevices = devicesAndEmulators.filter((d) => d.isActive);
-    const inactiveDevices = devicesAndEmulators.filter((d) => !d.isActive);
-    const foundDevice = devicesAndEmulators.find(
-        (d) => d.udid.includes(target) || d.name.includes(target) || d.udid.includes(device) || d.name.includes(device)
+    const foundDevice = devicesAndEmulators.find(({ udid, name }) =>
+        [target, device].some((s) => udid.includes(s) || name.includes(s))
     );
-
     const askWhereToRun = async () => {
-        if (activeDevices.length || inactiveDevices.length) {
-            // No device active and device param is passed, exiting
-            if (c.program.opts().device && !activeDevices.length) {
-                return Promise.reject('No active devices found, please connect one or remove the device argument');
-            }
-            if (!foundDevice && (_isString(target) || _isString(device))) {
-                logInfo(
-                    `The target is specified, but no such emulator or device is available: ${chalk().magenta(
-                        _isString(target) ? target : device
-                    )}. Will try to find available one`
-                );
-            }
-            const activeDeviceInfoArr = composeDevicesArray(activeDevices);
-            const inactiveDeviceInfoArr = composeDevicesArray(inactiveDevices);
-
-            const choices = [...activeDeviceInfoArr, ...inactiveDeviceInfoArr];
-
-            const { chosenTarget } = await inquirerPrompt({
-                name: 'chosenTarget',
-                type: 'list',
-                message: 'What target would you like to use?',
-                choices,
-            });
-            if (chosenTarget) {
-                // update defaultTarget
-                if (!target) {
-                    await updateDefaultTargets(c, chosenTarget);
-                }
-                const dev = activeDevices.find((d) => d.name === chosenTarget);
-                if (dev) return dev;
-
-                await launchAndroidSimulator(chosenTarget, true);
-                const device = await checkForActiveEmulator(chosenTarget);
-                return device;
-            }
-        } else {
-            if (c.program.opts().device) {
+        if (!devicesAndEmulators.length) {
+            if (device) {
                 return Promise.reject('No active devices found, please connect one or remove the device argument');
             }
             await askForNewEmulator();
-            const device = await checkForActiveEmulator();
-            return device;
+            return await checkForActiveEmulator();
+        }
+        // No device active and device param is passed, exiting
+        if (device && !activeDevices.length) {
+            return Promise.reject('No active devices found, please connect one or remove the device argument');
+        }
+        if (!foundDevice && (_isString(target) || _isString(device))) {
+            logInfo(
+                `The target is specified, but no such emulator or device is available: ${chalk.magenta(
+                    _isString(target) ? target : device
+                )}. Will try to find available one`
+            );
+        }
+        const choices = composeDevicesArray(devicesAndEmulators);
+
+        const { chosenTarget } = await inquirerPrompt({
+            name: 'chosenTarget',
+            type: 'list',
+            message: 'What target would you like to use?',
+            choices
+        });
+        if (chosenTarget) {
+            // update defaultTarget
+            if (!target) {
+                await updateDefaultTargets(c, chosenTarget);
+            }
+            const chosenDevice = activeDevices.find((d) => d.name === chosenTarget);
+            if (chosenDevice) return chosenDevice;
+
+            await launchAndroidSimulator(chosenTarget, true);
+            return await checkForActiveEmulator(chosenTarget);
         }
     };
     if (target) {
@@ -148,45 +137,32 @@ export const getAndroidDeviceToRunOn = async () => {
                 return foundDevice;
             }
             await launchAndroidSimulator(foundDevice, true);
-            const device = await checkForActiveEmulator(foundDevice.name);
-            return device;
+            return await checkForActiveEmulator(foundDevice.name);
         }
-        logDebug('Target not found, asking where to run');
-        return askWhereToRun();
     } else if (activeDevices.length === 1 && device) {
         logDebug('Device provided', device);
-        if (_isString(device)) {
-            if (foundDevice) {
-                if (foundDevice.isActive) {
-                    return foundDevice;
-                }
-            }
-            return askWhereToRun();
+        if (!_isString(device)) {
+            const [availableDevice] = activeDevices;
+            logInfo(`Found device ${availableDevice.name}:${availableDevice.udid}`);
+            return availableDevice;
         }
-        const availableDevice = activeDevices[0];
-        logInfo(`Found device ${availableDevice.name}:${availableDevice.udid}`);
-        return availableDevice;
+        if (foundDevice?.isActive) return foundDevice;
     } else if (defaultTarget) {
         // neither a target nor an active device is found, revert to default target if available
         logDebug('Default target used', defaultTarget);
-        const foundDevice = devicesAndEmulators.find(
-            (d) => d.udid.includes(defaultTarget) || d.name.includes(defaultTarget)
+        const foundDevice = devicesAndEmulators.find(({ udid, name }) =>
+            [udid, name].some((v) => v.includes(defaultTarget))
         );
-
-        if (!foundDevice) {
-            logDebug('Target not provided, asking where to run');
-            return askWhereToRun();
-        } else if (!foundDevice.isActive) {
+        if (foundDevice) {
+            if (foundDevice.isActive) return foundDevice;
             await launchAndroidSimulator(foundDevice, true);
             const device = await checkForActiveEmulator(foundDevice.name);
             return device;
         }
-        return foundDevice;
-    } else {
-        // we don't know what to do, ask the user
-        logDebug('Target not provided, asking where to run');
-        return askWhereToRun();
     }
+    // we don't know what to do, ask the user
+    logDebug('Target not provided, asking where to run');
+    return askWhereToRun();
 };
 
 export const runAndroid = async (device: AndroidDevice) => {
@@ -198,7 +174,7 @@ export const runAndroid = async (device: AndroidDevice) => {
         if (packageId) {
             try {
                 await execCLI(CLI_ANDROID_ADB, `uninstall ${packageId}`, { silent: true });
-            } catch (e) {
+            } catch (_e) {
                 return Promise.reject(`Failed to uninstall ${packageId}`);
             }
         }
@@ -209,152 +185,136 @@ export const runAndroid = async (device: AndroidDevice) => {
 const _checkSigningCerts = async (c: Context) => {
     logDefault('_checkSigningCerts');
     const signingConfig = getConfigProp('signingConfig') || 'Debug';
-    const isRelease = signingConfig === 'Release';
+    const { appConfig: filesAC } = c.files.workspace;
+    if (
+        !c.platform ||
+        !filesAC.configPrivate ||
+        signingConfig !== 'Release' ||
+        c.payload.pluginConfigAndroid?.store?.storeFile
+    ) {
+        return;
+    }
+    const { appConfig: pathsAC } = c.paths.workspace;
+    const { dir } = pathsAC;
 
-    if (!c.platform) return;
-    if (!c.files.workspace.appConfig.configPrivate) return;
+    const msg = `You're attempting to ${
+        c.command
+    } app in release mode but you have't configured your ${chalk.bold.white(
+        pathsAC.configPrivate
+    )} for ${chalk.bold.white(c.platform)} platform yet.`;
 
-    if (isRelease && !c.payload.pluginConfigAndroid?.store?.storeFile) {
-        const msg = `You're attempting to ${
-            c.command
-        } app in release mode but you have't configured your ${chalk().bold.white(
-            c.paths.workspace.appConfig.configPrivate
-        )} for ${chalk().bold.white(c.platform)} platform yet.`;
-        if (c.program.opts().ci === true) {
-            return Promise.reject(msg);
-        }
-        logWarning(msg);
+    if (c.program.opts().ci === true) return Promise.reject(msg);
 
-        const { confirm } = await inquirerPrompt({
-            type: 'confirm',
-            name: 'confirm',
-            message: 'Do you want to configure it now?',
-        });
+    logWarning(msg);
+    const { confirm } = await inquirerPrompt({
+        type: 'confirm',
+        name: 'confirm',
+        message: 'Do you want to configure it now?'
+    });
 
-        if (confirm) {
-            let confirmCopy = false;
-            let platCandidate: RnvPlatform = null;
-            const { confirmNewKeystore } = await inquirerPrompt({
+    if (!confirm) return Promise.reject("You selected no. Can't proceed");
+
+    let confirmCopy = false;
+    let platCandidate: RnvPlatform = null;
+    const { confirmNewKeystore } = await inquirerPrompt({
+        type: 'confirm',
+        name: 'confirmNewKeystore',
+        message: 'Do you want to generate new keystore as well?'
+    });
+
+    const platforms = filesAC.configPrivate?.platforms || {};
+
+    if (filesAC.configPrivate) {
+        const platCandidates: RnvPlatformKey[] = ['androidwear', 'android'];
+        for (const p of platCandidates) {
+            if (!platforms[p]) continue;
+            platCandidate = p;
+            const resultCopy = await inquirerPrompt({
                 type: 'confirm',
-                name: 'confirmNewKeystore',
-                message: 'Do you want to generate new keystore as well?',
+                name: 'confirmCopy',
+                message: `Found existing keystore configuration for ${platCandidate}. do you want to reuse it?`
             });
-
-            const platforms = c.files.workspace.appConfig.configPrivate?.platforms || {};
-
-            if (c.files.workspace.appConfig.configPrivate) {
-                const platCandidates: RnvPlatformKey[] = ['androidwear', 'androidtv', 'android', 'firetv'];
-
-                platCandidates.forEach((v) => {
-                    if (c.files.workspace.appConfig.configPrivate?.platforms?.[v]) {
-                        platCandidate = v;
-                    }
-                });
-                if (platCandidate) {
-                    const resultCopy = await inquirerPrompt({
-                        type: 'confirm',
-                        name: 'confirmCopy',
-                        message: `Found existing keystore configuration for ${platCandidate}. do you want to reuse it?`,
-                    });
-                    confirmCopy = resultCopy?.confirmCopy;
-                }
-            }
-
-            if (confirmCopy && platCandidate) {
-                platforms[c.platform] = platforms[platCandidate];
-            } else {
-                let storeFile: string | undefined;
-
-                if (!confirmNewKeystore) {
-                    const result = await inquirerPrompt({
-                        type: 'input',
-                        name: 'storeFile',
-                        default: './release.keystore',
-                        message: `Paste relative path to ${chalk().bold.white(
-                            c.paths.workspace.appConfig.dir
-                        )} of your existing ${chalk().bold.white('release.keystore')} file`,
-                    });
-                    storeFile = result?.storeFile;
-                }
-
-                const { storePassword } = await inquirerPrompt({
-                    type: 'password',
-                    name: 'storePassword',
-                    message: 'storePassword',
-                });
-
-                const { keyAlias } = await inquirerPrompt({
-                    type: 'input',
-                    name: 'keyAlias',
-                    message: 'keyAlias',
-                });
-
-                const { keyPassword } = await inquirerPrompt({
-                    type: 'password',
-                    name: 'keyPassword',
-                    message: 'keyPassword',
-                });
-
-                if (confirmNewKeystore) {
-                    const keystorePath = path.join(c.paths.workspace.appConfig.dir, 'release.keystore');
-                    mkdirSync(c.paths.workspace.appConfig.dir);
-                    const keytoolCmd = `keytool -genkey -v -keystore ${keystorePath} -alias ${keyAlias} -keypass ${keyPassword} -storepass ${storePassword} -keyalg RSA -keysize 2048 -validity 10000`;
-                    await executeAsync(keytoolCmd, {
-                        shell: true,
-                        stdio: 'inherit',
-                        silent: true,
-                    });
-                    storeFile = './release.keystore';
-                }
-
-                if (c.paths.workspace.appConfig.dir) {
-                    mkdirSync(c.paths.workspace.appConfig.dir);
-                    c.files.workspace.appConfig.configPrivate = {
-                        platforms: {},
-                    };
-                    if (storeFile) {
-                        platforms[c.platform] = {
-                            storeFile,
-                            storePassword,
-                            keyAlias,
-                            keyPassword,
-                        };
-                    }
-                }
-            }
-
-            updateObjectSync(c.paths.workspace.appConfig.configPrivate, c.files.workspace.appConfig.configPrivate);
-            logSuccess(
-                `Successfully updated private config file at ${chalk().bold.white(c.paths.workspace.appConfig.dir)}.`
-            );
-            // await configureProject(c);
-            await updateRenativeConfigs();
-            await parseAppBuildGradleSync();
-            // await configureGradleProject(c);
-        } else {
-            return Promise.reject("You selected no. Can't proceed");
+            confirmCopy = resultCopy?.confirmCopy;
         }
     }
+
+    if (confirmCopy && platCandidate) {
+        platforms[c.platform] = platforms[platCandidate];
+    } else if (confirmNewKeystore || dir) {
+        let storeFile: string | undefined;
+
+        if (!confirmNewKeystore) {
+            const result = await inquirerPrompt({
+                type: 'input',
+                name: 'storeFile',
+                default: './release.keystore',
+                message: `Paste relative path to ${chalk.bold.white(
+                    c.paths.workspace.appConfig.dir
+                )} of your existing ${chalk.bold.white('release.keystore')} file`
+            });
+            storeFile = result?.storeFile;
+        }
+        const { storePassword } = await inquirerPrompt({
+            type: 'password',
+            name: 'storePassword',
+            message: 'storePassword'
+        });
+        const { keyAlias } = await inquirerPrompt({
+            type: 'input',
+            name: 'keyAlias',
+            message: 'keyAlias'
+        });
+        const { keyPassword } = await inquirerPrompt({
+            type: 'password',
+            name: 'keyPassword',
+            message: 'keyPassword'
+        });
+        mkdirSync(dir);
+        if (confirmNewKeystore) {
+            const keystorePath = path.join(dir, 'release.keystore');
+            const keytoolCmd = `keytool -genkey -v -keystore ${keystorePath} -alias ${keyAlias} -keypass ${keyPassword} -storepass ${storePassword} -keyalg RSA -keysize 2048 -validity 10000`;
+            await executeAsync(keytoolCmd, {
+                shell: true,
+                stdio: 'inherit',
+                silent: true
+            });
+            storeFile = './release.keystore';
+        }
+        filesAC.configPrivate = {
+            platforms: {}
+        };
+        if (storeFile) {
+            platforms[c.platform] = {
+                storeFile,
+                storePassword,
+                keyAlias,
+                keyPassword
+            };
+        }
+    }
+
+    updateObjectSync(pathsAC.configPrivate, filesAC.configPrivate);
+    logSuccess(`Successfully updated private config file at ${chalk.bold.white(dir)}.`);
+    await updateRenativeConfigs();
+    parseAppBuildGradleSync();
 };
 
-export const configureAndroidProperties = async () => {
+export const configureAndroidProperties = () => {
     logDefault('configureAndroidProperties');
 
     const c = getContext();
-
     const appFolder = getAppFolder();
 
     c.runtime.platformBuildsProjectPath = appFolder;
-
-    const addNDK = c.buildConfig?.sdks?.ANDROID_NDK && !c.buildConfig.sdks.ANDROID_NDK.includes('<USER>');
-    let ndkString = `ndk.dir=${getRealPath(c.buildConfig?.sdks?.ANDROID_NDK)}`;
-    let sdkDir = getRealPath(c.buildConfig?.sdks?.ANDROID_SDK);
+    const { ANDROID_NDK, ANDROID_SDK } = c.buildConfig?.sdks ?? {};
+    const addNDK = ANDROID_NDK && !ANDROID_NDK.includes('<USER>');
+    let ndkString = (addNDK && `ndk.dir=${getRealPath(ANDROID_NDK)}`) || '';
+    let sdkDir = getRealPath(ANDROID_SDK);
 
     if (!sdkDir) {
-        logError(`Cannot resolve c.buildConfig?.sdks?.ANDROID_SDK: ${c.buildConfig?.sdks?.ANDROID_SDK}`);
+        logError(`Cannot resolve c.buildConfig.sdks.ANDROID_SDK: ${ANDROID_SDK}`);
         return false;
     }
-
     if (isSystemWin) {
         sdkDir = sdkDir.replace(/\\/g, '/');
         ndkString = ndkString.replace(/\\/g, '/');
@@ -362,20 +322,17 @@ export const configureAndroidProperties = async () => {
 
     fsWriteFileSync(
         path.join(appFolder, 'local.properties'),
-        `#Generated by ReNative (https://renative.org)
-${addNDK ? ndkString : ''}
-sdk.dir=${sdkDir}`
+        `#Generated by ReNative (https://renative.org)\n${ndkString}\nsdk.dir=${sdkDir}`
     );
-
     return true;
 };
 
 export const configureGradleProject = async () => {
     logDefault('configureGradleProject');
-
     if (!isPlatformActive()) return;
-    await copyAssetsFolder('app/src/main');
-    await configureAndroidProperties();
+
+    copyAssetsFolder('app/src/main');
+    configureAndroidProperties();
     await configureProject();
     await copyBuildsFolder();
     await generateEnvVarsFile();
@@ -392,41 +349,35 @@ export const configureProject = async () => {
     mkdirSync(path.join(appFolder, 'app/src/main/assets'));
     fsWriteFileSync(path.join(appFolder, `app/src/main/assets/${outputFile}.bundle`), '{}');
 
-    // console.log({ templateAndroid: c });
-
     // PLUGINS
     parsePlugins((plugin, pluginPlat, key) => {
         injectPluginGradleSync(plugin, pluginPlat, key);
-        injectPluginKotlinSync(pluginPlat, key, pluginPlat.package);
+        injectPluginKotlinSync(pluginPlat);
     });
 
-    c.payload.pluginConfigAndroid.pluginPackages = c.payload.pluginConfigAndroid.pluginPackages.substring(
+    c.payload.pluginConfigAndroid.pluginPackages = c.payload.pluginConfigAndroid.pluginPackages.slice(
         0,
         c.payload.pluginConfigAndroid.pluginPackages.length - 2
     );
 
     // FONTS
     const includedFonts = getConfigProp('includedFonts') || [];
+    const fontExt = ['.ttf', '.otf'];
     parseFonts((font: string, dir: string) => {
-        if (font.includes('.ttf') || font.includes('.otf')) {
-            const key = font.split('.')[0];
-
-            if (includedFonts) {
-                if (includedFonts.includes('*') || includedFonts.includes(key)) {
-                    if (font) {
-                        const fontSource = path.join(dir, font);
-                        if (fsExistsSync(fontSource)) {
-                            const fontFolder = path.join(appFolder, 'app/src/main/assets/fonts');
-                            mkdirSync(fontFolder);
-                            const fontNormalised = font.replace(/__/g, ' ');
-                            const fontDest = path.join(fontFolder, fontNormalised);
-                            copyFileSync(fontSource, fontDest);
-                        } else {
-                            logWarning(`Font ${chalk().bold.white(fontSource)} doesn't exist! Skipping.`);
-                        }
-                    }
-                }
+        if (!font || !includedFonts) return;
+        if (!fontExt.some((ext) => font.includes(ext))) return;
+        const [key] = font.split('.');
+        if (includedFonts.includes('*') || includedFonts.includes(key)) {
+            const fontSource = path.join(dir, font);
+            if (!fsExistsSync(fontSource)) {
+                logWarning(`Font ${chalk.bold.white(fontSource)} doesn't exist! Skipping.`);
+                return;
             }
+            const fontFolder = path.join(appFolder, 'app/src/main/assets/fonts');
+            mkdirSync(fontFolder);
+            const fontNormalised = font.replaceAll('__', ' ');
+            const fontDest = path.join(fontFolder, fontNormalised);
+            copyFileSync(fontSource, fontDest);
         }
     });
     parseAndroidConfigObject();
@@ -437,13 +388,13 @@ export const configureProject = async () => {
     parseMainActivitySync();
     parseMainApplicationSync();
     parseSplashActivitySync();
-    parseValuesXml(ANDROID_STRINGS, true);
-    parseValuesXml(ANDROID_STYLES);
-    parseValuesXml(ANDROID_COLORS, true);
-    parseAndroidManifestSync();
+
+    const androidTemplateArray = getConfigPropArray(c, 'templateAndroid');
+    parseValuesXml(androidTemplateArray, ANDROID_STRINGS, true);
+    parseValuesXml(androidTemplateArray, ANDROID_STYLES);
+    parseValuesXml(androidTemplateArray, ANDROID_COLORS, true);
+    parseAndroidManifestSync(androidTemplateArray);
     parseGradlePropertiesSync();
-    // parseFlipperSync(c, 'debug');
-    // parseFlipperSync(c, 'release');
     await _checkSigningCerts(c);
 
     return true;
@@ -457,21 +408,25 @@ export const runAndroidLog = async () => {
     const child = execaCommand(`${c.cli[CLI_ANDROID_ADB]} logcat`);
     // use event hooks to provide a callback to execute when data are available:
     child.stdout?.on('data', (data: Buffer) => {
-        const d = data.toString().split('\n');
-        d.forEach((v) => {
-            if (v.includes(' E ') && v.includes(filter)) {
-                logRaw(chalk().red(v));
-            } else if (v.includes(' W ') && v.includes(filter)) {
-                logRaw(chalk().yellow(v));
-            } else if (v.includes(filter)) {
-                logRaw(v);
-            }
-        });
+        data.toString()
+            .split('\n')
+            .filter((line) => line.includes(filter))
+            .forEach((line) => {
+                switch (true) {
+                    case line.includes(' E '):
+                        logRaw(chalk.red(line));
+                        break;
+                    case line.includes(' W '):
+                        logRaw(chalk.yellow(line));
+                        break;
+                    default:
+                        logRaw(line);
+                }
+            });
     });
     return child.then((res) => res.stdout).catch((err) => Promise.reject(`Error: ${err}`));
 };
 
-const _isString = (target: boolean | string | undefined): boolean => {
-    return typeof target === 'string';
-};
+const _isString = (target: boolean | string | undefined): target is string => typeof target === 'string';
+
 export { ejectGradleProject };

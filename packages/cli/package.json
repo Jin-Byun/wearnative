@@ -9,42 +9,43 @@
     },
     "license": "MIT",
     "author": "Pavel Jacko <pavel.jacko@gmail.com> (https://github.com/pavjacko)",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/flexn-io/renative.git"
+    },
     "files": [
         "LICENSE",
         "lib",
         "types.d.ts"
     ],
-    "main": "lib/index.js",
     "bin": {
         "rnv": "./lib/bin.js"
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/flexn-io/renative.git"
+    "private": false,
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "publishConfig": {
+        "access": "public",
+        "main": "./lib/index.js",
+        "types": "./lib/index.d.ts"
     },
     "scripts": {
-        "bootstrap": "yarn && yarn build && npm link",
-        "build": "yarn clean && yarn compile",
+        "build": "tsc -b tsconfig.json",
         "compile": "tsc -b tsconfig.json",
-        "compile:prod": "tsc -b tsconfig.json",
-        "lint": "biome lint . --ext .ts",
         "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
         "@rnv/engine-core": "workspace:*",
-        "chalk": "4.1.0",
+        "chalk": "6.0.0",
         "commander": "12.1.0",
-        "inquirer": "8.2.0",
-        "inquirer-autocomplete-prompt": "2.0.1"
-    },
-    "devDependencies": {
-        "@types/inquirer-autocomplete-prompt": "^3.0.3"
+        "inquirer": "^14.2.1",
+        "inquirer-autocomplete-prompt": "^3.0.1",
+        "ora": "^9.4.1"
     },
     "peerDependencies": {
         "@rnv/core": "workspace:*"
     },
-    "private": false,
-    "publishConfig": {
-        "access": "public"
+    "devDependencies": {
+        "@types/inquirer-autocomplete-prompt": "^3.0.3"
     }
 }

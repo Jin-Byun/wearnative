@@ -1,16 +1,16 @@
 import {
-    NpmPackageFile,
-    RnvFileName,
     chalk,
     fsExistsSync,
     fsLstatSync,
     fsReaddirSync,
     getContext,
     logInfo,
-    readObjectSync,
+    type NpmPackageFile,
+    RnvFileName,
+    readObjectSync
 } from '@rnv/core';
 import path from 'path';
-import { LinkablePackage, SourcePackage } from './types';
+import type { LinkablePackage, SourcePackage } from './types';
 
 const captureLinkablePackages = (
     baseDir: string,
@@ -45,7 +45,7 @@ const captureLinkablePackages = (
                 isLinked: isSymLink,
                 isBrokenLink: isSymLink && !nmPathExists,
                 nmPathExists,
-                unlinkedPathExists,
+                unlinkedPathExists
             });
         }
     });
@@ -72,7 +72,7 @@ export const getSourceDir = () => {
     const dirOption = ctx.program.opts().dir;
 
     if (dirOption) {
-        logInfo(`Using custom source directory: ${chalk().bold.white(dirOption)}`);
+        logInfo(`Using custom source directory: ${chalk.bold.white(dirOption)}`);
     }
 
     // As default we'll use the development source directory which is a monorepo
@@ -91,7 +91,7 @@ const captureSourcePackage = (baseDir: string, sourcePackages: SourcePackage[]) 
             sourcePackages.push({
                 name: pkgFile.name,
                 path: baseDir,
-                skipLinking: false,
+                skipLinking: false
             });
         }
     }

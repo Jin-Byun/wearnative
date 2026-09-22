@@ -1,18 +1,18 @@
-import { AnyZodObject, z } from 'zod';
+import { type ZodObject, z } from 'zod';
 import { zodRootAppBaseFragment } from './app';
-import { zodConfigFileProject } from './project';
-import { zodConfigFileLocal } from './local';
-import { zodConfigFileTemplate } from './template';
-import { zodConfigFileWorkspace } from './workspace';
-import { zodConfigFileWorkspaces } from './workspaces';
-import { zodConfigFileTemplates } from './templates';
-import { zodConfigFileOverrides } from './overrides';
-import { zodConfigFileIntegration } from './integration';
 import { zodConfigFileEngine } from './engine';
+import { zodConfigFileIntegration } from './integration';
+import { zodConfigFileLocal } from './local';
+import { zodConfigFileOverrides } from './overrides';
 import { zodConfigFilePlugin } from './plugin';
 import { zodConfigFilePrivate } from './private';
+import { zodConfigFileProject } from './project';
+import { zodConfigFileTemplate } from './template';
+import { zodConfigFileTemplates } from './templates';
+import { zodConfigFileWorkspace } from './workspace';
+import { zodConfigFileWorkspaces } from './workspaces';
 
-export const zodConfigFileRoot: AnyZodObject = z.object({
+const zodConfigFileRoot: ZodObject = z.object({
     app: zodRootAppBaseFragment,
     project: zodConfigFileProject,
     local: zodConfigFileLocal,
@@ -24,5 +24,7 @@ export const zodConfigFileRoot: AnyZodObject = z.object({
     template: zodConfigFileTemplate,
     configTemplates: zodConfigFileTemplates,
     workspace: zodConfigFileWorkspace,
-    workspaces: zodConfigFileWorkspaces,
+    workspaces: zodConfigFileWorkspaces
 });
+
+export default zodConfigFileRoot;

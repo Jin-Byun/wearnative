@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import type { BabelApi, BabelConfig, BabelConfigPlugin } from './types';
 
 const env = process?.env;
@@ -7,15 +7,15 @@ export const withBabelPluginModuleResolver = (cnf?: any): BabelConfigPlugin => [
     require.resolve('babel-plugin-module-resolver'),
     {
         root: [env.RNV_MONO_ROOT || '.'],
-        ...(cnf || {}),
-    },
+        ...(cnf || {})
+    }
 ];
 
 const _withDefaultRNVBabel = (cnf: BabelConfig): BabelConfig => ({
     retainLines: true,
     presets: [['@babel/preset-env', {}]],
     plugins: [withBabelPluginModuleResolver()],
-    ...cnf,
+    ...cnf
 });
 
 export const withRNVBabel =
@@ -27,58 +27,15 @@ export const withRNVBabel =
             api.cache(false);
             return _withDefaultRNVBabel(cnf);
         }
-
-        if (env.RNV_ENGINE_PATH) {
-            const engine = require(env.RNV_ENGINE_PATH);
-            api.cache(true);
-            if (engine.withRNVBabel) {
-                return engine.withRNVBabel(cnf);
-            }
-        }
-
-        return cnf;
+        return withBaseRNV(cnf, 'withRNVBabel');
     };
 
-export const withRNVMetro = (cnf: unknown) => {
-    if (env.RNV_ENGINE_PATH) {
-        const engine = require(env.RNV_ENGINE_PATH);
-        if (engine.withRNVMetro) {
-            return engine.withRNVMetro(cnf);
-        }
-    }
+export const withRNVMetro = (cnf: unknown) => withBaseRNV(cnf, 'withRNVMetro');
 
-    return cnf;
-};
+export const withRNVRNConfig = (cnf: unknown) => withBaseRNV(cnf, 'withRNVRNConfig');
 
-export const withRNVRNConfig = (cnf: unknown) => {
-    if (env.RNV_ENGINE_PATH) {
-        const engine = require(env.RNV_ENGINE_PATH);
-        if (engine.withRNVRNConfig) {
-            return engine.withRNVRNConfig(cnf);
-        }
-    }
-
-    return cnf;
-};
-
-export const withRNVNext = (cnf: unknown) => {
-    if (env.RNV_ENGINE_PATH) {
-        const engine = require(env.RNV_ENGINE_PATH);
-        if (engine.withRNVNext) {
-            return engine.withRNVNext(cnf);
-        }
-    }
-
-    return cnf;
-};
-
-export const withRNVWebpack = (cnf: unknown) => {
-    if (env.RNV_ENGINE_PATH) {
-        const engine = require(env.RNV_ENGINE_PATH);
-        if (engine.withRNVWebpack) {
-            return engine.withRNVWebpack(cnf);
-        }
-    }
-
-    return cnf;
+const withBaseRNV = (cnf: unknown, key: 'withRNVRNConfig' | 'withRNVMetro' | 'withRNVBabel') => {
+    if (!env.RNV_ENGINE_PATH) return cnf;
+    const engine = require(env.RNV_ENGINE_PATH);
+    return engine[key]?.(cnf) || cnf;
 };

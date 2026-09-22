@@ -30,7 +30,7 @@ export const zodBuildSchemeFragment = z
             .string()
             .describe(
                 'Custom description of the buildScheme will be displayed directly in cli if you run rnv with an empty paramener `-s`'
-            ),
+            )
     })
     .partial();
 
@@ -48,8 +48,8 @@ export const zodTemplateConfigFragment = z
                     z.object({
                         paths: z.array(z.string()),
                         engines: z.array(z.string()).optional(),
-                        platforms: zodSupportedPlatforms.optional(),
-                    }),
+                        platforms: zodSupportedPlatforms.optional()
+                    })
                 ])
             )
             .describe('Defines list of all file/dir paths you want to include in template')
@@ -58,7 +58,7 @@ export const zodTemplateConfigFragment = z
         renative_json: z
             .object({
                 $schema: z.string().optional(),
-                extendsTemplate: z.string().optional(),
+                extendsTemplate: z.string().optional()
             })
 
             .optional(),
@@ -74,10 +74,10 @@ export const zodTemplateConfigFragment = z
                     browserslist: z.any(),
                     scripts: z
                         .record(z.string(), z.string())
-                        .describe('Defines scripts you want to include in template'),
+                        .describe('Defines scripts you want to include in template')
                 })
                 .partial()
-        ),
+        )
     })
     .describe('Used in `renative.template.json` allows you to define template behaviour.');
 
@@ -86,6 +86,6 @@ export const zodProjectTemplates = z.record(
     z.object({
         packageName: z.string().optional(),
         description: z.string().optional(),
-        localPath: z.string().optional(),
+        localPath: z.string().optional()
     })
 );

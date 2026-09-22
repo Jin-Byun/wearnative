@@ -24,10 +24,8 @@
         "url": "git://github.com/flexn-io/renative.git"
     },
     "scripts": {
-        "build": "yarn clean && yarn compile",
+        "build": "tsc -b tsconfig.json",
         "compile": "tsc -b tsconfig.json",
-        "compile:prod": "tsc -b tsconfig.json",
-        "prepublishOnly": "yarn clean && yarn compile:prod",
         "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
@@ -35,7 +33,6 @@
         "@react-native/metro-config": "0.76.5",
         "@rnv/adapter": "workspace:*",
         "@rnv/sdk-android": "workspace:*",
-        "@rnv/sdk-apple": "workspace:*",
         "@rnv/sdk-react-native": "workspace:*"
     },
     "peerDependencies": {

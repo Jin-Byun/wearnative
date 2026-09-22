@@ -1,14 +1,14 @@
 import {
-    writeRenativeConfigFile,
+    type ConfigPluginSchema,
     chalk,
-    logSuccess,
-    resolvePluginDependants,
-    PluginListResponseItem,
+    createTask,
     getApi,
     inquirerPrompt,
-    ConfigPluginSchema,
-    createTask,
+    logSuccess,
+    type PluginListResponseItem,
     RnvTaskName,
+    resolvePluginDependants,
+    writeRenativeConfigFile
 } from '@rnv/core';
 import { checkAndInstallIfRequired } from '../../taskHelpers';
 import { getPluginList } from './taskHelpers';
@@ -31,14 +31,14 @@ export default createTask({
                 type: 'rawlist',
                 message: 'Select the plugins you want to add',
                 choices: o.asArray,
-                pageSize: 50,
+                pageSize: 50
             });
 
             selectedPlugins[plugin] = o.allPlugins[plugin];
-            installMessage.push(`${chalk().bold.white(plugin)} v(${chalk().green(o.allPlugins[plugin].version)})`);
+            installMessage.push(`${chalk.bold.white(plugin)} v(${chalk.green(o.allPlugins[plugin].version)})`);
         } else {
             selectedPlugins[selPluginKey] = selPlugin;
-            installMessage.push(`${chalk().bold.white(selPluginKey)} v(${chalk().green(selPlugin.version)})`);
+            installMessage.push(`${chalk.bold.white(selPluginKey)} v(${chalk.green(selPlugin.version)})`);
         }
 
         const questionPlugins: Record<string, PluginListResponseItem> = {};
@@ -71,7 +71,7 @@ export default createTask({
                 const { propValue } = await inquirerPrompt({
                     name: 'propValue',
                     type: 'input',
-                    message: `${pluginKey}: Add value for ${pluginProps[i2]} (You can do this later in ./renative.json file)`,
+                    message: `${pluginKey}: Add value for ${pluginProps[i2]} (You can do this later in ./renative.json file)`
                 });
                 finalProps[pluginProps[i2]] = propValue;
             }
@@ -93,5 +93,5 @@ export default createTask({
         logSuccess('Plugins installed successfully!');
         return true;
     },
-    task: RnvTaskName.pluginAdd,
+    task: RnvTaskName.pluginAdd
 });

@@ -1,6 +1,6 @@
-import { createTask, RnvTaskName, RnvTaskOptionPresets, doResolve } from '@rnv/core';
-import { startReactNative } from '../metroRunner';
+import { createTask, doResolve, RnvTaskName, RnvTaskOptionPresets } from '@rnv/core';
 import { SdkPlatforms } from '../constants';
+import { startReactNative } from '../metroRunner';
 
 export default createTask({
     description: 'Starts react-native bundler',
@@ -14,18 +14,14 @@ export default createTask({
         }
         // Disable reset for other commands (ie. cleaning platforms)
         ctx.runtime.disableReset = true;
-        let customCliPath: string | undefined;
-        let metroConfigName: string | undefined;
-        const { reactNativePackageName, reactNativeMetroConfigName } = ctx.runtime?.runtimeExtraProps || {};
-        if (reactNativePackageName) {
-            customCliPath = `${doResolve(reactNativePackageName)}/cli.js`;
-        }
-        if (reactNativeMetroConfigName) {
-            metroConfigName = reactNativeMetroConfigName;
-        }
+        const { reactNativePackageName, reactNativeMetroConfigName: metroConfigName } =
+            ctx.runtime?.runtimeExtraProps || {};
+        const customCliPath: string | undefined = reactNativePackageName
+            ? `${doResolve(reactNativePackageName)}/cli.js`
+            : undefined;
         return startReactNative({ waitForBundler: !parentTaskName, customCliPath, metroConfigName });
     },
     task: RnvTaskName.start,
     options: RnvTaskOptionPresets.withConfigure(),
-    platforms: SdkPlatforms,
+    platforms: SdkPlatforms
 });

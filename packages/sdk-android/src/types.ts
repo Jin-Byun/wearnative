@@ -1,4 +1,4 @@
-import { ConfigPluginPlatformSchema } from '@rnv/core';
+import type { ConfigPluginPlatformSchema } from '@rnv/core';
 
 export type Payload = {
     pluginConfigAndroid: {
@@ -45,9 +45,6 @@ export type Payload = {
         pluginSplashActivityImports: string;
         store?: {
             storeFile?: string;
-            // keyAlias: string;
-            // storePassword: string;
-            // keyPassword: string;
         };
     };
 };
@@ -68,17 +65,6 @@ export type AndroidDevice = {
     };
     arch?: string;
     avdConfig?: Record<string, string>;
-    // {
-    //     'hw.lcd.density': string;
-    //     'hw.lcd.width': string;
-    //     'hw.lcd.height': string;
-    //     'abi.type': string;
-    //     'image.sysdir.1': string;
-    //     'tag.id': string;
-    //     'tag.display': string;
-    //     'hw.device.name': string;
-    //     'skin.name': string;
-    // };
     isNotEligibleAndroid?: boolean;
     name: string;
     isDevice?: boolean;
@@ -88,12 +74,4 @@ export type AndroidDevice = {
 
 export type TemplateAndroid = Required<Required<ConfigPluginPlatformSchema>['templateAndroid']>;
 
-// export type AndroidManifestJSONNode = {
-//     tag: string;
-//     'android:name': string;
-//     children?: AndroidManifestJSONNode[];
-// };
-// export type AndroidManifestJSON = AndroidManifestJSONNode & {
-//     package?: string;
-// };
 export type TargetResourceFile = 'styles_xml' | 'strings_xml' | 'colors_xml';

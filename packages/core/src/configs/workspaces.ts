@@ -1,10 +1,10 @@
-import { fsExistsSync, writeFileSync, readObjectSync, mkdirSync } from '../system/fs';
-import { getContext } from '../context/provider';
 import path from 'path';
-import { chalk, logDefault, logDebug, logInfo, logWarning } from '../logger';
-import type { RnvContext } from '../context/types';
 import { generateOptions, inquirerPrompt } from '../api';
+import { getContext } from '../context/provider';
+import type { RnvContext } from '../context/types';
+import { chalk, logDebug, logDefault, logInfo, logWarning } from '../logger';
 import type { ConfigFileWorkspace, ConfigFileWorkspaces } from '../schema/types';
+import { fsExistsSync, mkdirSync, readObjectSync, writeFileSync } from '../system/fs';
 
 export const createWorkspace = async (workspaceID: string, workspacePath: string) => {
     const c = getContext();
@@ -13,7 +13,7 @@ export const createWorkspace = async (workspaceID: string, workspacePath: string
     if (!cnf) return;
 
     cnf.workspaces[workspaceID] = {
-        path: workspacePath,
+        path: workspacePath
     };
 
     const workspaceConfig = {
@@ -21,7 +21,7 @@ export const createWorkspace = async (workspaceID: string, workspacePath: string
         // defaultTargets: c.files.defaultWorkspace?.config?.defaultTargets,
         // TODO: use empty default?
         sdks: {},
-        defaultTargets: {},
+        defaultTargets: {}
     };
 
     mkdirSync(workspacePath);
@@ -42,7 +42,7 @@ export const getWorkspaceDirPath = async (c: RnvContext) => {
             const wsDir = path.join(c.paths.user.homeDir, `.${ws}`);
             if (fsExistsSync(wsDir)) {
                 wss.workspaces[ws] = {
-                    path: wsDir,
+                    path: wsDir
                 };
                 writeFileSync(c.paths.dotRnv.configWorkspaces, wss);
                 logInfo(
@@ -54,12 +54,12 @@ export const getWorkspaceDirPath = async (c: RnvContext) => {
                     const { conf } = await inquirerPrompt({
                         name: 'conf',
                         type: 'confirm',
-                        message: `Your project belongs to workspace ${chalk().bold.white(
+                        message: `Your project belongs to workspace ${chalk.bold.white(
                             ws
-                        )}. do you want to add new workspace ${chalk().bold.white(
+                        )}. do you want to add new workspace ${chalk.bold.white(
                             ws
-                        )} to your local system at ${chalk().bold.white(wsDir)}?`,
-                        warningMessage: 'No app configs found for this project',
+                        )} to your local system at ${chalk.bold.white(wsDir)}?`,
+                        warningMessage: 'No app configs found for this project'
                     });
                     confirm = conf;
                     c.runtime.isWSConfirmed = true;
@@ -79,7 +79,7 @@ export const getWorkspaceDirPath = async (c: RnvContext) => {
 
 export const getWorkspaceConnectionString = (obj?: ConfigFileWorkspaces['workspaces'][string]) => {
     const remoteUrl = obj?.remote?.url;
-    const connectMsg = remoteUrl ? chalk().green(`(${obj.remote?.type}:${remoteUrl})`) : '';
+    const connectMsg = remoteUrl ? chalk.green(`(${obj.remote?.type}:${remoteUrl})`) : '';
     return connectMsg;
 };
 
@@ -88,7 +88,7 @@ export const getWorkspaceOptions = () => {
     return generateOptions(c.files.dotRnv.configWorkspaces?.workspaces, false, null, (i, obj, mapping, defaultVal) => {
         logDebug('getWorkspaceOptions');
 
-        return ` [${chalk().grey(i + 1)}]> ${chalk().bold.white(defaultVal)} ${getWorkspaceConnectionString(obj)}\n`;
+        return ` [${chalk.grey(i + 1)}]> ${chalk.bold.white(defaultVal)} ${getWorkspaceConnectionString(obj)}\n`;
     });
 };
 
@@ -111,8 +111,8 @@ export const loadWorkspacesConfigSync = () => {
             logWarning(`No workspace found in ${c.paths.dotRnv.configWorkspaces}. Creating default rnv one for you`);
             cnf.workspaces = {
                 rnv: {
-                    path: c.paths.workspace.dir,
-                },
+                    path: c.paths.workspace.dir
+                }
             };
             writeFileSync(c.paths.dotRnv.configWorkspaces, cnf);
         }
@@ -121,9 +121,9 @@ export const loadWorkspacesConfigSync = () => {
         c.files.dotRnv.configWorkspaces = {
             workspaces: {
                 rnv: {
-                    path: c.paths.workspace.dir,
-                },
-            },
+                    path: c.paths.workspace.dir
+                }
+            }
         };
         writeFileSync(c.paths.dotRnv.configWorkspaces, c.files.dotRnv.configWorkspaces);
     }

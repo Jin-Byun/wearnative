@@ -1,12 +1,8 @@
-import React, { createContext, useState } from 'react';
+import { createContext, useState } from 'react';
 import { ImageStyle, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 
 import {
     getScaledValue,
-    isPlatformMacos,
-    isPlatformIos,
-    isPlatformTvos,
-    isPlatformWeb,
     isPlatformAndroidwear,
 } from '@rnv/renative';
 import CONFIG from '../platformAssets/renative.runtime.json';
@@ -16,10 +12,6 @@ import ICON_LOGO from '../platformAssets/runtime/logo.png';
 export function testProps(testId: string | undefined) {
     if (!testId) {
         return;
-    }
-    const isApplePlatform = isPlatformIos || isPlatformTvos || isPlatformMacos;
-    if (isApplePlatform || isPlatformWeb) {
-        return { testID: testId };
     }
     return { accessibilityLabel: testId, accessible: true };
 }

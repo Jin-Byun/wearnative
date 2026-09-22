@@ -1,11 +1,11 @@
 import {
     chalk,
-    logToSummary,
-    getRegisteredEngines,
     createTask,
-    RnvTaskName,
     generateStringFromTaskOption,
-    RnvTaskOptions,
+    getRegisteredEngines,
+    logToSummary,
+    RnvTaskName,
+    RnvTaskOptions
 } from '@rnv/core';
 
 export default createTask({
@@ -15,7 +15,7 @@ export default createTask({
         let optsString = '';
 
         Object.values(RnvTaskOptions).forEach((param) => {
-            optsString += chalk().grey(`${generateStringFromTaskOption(param)}, ${param.description}\n`);
+            optsString += chalk.grey(`${generateStringFromTaskOption(param)}, ${param.description}\n`);
         });
 
         // TASKS
@@ -30,16 +30,16 @@ export default createTask({
         const cmdsString = commands.join(', ');
 
         logToSummary(`
-${chalk().bold.white('COMMANDS:')}
+${chalk.bold.white('COMMANDS:')}
 
 ${cmdsString}
 
-${chalk().bold.white('OPTIONS:')}
+${chalk.bold.white('OPTIONS:')}
 
 ${optsString}
 `);
     },
     task: RnvTaskName.help,
     isGlobalScope: true,
-    isPriorityOrder: true,
+    isPriorityOrder: true
 });

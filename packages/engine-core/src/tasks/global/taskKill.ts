@@ -1,16 +1,16 @@
 import {
-    RnvPlatformKey,
-    RnvContext,
-    createTask,
-    RnvTaskName,
     chalk,
     configureRuntimeDefaults,
+    createTask,
     executeTask,
     inquirerPrompt,
     logSuccess,
+    type RnvContext,
+    type RnvPlatformKey,
+    RnvTaskName
 } from '@rnv/core';
 import { checkPortInUse } from '@rnv/sdk-utils';
-import killPort from 'kill-port';
+import { killPort } from 'kill-the-port';
 
 export default createTask({
     description: 'Kills all the processes related to this project',
@@ -48,12 +48,12 @@ export default createTask({
                 type: 'confirm',
                 message: 'Processes attached to the ports will be killed. Continue?',
                 warningMessage: `Found active ports:
-${usedPorts.map((v) => chalk().bold.white(`> ${v.port} (${v.platform})`)).join('\n')}`,
+${usedPorts.map((v) => chalk.bold.white(`> ${v.port} (${v.platform})`)).join('\n')}`
             });
             if (confirm) {
                 const killPromise = [];
                 usedPorts.forEach((v) => {
-                    if (v.port) killPromise.push(killPort(v.port));
+                    if (v.port) killPromise.push(killPort({ port: v.port }));
                 });
                 await Promise.all(usedPorts);
                 logSuccess('Processes KILLED');
@@ -62,5 +62,5 @@ ${usedPorts.map((v) => chalk().bold.white(`> ${v.port} (${v.platform})`)).join('
         return true;
     },
     task: RnvTaskName.kill,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

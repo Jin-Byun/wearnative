@@ -2,10 +2,10 @@ import { inquirerPrompt } from '../api';
 import { getContext } from '../context/provider';
 import { getEngineRunnerByPlatform } from '../engines';
 import { chalk } from '../logger';
-import { RnvPlatform } from '../types';
+import type { RnvPlatform } from '../types';
 import { initializeTask } from './taskExecutors';
 import { getRegisteredTasks } from './taskRegistry';
-import { RnvTask } from './types';
+import type { RnvTask } from './types';
 
 const isTaskSupportedOnPlatform = (task: RnvTask, platform: RnvPlatform) => {
     if (!task.platforms) return true;
@@ -32,13 +32,13 @@ const groupingWizard = async (tasks: RnvTask[]) => {
         const sharesPrefix = filteredTasks.filter((t) => t.task.split(' ')[0] === prefix).length > 1;
         if (sharesPrefix) {
             optionsMap[prefix] = {
-                name: `${prefix}${chalk().gray('...')}`,
-                value: [...(optionsMap[prefix]?.value ?? []), taskInstance],
+                name: `${prefix}${chalk.gray('...')}`,
+                value: [...(optionsMap[prefix]?.value ?? []), taskInstance]
             };
         } else {
             optionsMap[taskInstance.task] = {
-                name: `${taskInstance.task} ${chalk().gray(taskInstance.description)}`,
-                value: [taskInstance],
+                name: `${taskInstance.task} ${chalk.gray(taskInstance.description)}`,
+                value: [taskInstance]
             };
         }
     });
@@ -58,7 +58,7 @@ const groupingWizard = async (tasks: RnvTask[]) => {
                 message: `Pick a command`,
                 loop: false,
                 choices: options,
-                pageSize: 15,
+                pageSize: 15
             })
         ).selected as RnvTask[]);
     return selected.length === 1 ? selected[0] : await disambiguatingWizard(selected);
@@ -87,7 +87,7 @@ const disambiguatingWizard = async (tasks: RnvTask[]) => {
                     message: `Pick a platform`,
                     loop: false,
                     choices: uniquePlatforms,
-                    pageSize: 15,
+                    pageSize: 15
                 })
             ).selected;
             // TODO reuse with selectPlatformIfRequired ?
@@ -102,9 +102,9 @@ const disambiguatingWizard = async (tasks: RnvTask[]) => {
             const isAmbiguous = filteredTasks.filter((t) => t.task === taskInstance.task).length > 1;
             return {
                 name: `${taskInstance.task} ${
-                    isAmbiguous ? chalk().gray(`(${taskInstance.ownerID}) `) : ''
-                }${chalk().gray(taskInstance.description)}`,
-                value: taskInstance,
+                    isAmbiguous ? chalk.gray(`(${taskInstance.ownerID}) `) : ''
+                }${chalk.gray(taskInstance.description)}`,
+                value: taskInstance
             };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -118,7 +118,7 @@ const disambiguatingWizard = async (tasks: RnvTask[]) => {
             message: `Pick a command`,
             loop: false,
             choices: options,
-            pageSize: 15,
+            pageSize: 15
         })
     ).selected as RnvTask;
 };

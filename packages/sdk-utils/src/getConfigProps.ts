@@ -1,32 +1,35 @@
-import { getAppConfigBuildsFolder, logWarning, RnvPlatform, getConfigProp, fsExistsSync, getContext } from '@rnv/core';
-import path from 'path';
+import path from 'node:path';
+import {
+    fsExistsSync,
+    getAppConfigBuildsFolder,
+    getConfigProp,
+    getContext,
+    logWarning,
+    type RnvPlatform
+} from '@rnv/core';
 
 export const getBuildFilePath = (filePath: string, altTemplateFolder?: string) => {
+    // P3 => appConfigs + @buildSchemes
+    const sp3bf = getAppConfigBuildsFolder();
+    if (sp3bf) {
+        const sp3 = path.join(sp3bf, filePath);
+        if (fsExistsSync(sp3)) return sp3;
+    }
     const c = getContext();
-    // P1 => platformTemplates
-    let sp = path.join(altTemplateFolder || getAppTemplateFolder()!, filePath);
     // P2 => appConfigs/base + @buildSchemes
     const sp2bf = getAppConfigBuildsFolder(c.paths.project.appConfigBase.dir);
     if (sp2bf) {
         const sp2 = path.join(sp2bf, filePath);
-        if (fsExistsSync(sp2)) sp = sp2;
+        if (fsExistsSync(sp2)) return sp2;
     }
-
-    // P3 => appConfigs + @buildSchemes
-    const sp3bf = getAppConfigBuildsFolder();
-
-    if (sp3bf) {
-        const sp3 = path.join(sp3bf, filePath);
-        if (fsExistsSync(sp3)) sp = sp3;
-    }
-
-    return sp;
+    // P1 => platformTemplates
+    return path.join(altTemplateFolder || (getAppTemplateFolder() as string), filePath);
 };
 
 export const getAppId = () => {
     const id = getConfigProp('id');
-    const idSuffix = getConfigProp('idSuffix');
-    return idSuffix ? `${id}${idSuffix}` : id;
+    const idSuffix = getConfigProp('idSuffix') || '';
+    return `${id}${idSuffix}`;
 };
 
 export const getAppTitle = () => getConfigProp('title');
@@ -44,6 +47,8 @@ export const getGetJsBundleFile = () => getConfigProp('getJsBundleFile');
 
 export const getAppDescription = () => getConfigProp('description') || getContext().files.project.package?.description;
 
+const versionSeparatorRegex = /[.+-]/;
+
 export const getAppVersion = () => {
     const version = getConfigProp('version') || getContext().files.project.package?.version;
     if (!version) {
@@ -56,33 +61,14 @@ export const getAppVersion = () => {
     const dotLength = versionCodeArr.length;
     const isNumArr = versionCodeArr.map((v: string) => !Number.isNaN(Number(v)));
 
-    const verArr: Array<string> = [];
-    let i = 0;
-    version.split('.').map((v: string) =>
-        v.split('-').map((v2) =>
-            v2.split('+').forEach((v3) => {
-                const isNum = !Number.isNaN(Number(v3));
-                if (isNumArr[i] && isNum) {
-                    verArr.push(v3);
-                } else if (!isNumArr[i]) {
-                    verArr.push(v3);
-                }
-
-                i++;
-            })
-        )
-    );
-    if (verArr.length > dotLength) {
-        verArr.length = dotLength;
-    }
-
-    const output = verArr.join('.');
-    // console.log(`IN: ${version}\nOUT: ${output}`);
-    return output;
+    return version
+        .split(versionSeparatorRegex)
+        .flatMap((v, i) => (!isNumArr[i] || !Number.isNaN(Number(v)) ? v : []))
+        .slice(0, dotLength)
+        .join('.');
 };
 
-const _androidLikePlatform = (platform: RnvPlatform) =>
-    ['android', 'androidtv', 'firetv', 'androidwear'].includes(platform!);
+const _androidLikePlatform = (platform: RnvPlatform) => ['android', 'androidwear'].includes(platform as string);
 
 /**
  * Retrieves the version code for the specified platform from the configuration.
@@ -117,49 +103,21 @@ export const getAppVersionCode = () => {
     }
     const versionCodeFormat = getConfigProp('versionCodeFormat') || '00.00.00';
     const vFormatArr = versionCodeFormat.split('.').map((v: string) => v.length);
+    const verArr: string[] = version.split(versionSeparatorRegex).reduce((acc, v) => {
+        const asNumber = Number(v);
+        if (Number.isNaN(asNumber)) return acc;
+        const maxDigits = vFormatArr[acc.length] || 2;
+        const padLength = Math.max(0, maxDigits - v.length);
+        acc.push(`${'0'.repeat(padLength)}${v.slice(0, maxDigits)}`);
+        return acc;
+    }, [] as string[]);
     const versionCodeMaxCount = vFormatArr.length;
-    const verArr = [];
-
-    version.split('.').map((v) =>
-        v.split('-').map((v2) =>
-            v2.split('+').forEach((v3) => {
-                const asNumber = Number(v3);
-                if (!Number.isNaN(asNumber)) {
-                    let val = v3;
-                    const maxDigits = vFormatArr[verArr.length] || 2;
-
-                    if (v3.length > maxDigits) {
-                        val = v3.substr(0, maxDigits);
-                    } else if (v3.length < maxDigits) {
-                        let toAdd = maxDigits - v3.length;
-                        val = v3;
-                        while (toAdd > 0) {
-                            val = `0${val}`;
-                            toAdd--;
-                        }
-                    }
-                    verArr.push(val);
-                }
-            })
-        )
-    );
-    let verCountDiff = verArr.length - versionCodeMaxCount;
-    if (verCountDiff < 0) {
-        while (verCountDiff < 0) {
-            let extraVersionLen = vFormatArr[versionCodeMaxCount + verCountDiff];
-            let num = '';
-            while (extraVersionLen) {
-                num += '0';
-                extraVersionLen--;
-            }
-            verArr.push(num);
-            verCountDiff++;
-        }
+    let extraVersionLen = 0;
+    for (let verCountDiff = versionCodeMaxCount - verArr.length; verCountDiff > 0; verCountDiff--) {
+        extraVersionLen += vFormatArr[versionCodeMaxCount - verCountDiff] ?? 0;
     }
 
-    const output = Number(verArr.join('')).toString();
-    // console.log(`IN: ${version}\nOUT: ${output}`);
-    return output;
+    return Number(verArr.join('').concat('', '0'.repeat(extraVersionLen))).toString();
 };
 
 export const getAppTemplateFolder = () => {

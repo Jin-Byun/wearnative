@@ -1,15 +1,15 @@
 import {
     type ConfigFileApp,
+    chalk,
     getContext,
     listAppConfigsFoldersSync,
-    readObjectSync,
     logInfo,
-    chalk,
     RnvFileName,
-    writeFileSync,
+    readObjectSync,
+    writeFileSync
 } from '@rnv/core';
-import type { NewProjectData } from '../types';
 import path from 'path';
+import type { NewProjectData } from '../types';
 
 const Question = async (data: NewProjectData): Promise<void> => {
     const c = getContext();
@@ -26,9 +26,9 @@ const Question = async (data: NewProjectData): Promise<void> => {
                 appConfig.common.id = inputs.appID;
                 appConfig.common.description = `This is ${inputs.appTitle} app!`;
                 logInfo(
-                    `Updating appConfig ${chalk().bold.white(appConfigID)} with title: ${chalk().bold.white(
+                    `Updating appConfig ${chalk.bold.white(appConfigID)} with title: ${chalk.bold.white(
                         inputs.appTitle
-                    )} and id: ${chalk().bold.white(inputs.appID)}`
+                    )} and id: ${chalk.bold.white(inputs.appID)}`
                 );
                 writeFileSync(appCnfPath, appConfig);
             }

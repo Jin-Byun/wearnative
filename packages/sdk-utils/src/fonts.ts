@@ -1,3 +1,5 @@
+import { copyFileSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
 import {
     chalk,
     fsExistsSync,
@@ -7,10 +9,10 @@ import {
     getContext,
     logDebug,
     logWarning,
-    parseFonts,
+    parseFonts
 } from '@rnv/core';
-import { copyFileSync, mkdirSync } from 'fs';
-import path from 'path';
+
+const FONT_EXTENSION = ['.ttf', '.otf', '.woff'] as const;
 
 export const configureFonts = async () => {
     const c = getContext();
@@ -20,44 +22,29 @@ export const configureFonts = async () => {
 
     const duplicateFontCheck: Array<string> = [];
     parseFonts((font, dir) => {
-        if (font.includes('.ttf') || font.includes('.otf') || font.includes('.woff')) {
-            const keOriginal = font.split('.')[0];
-            const keyNormalised = keOriginal.replace(/__/g, ' ');
-            const includedFonts = getConfigProp('includedFonts');
-            if (includedFonts) {
-                if (
-                    includedFonts.includes('*') ||
-                    includedFonts.includes(keOriginal) ||
-                    includedFonts.includes(keyNormalised)
-                ) {
-                    if (font && !duplicateFontCheck.includes(font)) {
-                        duplicateFontCheck.push(font);
-                        const fontSource = path.join(dir, font).replace(/\\/g, '\\\\');
-                        if (fsExistsSync(fontSource)) {
-                            // const fontFolder = path.join(appFolder, 'app/src/main/assets/fonts');
-                            // mkdirSync(fontFolder);
-                            // const fontDest = path.join(fontFolder, font);
-                            // copyFileSync(fontSource, fontDest);
-                            fontsObj += `{
+        if (!FONT_EXTENSION.some((ext) => font.includes(ext))) return;
+        const keOriginal = font.split('.')[0];
+        const keyNormalised = keOriginal.replaceAll('__', ' ');
+        const includedFonts = getConfigProp('includedFonts');
+        if (!includedFonts) return;
+        if (!font || duplicateFontCheck.includes(font)) return;
+        if (['*', keOriginal, keyNormalised].some((v) => includedFonts.includes(v))) {
+            duplicateFontCheck.push(font);
+            const fontSource = path.join(dir, font).replaceAll('\\', '\\\\');
+            if (fsExistsSync(fontSource)) {
+                fontsObj += `{
                               fontFamily: '${keyNormalised}',
                               file: require('${fontSource}'),
                           },`;
-                        } else {
-                            logWarning(`Font ${chalk().bold.white(fontSource)} doesn't exist! Skipping.`);
-                        }
-                    }
-                }
+            } else {
+                logWarning(`Font ${chalk.bold.white(fontSource)} doesn't exist! Skipping.`);
             }
         }
     });
 
     fontsObj += '];';
-    if (!fsExistsSync(c.paths.project.assets.dir)) {
-        mkdirSync(c.paths.project.assets.dir);
-    }
-    if (!fsExistsSync(c.paths.project.assets.runtimeDir)) {
-        mkdirSync(c.paths.project.assets.runtimeDir);
-    }
+    mkdirSync(c.paths.project.assets.dir, { recursive: true });
+    mkdirSync(c.paths.project.assets.runtimeDir, { recursive: true });
     const fontJsPath = path.join(c.paths.project.assets.dir, 'runtime', 'fonts.web.js');
     if (fsExistsSync(fontJsPath)) {
         const existingFileContents = fsReadFileSync(fontJsPath).toString();

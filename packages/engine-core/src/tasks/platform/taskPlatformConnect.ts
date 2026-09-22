@@ -1,16 +1,16 @@
-import path from 'path';
 import {
     chalk,
-    logSuccess,
-    logToSummary,
-    writeFileSync,
-    removeDirs,
+    createTask,
     generatePlatformChoices,
     inquirerPrompt,
-    RnvPlatformKey,
-    createTask,
+    logSuccess,
+    logToSummary,
+    type RnvPlatformKey,
     RnvTaskName,
+    removeDirs,
+    writeFileSync
 } from '@rnv/core';
+import path from 'path';
 
 export default createTask({
     description: 'Connect platform template back to rnv',
@@ -37,8 +37,8 @@ export default createTask({
                 type: 'checkbox',
                 choices: generatePlatformChoices().map((choice) => ({
                     ...choice,
-                    disabled: choice.isConnected,
-                })),
+                    disabled: choice.isConnected
+                }))
             });
             selectedPlatforms = connectedPlatforms;
         }
@@ -60,7 +60,7 @@ export default createTask({
         const { deletePlatformFolder } = await inquirerPrompt({
             name: 'deletePlatformFolder',
             type: 'confirm',
-            message: 'Would you also like to delete the previously used platform folder?',
+            message: 'Would you also like to delete the previously used platform folder?'
         });
 
         if (deletePlatformFolder) {
@@ -75,10 +75,10 @@ export default createTask({
         }
 
         logSuccess(
-            `${chalk().bold.white(
+            `${chalk.bold.white(
                 selectedPlatforms.join(',')
             )} now using ReNative platformTemplates located associated platform engines.`
         );
     },
-    task: RnvTaskName.platformConnect,
+    task: RnvTaskName.platformConnect
 });

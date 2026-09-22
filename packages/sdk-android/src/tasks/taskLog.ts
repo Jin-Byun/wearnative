@@ -1,7 +1,7 @@
 import { createTask, RnvTaskName } from '@rnv/core';
-import { runAndroidLog } from '../runner';
-import { checkAndConfigureAndroidSdks } from '../installer';
 import { SdkPlatforms } from '../constants';
+import { checkAndConfigureAndroidSdks } from '../installer';
+import { runAndroidLog } from '../runner';
 
 export default createTask({
     description: 'Attach logger to device or emulator and print out logs',
@@ -12,5 +12,5 @@ export default createTask({
     },
     task: RnvTaskName.log,
     platforms: SdkPlatforms,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

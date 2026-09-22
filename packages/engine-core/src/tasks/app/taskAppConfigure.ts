@@ -1,31 +1,30 @@
-import path from 'path';
-
 import {
     chalk,
-    logError,
-    logTask,
-    logWarning,
-    logDebug,
-    logInfo,
-    logAppInfo,
-    writeFileSync,
+    checkAndInstallPackageDependenciesIfRequired,
+    createTask,
     fsExistsSync,
     fsReadFileSync,
     fsRenameSync,
-    RnvTaskOptionPresets,
-    listAppConfigsFoldersSync,
-    updateRenativeConfigs,
-    inquirerPrompt,
-    RnvContext,
-    inquirerSeparator,
-    RnvTaskName,
-    createTask,
-    checkAndInstallPackageDependenciesIfRequired,
     getContext,
+    inquirerPrompt,
+    inquirerSeparator,
+    listAppConfigsFoldersSync,
+    logAppInfo,
+    logDebug,
+    logError,
+    logInfo,
+    logTask,
+    logWarning,
+    type RnvContext,
+    RnvTaskName,
+    RnvTaskOptionPresets,
+    updateRenativeConfigs,
+    writeFileSync
 } from '@rnv/core';
+import path from 'path';
 
 const _loadAppConfigIDfromDir = (dirName: string, appConfigsDir: string) => {
-    logDebug(`_loadAppConfigIDfromDir:${dirName}:${appConfigsDir}`, chalk().grey);
+    logDebug(`_loadAppConfigIDfromDir:${dirName}:${appConfigsDir}`, chalk.grey);
     const filePath = path.join(appConfigsDir, 'renative.json');
     if (fsExistsSync(filePath)) {
         try {
@@ -57,14 +56,14 @@ const _askUserAboutConfigs = async (ctx: RnvContext, dir: string, id: string, ba
             // },
             {
                 name: `Keep folder name (${dir}) and rename the ID from renative.json (${id} -> ${dir})`,
-                value: 'keepFolder',
+                value: 'keepFolder'
             },
             inquirerSeparator(),
             {
                 name: "I'll do it manually",
-                value: 'manually',
-            },
-        ],
+                value: 'manually'
+            }
+        ]
     });
 
     if (choice === 'manually') {
@@ -117,7 +116,7 @@ const _findAndSwitchAppConfigDir = async (ctx: RnvContext) => {
     if (appConfigsDirNames.length) {
         if (appConfigsDirNames.length === 1) {
             // we have only one, skip the question
-            logInfo(`Found only one app config available. Will use ${chalk().bold.white(appConfigsDirNames[0])}`);
+            logInfo(`Found only one app config available. Will use ${chalk.bold.white(appConfigsDirNames[0])}`);
             _setAppId(ctx, appConfigsDirNames[0]);
             return true;
         }
@@ -128,7 +127,7 @@ const _findAndSwitchAppConfigDir = async (ctx: RnvContext) => {
             message: 'Which one would you like to pick?',
             choices: appConfigsDirNames,
             pageSize: 50,
-            logMessage: 'ReNative found multiple existing appConfigs',
+            logMessage: 'ReNative found multiple existing appConfigs'
         });
 
         if (conf) {
@@ -182,7 +181,7 @@ const appConfigure = async () => {
     } else if (ctx.program.opts().appConfigID) {
         const aid = await matchAppConfigID(ctx, ctx.program.opts().appConfigID);
         if (!aid) {
-            logWarning(`Cannot find app config ${chalk().bold.white(ctx.program.opts().appConfigID)}`);
+            logWarning(`Cannot find app config ${chalk.bold.white(ctx.program.opts().appConfigID)}`);
             const hasAppConfig = await _findAndSwitchAppConfigDir(ctx);
             if (!hasAppConfig) {
                 // await executeTask(c, RnvTaskName.appCreate, RnvTaskName.appConfigure);
@@ -216,5 +215,5 @@ export default createTask({
         return true;
     },
     task: RnvTaskName.appConfigure,
-    options: RnvTaskOptionPresets.withConfigure(),
+    options: RnvTaskOptionPresets.withConfigure()
 });

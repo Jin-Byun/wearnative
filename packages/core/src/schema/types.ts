@@ -1,51 +1,52 @@
-import { z } from 'zod';
-import { zodBuildSchemeFragment, zodTemplateConfigFragment } from './shared';
-import { zodCommonSchemaFragment } from './common';
-import { zodPlatformAndroidFragment } from './platforms/fragments/android';
-import { zodPlatformBaseFragment } from './platforms/fragments/base';
-import { zodPlatformElectronFragment } from './platforms/fragments/electron';
-import { zodPlatformiOSFragment } from './platforms/fragments/ios';
-import { zodPlatformLightningFragment } from './platforms/fragments/lightning';
-import { zodPlatformNextJsFragment } from './platforms/fragments/nextjs';
-import { zodPlatformReactNativeFragment } from './platforms/fragments/reactNative';
-import {
+import type { z } from 'zod';
+import type { RnvPlatformKey } from '../types';
+import type { zodCommonSchemaFragment } from './common';
+import type { zodRootAppBaseFragment } from './configFiles/app';
+import type { zodConfigFileEngine } from './configFiles/engine';
+import type { zodConfigFileIntegration } from './configFiles/integration';
+import type { zodConfigFileLocal } from './configFiles/local';
+import type { zodConfigFileOverrides } from './configFiles/overrides';
+import type { zodPluginFragment } from './configFiles/plugin';
+import type { zodConfigFilePrivate } from './configFiles/private';
+import type { zodRootProjectBaseFragment } from './configFiles/project';
+import type { zodConfigFileRuntime } from './configFiles/runtime';
+import type { zodConfigTemplateBootstrapConfig } from './configFiles/template';
+import type { zodConfigFileTemplates } from './configFiles/templates';
+import type { zodConfigFileWorkspace } from './configFiles/workspace';
+import type { zodConfigFileWorkspaces } from './configFiles/workspaces';
+import type { zodPlatformAndroidFragment } from './platforms/fragments/android';
+import type { zodPrivatePlatformAndroid } from './platforms/fragments/androidPrivate';
+import type { zodPlatformBaseFragment } from './platforms/fragments/base';
+import type { zodPlatformElectronFragment } from './platforms/fragments/electron';
+import type { zodPlatformiOSFragment } from './platforms/fragments/ios';
+import type { zodPlatformLightningFragment } from './platforms/fragments/lightning';
+import type { zodPlatformNextJsFragment } from './platforms/fragments/nextjs';
+import type { zodPlatformReactNativeFragment } from './platforms/fragments/reactNative';
+import type {
     zodAndroidManifest,
     zodAndroidResources,
     zodManifestChildBase,
     zodManifestChildWithChildren,
     zodResourcesChildBase,
     zodResourcesChildWithChildren,
-    zodTemplateAndroidFragment,
+    zodTemplateAndroidFragment
 } from './platforms/fragments/templateAndroid';
-import {
-    type ConfigTemplateXcodeAppDelegateMethod,
-    zodTemplateXcodeFragment,
+import type {
+    ConfigTemplateXcodeAppDelegateMethod,
+    zodTemplateXcodeFragment
 } from './platforms/fragments/templateXcode';
-import { zodPlatformTizenFragment } from './platforms/fragments/tizen';
-import { zodPlatformWebFragment } from './platforms/fragments/web';
-import { zodPlatformWebOSFragment } from './platforms/fragments/webos';
-import { zodPlatformWebpackFragment } from './platforms/fragments/webpack';
-import { zodPlatformWindowsFragment } from './platforms/fragments/windows';
-import { zodRootAppBaseFragment } from './configFiles/app';
-import { zodConfigFileEngine } from './configFiles/engine';
-import { zodConfigFileIntegration } from './configFiles/integration';
-import { zodConfigFileLocal } from './configFiles/local';
-import { zodConfigFileOverrides } from './configFiles/overrides';
-import { zodPluginBaseFragment } from './plugins/fragments/base';
-import { zodPluginPlatformAndroidFragment } from './plugins/fragments/platformAndroid';
-import { zodPluginPlatformBaseFragment } from './plugins/fragments/platformBase';
-import { zodPluginPlatformiOSFragment } from './plugins/fragments/platformIos';
-import { zodPluginFragment } from './configFiles/plugin';
-import { zodConfigFilePrivate } from './configFiles/private';
-import { zodConfigFileRuntime } from './configFiles/runtime';
-import { zodConfigTemplateBootstrapConfig } from './configFiles/template';
-import { zodRootProjectBaseFragment } from './configFiles/project';
-import { zodConfigFileTemplates } from './configFiles/templates';
-import { zodConfigFileWorkspace } from './configFiles/workspace';
-import { zodConfigFileWorkspaces } from './configFiles/workspaces';
-import type { RnvPlatformKey } from '../types';
-import { zodPrivatePlatformAndroid } from './platforms/fragments/androidPrivate';
+import type { zodPlatformTizenFragment } from './platforms/fragments/tizen';
+import type { zodPlatformWebFragment } from './platforms/fragments/web';
+import type { zodPlatformWebOSFragment } from './platforms/fragments/webos';
+import type { zodPlatformWebpackFragment } from './platforms/fragments/webpack';
+import type { zodPlatformWindowsFragment } from './platforms/fragments/windows';
+import type { zodPluginBaseFragment } from './plugins/fragments/base';
+import type { zodPluginPlatformAndroidFragment } from './plugins/fragments/platformAndroid';
+import type { zodPluginPlatformBaseFragment } from './plugins/fragments/platformBase';
+import type { zodPluginPlatformiOSFragment } from './plugins/fragments/platformIos';
+import type { zodBuildSchemeFragment, zodTemplateConfigFragment } from './shared';
 
+export type { ConfigTemplateAndroidBase } from './platforms/fragments/templateAndroid';
 // Shared -----------------------
 //
 export type ConfigBuildSchemeFragment = z.infer<typeof zodBuildSchemeFragment>;

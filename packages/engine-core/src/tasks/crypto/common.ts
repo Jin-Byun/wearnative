@@ -1,5 +1,4 @@
 import {
-    RnvTaskName,
     chalk,
     executeTask,
     fsExistsSync,
@@ -11,14 +10,15 @@ import {
     logError,
     logTask,
     logWarning,
+    RnvTaskName
 } from '@rnv/core';
 import path from 'path';
 
 export const getEnvExportCmd = (envVar: string, key: string) => {
     if (isSystemWin) {
-        return `${chalk().bold.white(`setx ${envVar} "${key}"`)}`;
+        return `${chalk.bold.white(`setx ${envVar} "${key}"`)}`;
     }
-    return `${chalk().bold.white(`export ${envVar}="${key}"`)}`;
+    return `${chalk.bold.white(`export ${envVar}="${key}"`)}`;
 };
 
 export const getEnvVar = () => {
@@ -68,8 +68,8 @@ export const checkCrypto = async (parentTaskName?: string, originTaskName?: stri
 
             if (tsProject > tsWorkspace) {
                 logWarning(`Your ${tsWorkspacePath} is out of date.
-project timestamp: ${chalk().grey(`${tsProject} - ${new Date(tsProject)}`)}
-workspace timestamp: ${chalk().grey(`${tsWorkspace} - ${new Date(tsWorkspace)}`)}
+project timestamp: ${chalk.grey(`${tsProject} - ${new Date(tsProject)}`)}
+workspace timestamp: ${chalk.grey(`${tsWorkspace} - ${new Date(tsWorkspace)}`)}
 you should run decrypt`);
                 await executeTask({ taskName: RnvTaskName.cryptoDecrypt, parentTaskName, originTaskName });
                 return;

@@ -1,44 +1,44 @@
-import path from 'path';
-import * as crypto from 'crypto';
-import { getAppConfigBuildsFolder, getAppFolder, getConfigRootProp } from '../context/contextProps';
+import * as crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { inquirerPrompt } from '../api';
 import { parseRenativeConfigs } from '../configs';
+import { writeRenativeConfigFile } from '../configs/utils';
+import { getAppConfigBuildsFolder, getAppFolder, getConfigProp, getConfigRootProp } from '../context/contextProps';
+import { getContext } from '../context/provider';
+import type { RnvContext } from '../context/types';
+import { RnvFileName } from '../enums/fileName';
+import { chalk, logDebug, logDefault, logError, logInfo, logSuccess, logWarning } from '../logger';
+import { createDependencyMutation } from '../projects/mutations';
+import { installPackageDependencies } from '../projects/npm';
+import { updatePackage } from '../projects/package';
+import type { AsyncCallback } from '../projects/types';
+import type {
+    ConfigFileOverrides,
+    ConfigFilePlugin,
+    ConfigFileTemplates,
+    ConfigPluginPlatformSchema,
+    ConfigPluginSchema,
+    ConfigProjectPaths
+} from '../schema/types';
 import {
     copyFolderContentsRecursiveSync,
     fsCopyFileSync,
     fsExistsSync,
     fsLstatSync,
     fsMkdirSync,
-    fsReadFileSync,
     fsReaddirSync,
+    fsReadFileSync,
     fsStatSync,
     fsWriteFileSync,
     mergeObjects,
     readObjectSync,
-    sanitizeDynamicProps,
+    sanitizeDynamicProps
 } from '../system/fs';
-import { chalk, logDebug, logError, logInfo, logSuccess, logDefault, logWarning } from '../logger';
 import { doResolve } from '../system/resolve';
-import type { RnvContext } from '../context/types';
-import type { PluginCallback, RnvPlugin, RnvPluginScope } from './types';
-import { inquirerPrompt } from '../api';
-import { writeRenativeConfigFile } from '../configs/utils';
-import { installPackageDependencies } from '../projects/npm';
 import type { OverridesOptions, ResolveOptions } from '../system/types';
-import { getContext } from '../context/provider';
-import { getConfigProp } from '../context/contextProps';
-import { RnvFileName } from '../enums/fileName';
-import type { AsyncCallback } from '../projects/types';
-import { createDependencyMutation } from '../projects/mutations';
-import { updatePackage } from '../projects/package';
-import type {
-    ConfigFileOverrides,
-    ConfigFilePlugin,
-    ConfigFileTemplates,
-    ConfigProjectPaths,
-    ConfigPluginPlatformSchema,
-    ConfigPluginSchema,
-} from '../schema/types';
-import fs from 'fs';
+import type { PluginCallback, RnvPlugin, RnvPluginScope } from './types';
+
 const _getPluginScope = (plugin: ConfigPluginSchema | string): RnvPluginScope => {
     if (typeof plugin === 'string') {
         if (plugin.startsWith('source:')) {
@@ -89,15 +89,10 @@ const _getMergedPlugin = (
 
     if (npmVersion) {
         return {
-            version: npmVersion,
+            version: npmVersion
         };
     }
-    if (
-        scope !== '' &&
-        !!scope &&
-        !c.buildConfig.scopedPluginTemplates?.[scope] &&
-        !c.runtime._skipPluginScopeWarnings
-    ) {
+    if (scope !== '' && scope && !c.buildConfig.scopedPluginTemplates?.[scope] && !c.runtime._skipPluginScopeWarnings) {
         logWarning(`Plugin ${pluginKey} is not recognized plugin in ${scope} scope`);
     } else if (scope && scopes) {
         let skipScope = false;
@@ -147,7 +142,7 @@ const _getMergedPlugin = (
               files: c.files,
               runtimeProps: c.runtime,
               props: c.buildConfig?._refs || {},
-              configProps: c.injectableConfigProps,
+              configProps: c.injectableConfigProps
           });
 
     // IMPORTANT: only final top level merge should be sanitized
@@ -157,7 +152,7 @@ const _getMergedPlugin = (
               files: c.files,
               runtimeProps: c.runtime,
               props: obj.props || {},
-              configProps: c.injectableConfigProps,
+              configProps: c.injectableConfigProps
           });
 
     return mergedPlugin;
@@ -186,17 +181,11 @@ export const configurePlugins = async () => {
         c.files.project.package.dependencies = {};
     }
 
-    // let hasPackageChanged = false;
-
     if (!c.buildConfig?.plugins) {
         return;
     }
 
-    // const isTemplate = c.buildConfig?.isTemplate;
-    // const newDeps: Record<string, string> = {};
-    // const newDevDeps: Record<string, string> = {};
     const { dependencies, devDependencies } = c.files.project.package;
-    // const ovMsg = isTemplate ? 'This is template. NO ACTION' : 'package.json will be overriden';
 
     Object.keys(c.buildConfig.plugins).forEach((k) => {
         const plugin = getMergedPlugin(c, k);
@@ -206,9 +195,9 @@ export const configurePlugins = async () => {
                 // Skip Warning as this is intentional "plugin":null override
             } else {
                 logWarning(
-                    `Plugin with name ${chalk().bold.white(
+                    `Plugin with name ${chalk.bold.white(
                         k
-                    )} does not exists in ReNative source:rnv scope. you need to define it manually here: ${chalk().bold.white(
+                    )} does not exists in ReNative source:rnv scope. you need to define it manually here: ${chalk.bold.white(
                         c.paths.project.builds.config
                     )}`
                 );
@@ -227,24 +216,24 @@ export const configurePlugins = async () => {
                     }
                 } else if (dependencies[k] !== plugin.version) {
                     //                 logWarning(
-                    //                     `Version mismatch of dependency ${chalk().bold(k)} between:
-                    // ${chalk().bold(c.paths.project.package)}: v(${chalk().red(dependencies[k])}) and
-                    // ${chalk().bold(c.paths.project.builds.config)}: v(${chalk().green(plugin.version)}).
+                    //                     `Version mismatch of dependency ${chalk.bold(k)} between:
+                    // ${chalk.bold(c.paths.project.package)}: v(${chalk.red(dependencies[k])}) and
+                    // ${chalk.bold(c.paths.project.builds.config)}: v(${chalk.green(plugin.version)}).
                     // ${ovMsg}`
                     //                 );
 
                     createDependencyMutation({
                         name: k,
                         original: {
-                            version: dependencies[k],
+                            version: dependencies[k]
                         },
                         updated: {
-                            version: plugin.version,
+                            version: plugin.version
                         },
                         type: 'dependencies',
                         msg: 'Version mismatch',
                         source: 'plugin (renative.json)',
-                        targetPath: c.paths.project.package,
+                        targetPath: c.paths.project.package
                     });
 
                     // hasPackageChanged = true;
@@ -257,23 +246,23 @@ export const configurePlugins = async () => {
                     }
                 } else if (devDependencies[k] !== plugin.version) {
                     // logWarning(
-                    //     `Version mismatch of devDependency ${chalk().bold(k)} between package.json: v(${chalk().red(
+                    //     `Version mismatch of devDependency ${chalk.bold(k)} between package.json: v(${chalk.red(
                     //         devDependencies[k]
-                    //     )}) and plugins.json: v(${chalk().red(plugin.version)}). ${ovMsg}`
+                    //     )}) and plugins.json: v(${chalk.red(plugin.version)}). ${ovMsg}`
                     // );
 
                     createDependencyMutation({
                         name: k,
                         original: {
-                            version: devDependencies[k],
+                            version: devDependencies[k]
                         },
                         updated: {
-                            version: plugin.version,
+                            version: plugin.version
                         },
                         type: 'devDependencies',
                         msg: 'Version mismatch',
                         source: 'plugin (renative.json)',
-                        targetPath: c.paths.project.package,
+                        targetPath: c.paths.project.package
                     });
 
                     // hasPackageChanged = true;
@@ -283,7 +272,7 @@ export const configurePlugins = async () => {
                 // Dependency does not exists
                 if (plugin.version) {
                     // logInfo(
-                    //     `Missing dependency ${chalk().bold(k)} v(${chalk().red(
+                    //     `Missing dependency ${chalk.bold(k)} v(${chalk.red(
                     //         plugin.version
                     //     )}) in package.json. ${ovMsg}`
                     // );
@@ -291,13 +280,13 @@ export const configurePlugins = async () => {
                     createDependencyMutation({
                         name: k,
                         updated: {
-                            version: plugin.version,
+                            version: plugin.version
                         },
                         // TODO: should be controlled by plugin if this devDependency
                         type: 'dependencies',
                         msg: 'Missing dependency',
                         source: 'plugin (renative.json)',
-                        targetPath: c.paths.project.package,
+                        targetPath: c.paths.project.package
                     });
 
                     // hasPackageChanged = true;
@@ -316,46 +305,46 @@ export const configurePlugins = async () => {
                 const topLevelPlugin = getMergedPlugin(c, npmKey);
                 if (topLevelPlugin && topLevelPlugin?.version !== npmDep) {
                     logWarning(`RNV Detected plugin dependency conflict.
-- ${npmKey}@${chalk().green(topLevelPlugin?.version)} ${chalk().cyan('<=')}
+- ${npmKey}@${chalk.green(topLevelPlugin?.version)} ${chalk.cyan('<=')}
 - ${k} .npm sub dependencies:
-   |- ${npmKey}@${chalk().red(npmDep)}`);
+   |- ${npmKey}@${chalk.red(npmDep)}`);
                 } else if (!dependencies[npmKey]) {
-                    // logInfo(`Plugin ${chalk().bold(k)} requires npm dependency ${chalk().bold(npmKey)}. ${ovMsg}`);
+                    // logInfo(`Plugin ${chalk.bold(k)} requires npm dependency ${chalk.bold(npmKey)}. ${ovMsg}`);
                     if (npmDep) {
                         createDependencyMutation({
                             name: npmKey,
                             updated: {
-                                version: npmDep,
+                                version: npmDep
                             },
                             // TODO: should be controlled by plugin if this devDependency
                             type: 'dependencies',
                             msg: 'Missing dependency',
                             source: 'plugin.npm (renative.json)',
-                            targetPath: c.paths.project.package,
+                            targetPath: c.paths.project.package
                         });
                         // _applyPackageDependency(newDeps, npmKey, npmDep);
                         // hasPackageChanged = true;
                     }
                 } else if (dependencies[npmKey] !== npmDep) {
                     // logWarning(
-                    //     `Plugin ${chalk().bold(k)} npm dependency ${chalk().bold(npmKey)} mismatch (${chalk().red(
+                    //     `Plugin ${chalk.bold(k)} npm dependency ${chalk.bold(npmKey)} mismatch (${chalk.red(
                     //         dependencies[npmKey]
-                    //     )}) => (${chalk().green(npmDep)}) .${ovMsg}`
+                    //     )}) => (${chalk.green(npmDep)}) .${ovMsg}`
                     // );
                     if (npmDep) {
                         createDependencyMutation({
                             name: npmKey,
                             original: {
-                                version: dependencies[npmKey],
+                                version: dependencies[npmKey]
                             },
                             updated: {
-                                version: npmDep,
+                                version: npmDep
                             },
                             // TODO: should be controlled by plugin if this devDependency
                             type: 'dependencies',
                             msg: 'Version mismatch',
                             source: 'plugin.npm (renative.json)',
-                            targetPath: c.paths.project.package,
+                            targetPath: c.paths.project.package
                         });
                         // _applyPackageDependency(newDeps, npmKey, npmDep);
                         // hasPackageChanged = true;
@@ -364,17 +353,6 @@ export const configurePlugins = async () => {
             });
         }
     });
-
-    // When in template we want warnings but NOT file overrides
-    // if (isTemplate) return true;
-
-    // console.log('SJSSJSLKJSSL', mutations);
-
-    // c.runtime.skipPackageUpdate only reflects rnv version mismatch. should not prevent updating other deps
-    //
-    // if (hasPackageChanged /*! c.runtime.skipPackageUpdate */ && !c.program.opts().skipDependencyCheck) {
-    //     _updatePackage(c, { dependencies: newDeps, devDependencies: newDevDeps });
-    // }
 
     return true;
 };
@@ -420,9 +398,9 @@ const _resolvePluginDependencies = async (
             const { confirm } = await inquirerPrompt({
                 type: 'confirm',
                 message: `Install ${key}?`,
-                warningMessage: `Plugin ${chalk().bold.white(key)} source:${chalk().bold.white(
+                warningMessage: `Plugin ${chalk.bold.white(key)} source:${chalk.bold.white(
                     scope
-                )} required by ${chalk().red(parentKey)} is not installed`,
+                )} required by ${chalk.red(parentKey)} is not installed`
             });
             if (confirm && c.files.project.config_original?.plugins) {
                 c.files.project.config_original.plugins[key] = `source:${scope}`;
@@ -432,9 +410,7 @@ const _resolvePluginDependencies = async (
             }
         } else {
             logWarning(
-                `Plugin ${chalk().bold.white(parentKey)} requires ${chalk().red(
-                    key
-                )} which is not available in your system`
+                `Plugin ${chalk.bold.white(parentKey)} requires ${chalk.red(key)} which is not available in your system`
             );
         }
     } else {
@@ -461,106 +437,80 @@ export const parsePlugins = (
     includeDisabledOrExcludedPlugins?: boolean
 ) => {
     const c = getContext();
-    const { platform } = c;
+    const { platform, buildConfig } = c;
     logDefault('parsePlugins');
-    if (c.buildConfig) {
-        const includedPluginsConfig = getConfigProp('includedPlugins');
-        // default to all plugins if it's not defined (null allowed for overrides)
-        const includedPlugins = includedPluginsConfig === undefined ? ['*'] : includedPluginsConfig;
+    if (!buildConfig) return;
+    // default to all plugins if it's not defined (null allowed for overrides)
+    const includedPlugins = getConfigProp('includedPlugins') ?? ['*'];
+    if (!includedPlugins) {
+        logWarning(
+            `You haven't included any ${chalk.bold.white(
+                '{ common: { includedPlugins: [] }}'
+            )} in your ${chalk.bold.white(c.paths.appConfig.config)}. Your app might not work correctly`
+        );
+        return;
+    }
 
-        const excludedPlugins = getConfigProp('excludedPlugins') || [];
-        const supportedPlatforms = c.files.project.config?.defaults?.supportedPlatforms || [];
-        const platformsToCheck = platform ? [platform] : supportedPlatforms;
-        const parsedPlugins: string[] = [];
+    const { plugins } = buildConfig;
+    if (!plugins) {
+        logError(`You have no plugins defined in ${chalk.bold.white(c.paths.project.builds.config)}`);
+        return;
+    }
 
-        const handleActivePlugin = (plugin: RnvPlugin, pluginPlat: ConfigPluginPlatformSchema, key: string) => {
-            // log deprecated if present
-            if (plugin._id) {
-                if (!parsedPlugins.includes(plugin._id)) {
-                    parsedPlugins.push(plugin._id);
-                } else return;
+    const excludedPlugins = getConfigProp('excludedPlugins') || [];
+    const supportedPlatforms = c.files.project.config?.defaults?.supportedPlatforms || [];
+    const platformsToCheck = platform ? [platform] : supportedPlatforms;
+    const parsedPlugins: string[] = [];
+    const handleActivePlugin = (plugin: RnvPlugin, pluginPlat: ConfigPluginPlatformSchema, key: string) => {
+        const { _id, deprecated, version } = plugin;
+        // log deprecated if present
+        if (_id) {
+            if (parsedPlugins.includes(_id)) {
+                return;
             }
-            if (plugin.deprecated) {
-                logWarning(plugin.deprecated);
+            parsedPlugins.push(_id);
+        }
+        if (deprecated) {
+            logWarning(deprecated);
+        }
+        if (pluginCallback) {
+            c.runtime.plugins[key] = plugin;
+            if (version) {
+                c.runtime.pluginVersions[key] = version;
             }
+            pluginCallback(plugin, pluginPlat, key);
+        }
+    };
 
-            if (pluginCallback) {
-                c.runtime.plugins[key] = plugin;
-                if (plugin.version) {
-                    c.runtime.pluginVersions[key] = plugin.version;
-                }
-                pluginCallback(plugin, pluginPlat, key);
-            }
-        };
+    for (const key of Object.keys(plugins)) {
+        const plugin = getMergedPlugin(c, key);
+        if (!plugin) continue;
+        if ((includedPlugins.includes('*') || includedPlugins.includes(key)) && !excludedPlugins.includes(key)) {
+            for (const p of platformsToCheck) {
+                const pluginPlat: ConfigPluginPlatformSchema = plugin[p] || {};
+                const isPluginPlatDisabled = !!pluginPlat.disabled;
+                const isPluginDisabled = !!plugin.disabled;
+                const isPluginPlatSupported = plugin.supportedPlatforms ? plugin.supportedPlatforms.includes(p) : true;
 
-        if (includedPlugins) {
-            const { plugins } = c.buildConfig;
-            if (plugins) {
-                Object.keys(plugins).forEach((key) => {
-                    const plugin = getMergedPlugin(c, key);
-                    if (!plugin) return;
-                    if (
-                        (includedPlugins.includes('*') || includedPlugins.includes(key)) &&
-                        !excludedPlugins.includes(key)
-                    ) {
-                        platformsToCheck.forEach((platformToCheck) => {
-                            const pluginPlat: ConfigPluginPlatformSchema = plugin[platformToCheck] || {};
-
-                            // NOTE: we do not want to disable plugin just because object is missing. instead we will let people to do it explicitly
-                            // {
-                            //     skipLinking: true,
-                            //     disabled: true,
-                            // };
-                            //TODO: consider supportedPlatforms for plugins
-                            const isPluginPlatDisabled = pluginPlat.disabled === true;
-                            const isPluginDisabled = plugin.disabled === true;
-                            const isPluginPlatSupported = plugin.supportedPlatforms
-                                ? plugin.supportedPlatforms.includes(platformToCheck)
-                                : true;
-
-                            if (ignorePlatformObjectCheck || includeDisabledOrExcludedPlugins) {
-                                if (isPluginDisabled) {
-                                    logDefault(`Plugin ${key} is marked disabled. skipping.`);
-                                } else if (isPluginPlatDisabled) {
-                                    logDefault(
-                                        `Plugin ${key} is marked disabled for platform ${platformToCheck}. skipping.`
-                                    );
-                                } else if (!isPluginPlatSupported) {
-                                    logDefault(
-                                        `Plugin ${key}'s supportedPlatforms does not include ${platformToCheck}. skipping.`
-                                    );
-                                }
-
-                                handleActivePlugin(plugin, pluginPlat, key);
-                            } else if (!isPluginPlatDisabled && !isPluginDisabled && isPluginPlatSupported) {
-                                handleActivePlugin(plugin, pluginPlat, key);
-                            }
-                        });
-                    } else if (includeDisabledOrExcludedPlugins) {
-                        platformsToCheck.forEach((platformToCheck) => {
-                            const pluginPlat = plugin[platformToCheck] || {};
-                            if (excludedPlugins.includes(key)) {
-                                plugin.disabled = true;
-                                handleActivePlugin(plugin, pluginPlat, key);
-                            }
-                        });
+                if (ignorePlatformObjectCheck || includeDisabledOrExcludedPlugins) {
+                    if (isPluginDisabled) {
+                        logDefault(`Plugin ${key} is marked disabled. skipping.`);
+                    } else if (isPluginPlatDisabled) {
+                        logDefault(`Plugin ${key} is marked disabled for platform ${p}. skipping.`);
+                    } else if (!isPluginPlatSupported) {
+                        logDefault(`Plugin ${key}'s supportedPlatforms does not include ${p}. skipping.`);
                     }
-                });
-                // Not valid warning as web based plugins might not need web definition object to work
-                // if (totalIncludedPlugins === 0) {
-                //     logWarning(
-                //         `Found plugins in your app but non are included. are you sure you added ${chalk().bold('includedPlugins')} in your renative.json config?`
-                //     );
-                // }
-            } else {
-                logError(`You have no plugins defined in ${chalk().bold.white(c.paths.project.builds.config)}`);
+                    handleActivePlugin(plugin, pluginPlat, key);
+                } else if (!isPluginPlatDisabled && !isPluginDisabled && isPluginPlatSupported) {
+                    handleActivePlugin(plugin, pluginPlat, key);
+                }
             }
-        } else {
-            logWarning(
-                `You haven't included any ${chalk().bold.white(
-                    '{ common: { includedPlugins: [] }}'
-                )} in your ${chalk().bold.white(c.paths.appConfig.config)}. Your app might not work correctly`
-            );
+        } else if (includeDisabledOrExcludedPlugins && excludedPlugins.includes(key)) {
+            for (const p of platformsToCheck) {
+                const pluginPlat = plugin[p] || {};
+                plugin.disabled = true;
+                handleActivePlugin(plugin, pluginPlat, key);
+            }
         }
     }
 };
@@ -569,22 +519,20 @@ export const loadPluginTemplates = async () => {
     logDefault('loadPluginTemplates');
 
     const c = getContext();
-
-    const customPluginTemplates = c.files.project.config?.paths?.pluginTemplates;
+    const { project } = c.files;
+    const customPluginTemplates = project.config?.paths?.pluginTemplates;
     if (customPluginTemplates) {
         const missingDeps = _parsePluginTemplateDependencies(c, customPluginTemplates);
 
         if (missingDeps.length) {
-            const dependencies = c.files.project.package.dependencies || {};
-            c.files.project.package.dependencies = dependencies;
+            const dependencies = project.package.dependencies || {};
+            project.package.dependencies = dependencies;
             let hasPackageChanged = false;
             missingDeps.forEach((dep) => {
                 const plugin = getMergedPlugin(c, dep);
                 if (plugin?.version) {
                     hasPackageChanged = true;
                     _applyPackageDependency(dependencies, dep, plugin.version);
-                } else {
-                    // Unresolved Plugin
                 }
             });
             // CHECK IF paths.pluginTemplates SCOPES are INSTALLED
@@ -595,9 +543,9 @@ export const loadPluginTemplates = async () => {
                 await installPackageDependencies();
                 await loadPluginTemplates();
             } else {
-                missingDeps.forEach((npmDep) => {
-                    logWarning(`Plugin scope ${npmDep} does not exists in package.json.`);
-                });
+                logWarning(
+                    missingDeps.map((npmDep) => `Plugin scope ${npmDep} does not exists in package.json.`).join('\n')
+                );
             }
         }
     }
@@ -664,21 +612,6 @@ const _parsePluginTemplateDependencies = (
     return missingDeps;
 };
 
-// const getCleanRegExString = str => str
-//     .replace(/\(/g, '\\(')
-//     .replace(/\)/g, '\\)')
-//     .replace(/\^/g, '\\^')
-//     .replace(/\?/g, '\\?')
-//     .replace(/\|/g, '\\|')
-//     .replace(/\*/g, '\\*')
-//     .replace(/\|/g, '\\|')
-//     .replace(/\[/g, '\\[')
-//     .replace(/\]/g, '\\]')
-//     .replace(/\{/g, '\\{')
-//     .replace(/\}/g, '\\}')
-//     .replace(/\+/g, '\\+')
-//     .replace(/ /g, ' {1,}');
-// Alternative Regex seem more accurate
 const getCleanRegExString = (str: string) => str.replace(/[-\\.,_*+?^$[\](){}!=|`]/gi, '\\$&');
 
 const _overridePlugin = (c: RnvContext, pluginsPath: string, dir: string) => {
@@ -703,7 +636,7 @@ const _overridePlugin = (c: RnvContext, pluginsPath: string, dir: string) => {
             _applyOverrideFiles(source, dest, dir);
         } else {
             logDebug(
-                `Your plugin configuration has no override path ${chalk().bold.white(
+                `Your plugin configuration has no override path ${chalk.bold.white(
                     source
                 )}. skipping folder override action`
             );
@@ -781,7 +714,7 @@ const _applyOverrideFiles = (source: string, dest: string, dir: string) => {
         }
     });
 
-    logInfo(`${chalk().gray(dest)} overriden by: ${chalk().gray(source.split('node_modules').pop())}`);
+    logInfo(`${chalk.gray(dest)} overriden by: ${chalk.gray(source.split('node_modules').pop())}`);
 };
 
 export const overrideFileContents = (
@@ -825,7 +758,7 @@ export const overrideFileContents = (
                 }
 
                 logSuccess(
-                    `${chalk().bold.white(dest)} requires override by: ${chalk().bold.white(
+                    `${chalk.bold.white(dest)} requires override by: ${chalk.bold.white(
                         overridePath.split('node_modules').pop()
                     )}. FIXING...DONE`
                 );
@@ -835,20 +768,18 @@ export const overrideFileContents = (
                         foundRegEx = true;
                         fileToFix = fileToFix.replace(originalRegEx, `${override[fk]}`);
                         logSuccess(
-                            `${chalk().bold.white(dest)} requires override by: ${chalk().bold.white(
+                            `${chalk.bold.white(dest)} requires override by: ${chalk.bold.white(
                                 overridePath.split('node_modules').pop()
                             )}. FIXING...DONE`
                         );
                     } else {
                         logInfo(
-                            `${chalk().gray(dest)} overridden by: ${chalk().gray(
-                                overridePath.split('node_modules').pop()
-                            )}`
+                            `${chalk.gray(dest)} overridden by: ${chalk.gray(overridePath.split('node_modules').pop())}`
                         );
                     }
                 } else {
                     logInfo(
-                        `${chalk().gray(dest)} overridden by: ${chalk().gray(overridePath.split('node_modules').pop())}`
+                        `${chalk.gray(dest)} overridden by: ${chalk.gray(overridePath.split('node_modules').pop())}`
                     );
                 }
             } else {
@@ -860,9 +791,9 @@ export const overrideFileContents = (
             if (overridePath !== 'REACT_CORE_OVERRIDES') {
                 failTerms.forEach((term) => {
                     logWarning(
-                        `No Match found in ${chalk().red(
+                        `No Match found in ${chalk.red(
                             dest.split('node_modules').pop()
-                        )} for expression: ${chalk().gray(term)}. Source: ${chalk().bold.white(
+                        )} for expression: ${chalk.gray(term)}. Source: ${chalk.bold.white(
                             overridePath.split('node_modules').pop()
                         )}`
                     );
@@ -1066,9 +997,9 @@ export const checkForPluginDependencies = async (postInjectHandler?: AsyncCallba
             const answer = await inquirerPrompt({
                 type: 'confirm',
                 message: `Install ${Object.keys(toAdd).join(', ')}?`,
-                warningMessage: `One or more dependencies are not installed: ${chalk().bold.white(
+                warningMessage: `One or more dependencies are not installed: ${chalk.bold.white(
                     Object.keys(toAdd).join(', ')
-                )}`,
+                )}`
             });
             install = answer.confirm;
         } else {
@@ -1079,7 +1010,7 @@ export const checkForPluginDependencies = async (postInjectHandler?: AsyncCallba
         if (install && c.files.project.config_original) {
             c.files.project.config_original.plugins = {
                 ...(c.files.project.config_original.plugins || {}),
-                ...toAdd,
+                ...toAdd
             };
             writeRenativeConfigFile(c.paths.project.config, c.files.project.config_original);
             // Need to reload merged files
@@ -1123,9 +1054,7 @@ export const overrideTemplatePlugins = async () => {
             }
         } else {
             logInfo(
-                `Plugin overrides disabled for: ${chalk().bold.white(
-                    key
-                )} with disablePluginTemplateOverrides. SKIPPING`
+                `Plugin overrides disabled for: ${chalk.bold.white(key)} with disablePluginTemplateOverrides. SKIPPING`
             );
         }
     }, true);
@@ -1143,7 +1072,7 @@ export const copyTemplatePluginsSync = (c: RnvContext) => {
             Object.keys(plugin.props).forEach((v) => {
                 objectInject.push({
                     pattern: `{{props.${v}}}`,
-                    override: plugin.props?.[v],
+                    override: plugin.props?.[v]
                 });
             });
         }
@@ -1177,23 +1106,13 @@ export const copyTemplatePluginsSync = (c: RnvContext) => {
 };
 
 export const sanitizePluginPath = (str: string, name: string, mandatory?: boolean, options?: ResolveOptions) => {
-    let newStr = str;
     try {
-        if (str?.replace) {
-            newStr = str.replace('{{PLUGIN_ROOT}}', doResolve(name, mandatory, options) || '');
-        }
-    } catch (e) {
-        // Ignore
-    }
-    return newStr;
+        return str.replace('{{PLUGIN_ROOT}}', doResolve(name, mandatory, options) || '');
+    } catch {}
+    return str;
 };
 
-export const includesPluginPath = (str?: string) => {
-    if (str?.includes) {
-        return str.includes('{{PLUGIN_ROOT}}');
-    }
-    return false;
-};
+export const includesPluginPath = (str?: string) => !!str?.includes('{{PLUGIN_ROOT}}');
 
 export const getLocalRenativePlugin = () => ({
     version: 'file:../packages/renative',
@@ -1201,10 +1120,10 @@ export const getLocalRenativePlugin = () => ({
         modulePaths: [],
         moduleAliases: {
             renative: {
-                projectPath: 'packages/renative',
-            },
-        },
-    },
+                projectPath: 'packages/renative'
+            }
+        }
+    }
 });
 
 export const updateRenativeConfigs = async () => {

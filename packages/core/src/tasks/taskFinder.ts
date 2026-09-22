@@ -1,9 +1,9 @@
-import { logDefault, logWarning } from '../logger';
-import type { RnvTask } from './types';
-import { getContext } from '../context/provider';
-import { getRegisteredTasks } from './taskRegistry';
-import { getTaskNameFromCommand, selectPlatformIfRequired } from './taskHelpers';
 import { inquirerPrompt } from '../api';
+import { getContext } from '../context/provider';
+import { logDefault, logWarning } from '../logger';
+import { getTaskNameFromCommand, selectPlatformIfRequired } from './taskHelpers';
+import { getRegisteredTasks } from './taskRegistry';
+import type { RnvTask } from './types';
 
 export const findSuitableTask = async (): Promise<RnvTask | undefined> => {
     logDefault('findSuitableTask');
@@ -67,8 +67,8 @@ export const extractSingleExecutableTask = async (
             message: 'Select task',
             choices: newSuitableTasks.match.map((v) => ({
                 name: `${v.task} - registered to: ${v.ownerID}`,
-                value: v,
-            })),
+                value: v
+            }))
         });
         return result;
     }

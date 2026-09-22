@@ -1,20 +1,20 @@
 import path from 'path';
-import { chalk, logDefault, logError, logWarning, logDebug } from '../logger';
-import { cleanFolder, copyFolderContentsRecursiveSync } from '../system/fs';
-import { getTimestampPathsConfig, getAppFolder } from '../context/contextProps';
-import type { RnvPlatform } from '../types';
-import { doResolve } from '../system/resolve';
+import { getAppFolder, getTimestampPathsConfig } from '../context/contextProps';
 import { getContext } from '../context/provider';
+import { chalk, logDebug, logDefault, logError, logWarning } from '../logger';
+import { cleanFolder, copyFolderContentsRecursiveSync } from '../system/fs';
+import { doResolve } from '../system/resolve';
+import type { RnvPlatform } from '../types';
 
 export const generatePlatformChoices = () => {
     const c = getContext();
 
     const options = c.runtime.supportedPlatforms.map((v) => ({
         name: `${v.platform} - ${
-            v.isConnected ? chalk().green('(connected)') : chalk().yellow('(ejected)')
-        } [${chalk().cyan(v.engine?.id)}]`,
+            v.isConnected ? chalk.green('(connected)') : chalk.yellow('(ejected)')
+        } [${chalk.cyan(v.engine?.id)}]`,
         value: v.platform,
-        isConnected: v.isConnected,
+        isConnected: v.isConnected
     }));
     return options;
 };
@@ -68,9 +68,9 @@ export const createPlatformBuild = (platform: RnvPlatform) =>
                     pattern: '{{PATH_REACT_NATIVE}}',
                     override:
                         doResolve(c.runtime.runtimeExtraProps?.reactNativePackageName || 'react-native', true, {
-                            forceForwardPaths: true,
-                        }) || '',
-                },
+                            forceForwardPaths: true
+                        }) || ''
+                }
             ],
             getTimestampPathsConfig(),
             c
@@ -83,8 +83,8 @@ const _isPlatformSupportedSync = (platform: RnvPlatform, resolve?: () => void, r
     if (!platform) {
         if (reject) {
             reject(
-                chalk().red(
-                    `You didn't specify platform. make sure you add "${chalk().white.bold(
+                chalk.red(
+                    `You didn't specify platform. make sure you add "${chalk.white.bold(
                         '-p <PLATFORM>'
                     )}" option to your command!`
                 )
@@ -98,8 +98,8 @@ const _isPlatformSupportedSync = (platform: RnvPlatform, resolve?: () => void, r
     if (!c.runtime.availablePlatforms.includes(platform)) {
         if (reject) {
             reject(
-                chalk().red(
-                    `Platform ${platform} is not supported. Use one of the following: ${chalk().bold.white(
+                chalk.red(
+                    `Platform ${platform} is not supported. Use one of the following: ${chalk.bold.white(
                         c.runtime.availablePlatforms.join(', ')
                     )} .`
                 )
@@ -115,16 +115,16 @@ export const isPlatformActive = (resolve?: () => void) => {
     const c = getContext();
     const { platform } = c;
 
-    if (!c.buildConfig || !c.buildConfig.platforms) {
+    if (!c.buildConfig?.platforms) {
         logError(
-            `Your appConfigFile is not configured properly! check ${chalk().bold.white(
+            `Your appConfigFile is not configured properly! check ${chalk.bold.white(
                 c.paths.appConfig.config
             )} location.`
         );
         if (resolve) resolve();
         return false;
     }
-    if (!platform || (platform && !c.buildConfig.platforms[platform])) {
+    if (!platform || !c.buildConfig.platforms[platform]) {
         logWarning(`Platform ${platform} not configured for ${c.runtime.appId}. skipping.`);
         if (resolve) resolve();
         return false;

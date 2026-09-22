@@ -2,11 +2,11 @@ import { inquirerPrompt } from '../api';
 import { getContext } from '../context/provider';
 import { getEngineRunnerByPlatform, registerPlatformEngine } from '../engines';
 import { chalk, logInfo } from '../logger';
-import { RnvTask, RnvTaskOption } from './types';
+import type { RnvTask, RnvTaskOption } from './types';
 
 const printCurrentPlatform = () => {
     const ctx = getContext();
-    const msg = `Current platform: ${chalk().bold.white(ctx.platform)}`;
+    const msg = `Current platform: ${chalk.bold.white(ctx.platform)}`;
     logInfo(msg);
 };
 
@@ -34,7 +34,7 @@ export const selectPlatformIfRequired = async (
                     type: 'list',
                     name: 'platform',
                     message: `Pick a platform for task: "rnv ${knownTaskInstance?.task || taskName}"`,
-                    choices: platforms,
+                    choices: platforms
                 });
                 c.platform = platform;
             }
@@ -63,13 +63,20 @@ export const getTaskNameFromCommand = (): string | undefined => {
 };
 
 const valueBracket = (vr: boolean, vt: boolean, ir: boolean): string => {
-  if (!vr && !vt) return '';
-  const s = `value${vr ? '...' : ''}`;
-  return ir ? ` <${s}>` : ` [${s}]`
-}
-export const generateStringFromTaskOption = ({shortcut, key, altKey, isVariadic, isRequired, isValueType}: RnvTaskOption) => {
-  const sc = shortcut ? `-${shortcut}, ` : '';
-  const ak = shortcut ? `, --${altKey}` : '';
+    if (!vr && !vt) return '';
+    const s = `value${vr ? '...' : ''}`;
+    return ir ? ` <${s}>` : ` [${s}]`;
+};
+export const generateStringFromTaskOption = ({
+    shortcut,
+    key,
+    altKey,
+    isVariadic,
+    isRequired,
+    isValueType
+}: RnvTaskOption) => {
+    const sc = shortcut ? `-${shortcut}, ` : '';
+    const ak = shortcut ? `, --${altKey}` : '';
     return `${sc}--${key}${ak}${valueBracket(isVariadic, isValueType, isRequired)}`;
 };
 

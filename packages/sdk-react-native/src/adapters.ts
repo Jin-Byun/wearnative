@@ -3,10 +3,9 @@ import type { ConfigT, InputConfigT } from 'metro-config';
 
 export type InputConfig = InputConfigT;
 
-const getApplicationId = () => {
-    const appId = process.env.RNV_APP_ID;
-    return appId;
-};
+const getApplicationId = () => process.env.RNV_APP_ID;
+const getReactNativePathRelative = () => process.env.RNV_REACT_NATIVE_PATH;
+const getProjectRoot = () => process.env.RNV_PROJECT_ROOT;
 
 type InactivePluginConfig = {
     platforms: {
@@ -19,56 +18,34 @@ type InactivePluginConfig = {
 
 const getSkipLinkingDeps = () => {
     const skipLinkingEnv = process.env.RNV_SKIP_LINKING;
-
-    if (skipLinkingEnv) {
-        const plugins = skipLinkingEnv.split(',').map((item) => item.trim());
-
-        const result = {
-            dependencies: plugins.reduce((acc, plugin) => {
+    const result: { dependencies?: Record<string, InactivePluginConfig> } = {};
+    if (!skipLinkingEnv) return result;
+    result.dependencies = skipLinkingEnv
+        .split(',')
+        .map((item) => item.trim())
+        .reduce(
+            (acc, plugin) => {
                 acc[plugin] = {
                     platforms: {
-                        // Add all platforms
                         ios: null,
                         android: null,
                         macos: null,
-                        windows: null,
-                    },
+                        windows: null
+                    }
                 };
                 return acc;
-            }, {} as { [plugin: string]: InactivePluginConfig }),
-        };
-
-        return result;
-    }
-
-    return {};
+            },
+            {} as { [plugin: string]: InactivePluginConfig }
+        );
+    return result;
 };
 
 const getAppFolderRelative = () => {
     const pth = process.env.RNV_APP_BUILD_DIR;
-    if (pth) {
-        return pth;
-    } else {
-        const cwd = process.cwd();
-        if (cwd.includes('platformBuilds/')) {
-            const dir = process.cwd().split('platformBuilds/')[1];
-
-            return `platformBuilds/${dir}`;
-        } else {
-            return undefined;
-        }
-    }
-};
-
-const getReactNativePathRelative = () => {
-    const rnPath = process.env.RNV_REACT_NATIVE_PATH;
-    return rnPath;
-};
-
-const getProjectRoot = () => {
-    //env: PROJECT_ROOT
-    const rnPath = process.env.RNV_PROJECT_ROOT;
-    return rnPath;
+    if (pth) return pth;
+    const cwd = process.cwd();
+    if (!cwd.includes('platformBuilds/')) return;
+    return `platformBuilds/${cwd.split('platformBuilds/')[1]}`;
 };
 
 export const withRNVRNConfig = (config: any) => {
@@ -82,25 +59,23 @@ export const withRNVRNConfig = (config: any) => {
                 platforms: {
                     android: null,
                     ios: null,
-                    macos: null,
-                },
-            },
+                    macos: null
+                }
+            }
         },
         project: {
             ios: {
-                sourceDir: getAppFolderRelative(),
+                sourceDir: getAppFolderRelative()
             },
             android: {
                 appName: 'app',
                 sourceDir: getAppFolderRelative(),
-                packageName: getApplicationId(),
-            },
-        },
+                packageName: getApplicationId()
+            }
+        }
     };
 
-    const updatedCnf = merge(cnfRnv, getSkipLinkingDeps());
-    const cnf = merge(updatedCnf, config);
-    return cnf;
+    return merge.all([cnfRnv, getSkipLinkingDeps(), config]);
 };
 
 export const withMetroConfig = (projectRoot: string): ConfigT => {
@@ -124,7 +99,7 @@ export const withMetroConfig = (projectRoot: string): ConfigT => {
             '/node_modules/react-native/index.js$',
             '/node_modules/react-refresh/.+\\.js$',
             '/node_modules/scheduler/.+\\.js$',
-            '^\\[native code\\]$',
+            '^\\[native code\\]$'
         ].join('|')
     );
 
@@ -134,45 +109,47 @@ export const withMetroConfig = (projectRoot: string): ConfigT => {
             platforms: ['android', 'ios'],
             unstable_conditionNames: ['require', 'import', 'react-native'],
             emptyModulePath: require.resolve('metro-runtime/src/modules/empty-module.js', {
-                paths: [process.env.RNV_PROJECT_ROOT || process.cwd()],
-            }),
+                paths: [process.env.RNV_PROJECT_ROOT || process.cwd()]
+            })
         },
         serializer: {
             // Note: This option is overridden in cli-plugin-metro (getOverrideConfig)
             getModulesRunBeforeMainModule: () => [
                 require.resolve('react-native/Libraries/Core/InitializeCore', {
-                    paths: [process.env.RNV_PROJECT_ROOT || process.cwd()],
-                }),
+                    paths: [process.env.RNV_PROJECT_ROOT || process.cwd()]
+                })
             ],
             getPolyfills: () =>
-                require(require.resolve('@react-native/js-polyfills', {
-                    paths: [process.env.RNV_PROJECT_ROOT || process.cwd()],
-                }))(),
+                require(
+                    require.resolve('@react-native/js-polyfills', {
+                        paths: [process.env.RNV_PROJECT_ROOT || process.cwd()]
+                    })
+                )()
         },
         server: {
-            port: Number(process.env.RCT_METRO_PORT) || 8081,
+            port: Number(process.env.RCT_METRO_PORT) || 8081
         },
         symbolicator: {
             customizeFrame: (frame: Readonly<{ file?: string }>) => {
                 const collapse = Boolean(frame.file && INTERNAL_CALLSITES_REGEX.test(frame.file));
                 return { collapse };
-            },
+            }
         },
         transformer: {
             allowOptionalDependencies: true,
             assetRegistryPath: 'react-native/Libraries/Image/AssetRegistry',
             asyncRequireModulePath: require.resolve('metro-runtime/src/modules/asyncRequire', {
-                paths: [process.env.RNV_PROJECT_ROOT || process.cwd()],
+                paths: [process.env.RNV_PROJECT_ROOT || process.cwd()]
             }),
             babelTransformerPath: require.resolve('@react-native/metro-babel-transformer'),
             getTransformOptions: async () => ({
                 transform: {
                     experimentalImportSupport: false,
-                    inlineRequires: true,
-                },
-            }),
+                    inlineRequires: true
+                }
+            })
         },
-        watchFolders: [process.env.RNV_MONO_ROOT || process.cwd()],
+        watchFolders: [process.env.RNV_MONO_ROOT || process.cwd()]
     };
     const { mergeConfig, getDefaultConfig } = require('metro-config');
 
@@ -180,6 +157,6 @@ export const withMetroConfig = (projectRoot: string): ConfigT => {
 };
 
 export const mergeConfig = (defaultConfig: ConfigT, ...configs: InputConfig[]): ConfigT => {
-    const mc = require('metro-config');
-    return mc.mergeConfig(defaultConfig, ...configs);
+    const { mergeConfig } = require('metro-config');
+    return mergeConfig(defaultConfig, ...configs);
 };

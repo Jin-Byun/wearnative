@@ -1,27 +1,30 @@
-import path from 'path';
+import path from 'node:path';
 import {
-    getAppFolder,
+    type ConfigAndroidResources,
+    type ConfigTemplateAndroidBase,
     getConfigProp,
-    writeCleanFile,
-    ConfigAndroidResources,
     getContext,
-    logDefault,
-    readObjectSync,
-    logError,
-    parsePlugins,
     getFlavouredProp,
+    logDefault,
+    logError,
+    type OverridesOptions,
+    parsePlugins,
     RnvFolderName,
+    readObjectSync
 } from '@rnv/core';
-import { getBuildFilePath, getAppTitle, sanitizeColor, addSystemInjects } from '@rnv/sdk-utils';
-import { _convertToXML, _mergeNodeChildren, _mergeNodeParameters, getConfigPropArray } from './manifestParser';
-import { TargetResourceFile } from './types';
+import { addSystemInjects, getAppTitle, sanitizeColor } from '@rnv/sdk-utils';
+import { _convertToXML, _mergeNodeChildren, _mergeNodeParameters } from './manifestParser';
+import type { TargetResourceFile } from './types';
+import { createOverridesOption, writeParsedFiles } from './utils';
 
-export const parseValuesXml = (targetRes: TargetResourceFile, injectValue?: boolean) => {
+export const parseValuesXml = (
+    objArr: (ConfigTemplateAndroidBase | undefined)[],
+    targetRes: TargetResourceFile,
+    injectValue = false
+) => {
     const c = getContext();
     logDefault(`parseValuesXml: ${targetRes}`);
-    const { platform } = c;
-    const appFolder = getAppFolder();
-    if (!platform) return;
+    if (!c.platform) return;
 
     try {
         const baseResoutcesFilePath = path.join(
@@ -31,71 +34,49 @@ export const parseValuesXml = (targetRes: TargetResourceFile, injectValue?: bool
             `${targetRes}.json`
         );
         const baseResourcesFile = readObjectSync<ConfigAndroidResources>(baseResoutcesFilePath);
-        const resourceFile = `app/src/main/res/values/${targetRes.replace('_', '.')}`;
-
-        if (!baseResourcesFile) {
-            return;
-        }
-        const objArr = getConfigPropArray(c, c.platform, 'templateAndroid');
+        if (!baseResourcesFile) return;
 
         // PARSE all standard renative.*.json files in correct mergeOrder
-        objArr.forEach((tpl) => {
+        for (const tpl of objArr) {
             const resourceObj = tpl?.[targetRes];
-            if (resourceObj) {
-                _mergeNodeParameters(baseResourcesFile, resourceObj);
-            }
-            if (resourceObj?.children) {
-                _mergeNodeChildren(baseResourcesFile, resourceObj.children);
-            }
-        });
+            if (!resourceObj) continue;
+            _mergeNodeParameters(baseResourcesFile, resourceObj);
+            _mergeNodeChildren(baseResourcesFile, resourceObj.children);
+        }
 
         // appConfigs/base/plugins.json PLUGIN CONFIG OVERRIDES
         parsePlugins((_plugin, pluginPlat) => {
             const resourcesPlugin = getFlavouredProp(pluginPlat, 'templateAndroid')?.[targetRes];
-            if (resourcesPlugin) {
-                _mergeNodeChildren(baseResourcesFile, resourcesPlugin.children);
-                if (resourcesPlugin.children) {
-                    _mergeNodeChildren(baseResourcesFile, resourcesPlugin.children);
-                }
-            }
+            _mergeNodeChildren(baseResourcesFile, resourcesPlugin?.children);
         });
 
         const resourceXml = _convertToXML(baseResourcesFile);
-
-        const injects = [{ pattern: _getPattern(targetRes), override: resourceXml || '' }];
-
+        const injects: OverridesOptions = [createOverridesOption(_getPattern(targetRes), resourceXml || '')];
         addSystemInjects(injects);
-        const buildFilePath = getBuildFilePath(resourceFile);
-        const projectFilePath = path.join(appFolder, resourceFile);
 
-        if (!injectValue) {
-            writeCleanFile(buildFilePath, projectFilePath, injects, undefined, c);
-        } else {
-            writeCleanFile(buildFilePath, projectFilePath, injects, undefined, c);
-            _overrideDynamicValue(projectFilePath);
+        const resourceFile = `app/src/main/res/values/${targetRes.replace('_', '.')}`;
+        writeParsedFiles(resourceFile, injects, c);
+        if (injectValue) {
+            _overrideDynamicValue(resourceFile);
         }
-
-        return;
     } catch (e) {
         logError(e);
     }
 };
 
-const _getPattern = (targetRes: TargetResourceFile): string => {
-    return `{{PLUGIN_${targetRes.toUpperCase()}_FILE}}`;
-};
+const _getPattern = (targetRes: TargetResourceFile): string => `{{PLUGIN_${targetRes.toUpperCase()}_FILE}}`;
+
 const _overrideDynamicValue = (stringsPath: string) => {
     const c = getContext();
 
-    const injects = [
-        {
-            pattern: '{{PLUGIN_COLORS_BG}}',
-            override: sanitizeColor(getConfigProp('backgroundColor'), 'backgroundColor').hex || '#FFFFFF',
-        },
-        { pattern: '{{APP_TITLE}}', override: getAppTitle() || '' },
+    const injects: OverridesOptions = [
+        createOverridesOption(
+            '{{PLUGIN_COLORS_BG}}',
+            sanitizeColor(getConfigProp('backgroundColor'), 'backgroundColor') || '#FFFFFF'
+        ),
+        createOverridesOption('{{APP_TITLE}}', getAppTitle() || '')
     ];
-
     addSystemInjects(injects);
 
-    writeCleanFile(stringsPath, stringsPath, injects, undefined, c);
+    writeParsedFiles(stringsPath, injects, c);
 };

@@ -1,4 +1,4 @@
-import { PluginListResponse, chalk, getContext } from '@rnv/core';
+import { chalk, getContext, type PluginListResponse } from '@rnv/core';
 import intersection from 'lodash/intersection';
 
 export const getPluginList = (isUpdate = false) => {
@@ -8,7 +8,7 @@ export const getPluginList = (isUpdate = false) => {
         asString: '',
         asArray: [],
         plugins: [],
-        allPlugins: {}, // this is used by taskPluginAdd
+        allPlugins: {} // this is used by taskPluginAdd
     };
 
     let i = 1;
@@ -31,7 +31,7 @@ export const getPluginList = (isUpdate = false) => {
                 platforms = platforms.slice(0, platforms.length - 2);
             }
             const installedPlugin = c.buildConfig && c.buildConfig.plugins && c.buildConfig.plugins[k];
-            const installedString = installedPlugin ? chalk().yellow('installed') : chalk().green('not installed');
+            const installedString = installedPlugin ? chalk.yellow('installed') : chalk.green('not installed');
             let versionString = plugin.version;
             if (isUpdate && installedPlugin) {
                 output.plugins.push(k);
@@ -39,34 +39,34 @@ export const getPluginList = (isUpdate = false) => {
                 const installedPluginVersion =
                     typeof installedPlugin !== 'string' ? installedPlugin.version : installedPlugin;
                 if (installedPluginVersion !== plugin.version) {
-                    versionString = `(${chalk().yellow(installedPluginVersion)}) => (${chalk().green(plugin.version)})`;
+                    versionString = `(${chalk.yellow(installedPluginVersion)}) => (${chalk.green(plugin.version)})`;
                 } else {
-                    versionString = `(${chalk().green(installedPluginVersion)})`;
+                    versionString = `(${chalk.green(installedPluginVersion)})`;
                 }
-                output.asString += ` [${i}]> ${chalk().bold.white(k)} ${versionString}\n`;
+                output.asString += ` [${i}]> ${chalk.bold.white(k)} ${versionString}\n`;
                 output.asArray.push({
                     name: `${k} ${versionString}`,
-                    value: k,
+                    value: k
                 });
 
                 i++;
             } else if (!isUpdate) {
                 output.plugins.push(k);
-                output.asString += ` [${i}]> ${chalk().bold.white(k)} (${chalk().grey(
+                output.asString += ` [${i}]> ${chalk.bold.white(k)} (${chalk.grey(
                     plugin.disableNpm ? '(no npm)' : plugin.version
                 )}) [${platforms}] - ${installedString}\n`;
                 output.asArray.push({
-                    name: `${k} (${chalk().grey(
+                    name: `${k} (${chalk.grey(
                         plugin.disableNpm ? '(no npm)' : plugin.version
                     )}) [${platforms}] - ${installedString}`,
-                    value: k,
+                    value: k
                 });
 
                 i++;
             }
             output.allPlugins[k] = {
                 name: `${k} ${versionString}`,
-                value: k,
+                value: k
             }; // this is used by taskPluginAdd
             output.asArray.sort((a, b) => {
                 const aStr = a.name.toLowerCase();

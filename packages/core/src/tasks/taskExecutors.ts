@@ -1,13 +1,13 @@
-import { logDefault, logInitTask, logExitTask, chalk, logRaw, logInfo, logToSummary } from '../logger';
 import { executePipe } from '../buildHooks';
-import type { RnvContext } from '../context/types';
-import type { RnvTask } from './types';
 import { getContext } from '../context/provider';
-import { RnvTaskName } from '../enums/taskName';
-import { generateStringFromTaskOption, shouldSkipTask } from './taskHelpers';
+import type { RnvContext } from '../context/types';
 import { getEngineRunnerByOwnerID } from '../engines';
-import { extractSingleExecutableTask, findTasksByTaskName } from './taskFinder';
+import { RnvTaskName } from '../enums/taskName';
+import { chalk, logDefault, logExitTask, logInfo, logInitTask, logRaw, logToSummary } from '../logger';
 import { checkIfProjectAndNodeModulesExists } from '../projects/npm';
+import { extractSingleExecutableTask, findTasksByTaskName } from './taskFinder';
+import { generateStringFromTaskOption, shouldSkipTask } from './taskHelpers';
+import type { RnvTask } from './types';
 
 let executedTasks: Record<string, number> = {};
 const TASK_LIMIT = 20;
@@ -28,7 +28,7 @@ export const executeTask = async (opts: {
         isOptional,
         isFirstTask,
         skipInOnlyMode,
-        alternativeTaskInOnlyMode,
+        alternativeTaskInOnlyMode
     } = opts;
     const ctx = getContext();
     const inOnlyMode = ctx.program.opts().only;
@@ -42,7 +42,7 @@ export const executeTask = async (opts: {
 
     if (availableTasks.match.length === 0 && !isOptional) {
         logToSummary(`Current task registry:
-${availableTasks.available.map((t) => `${t.task} ${chalk().gray(t.ownerID)}`).join('\n')}
+${availableTasks.available.map((t) => `${t.task} ${chalk.gray(t.ownerID)}`).join('\n')}
 `);
         return Promise.reject(`Task "${taskName}" not found in registry!`);
     }
@@ -68,9 +68,7 @@ export const initializeTask = async (taskInstance: RnvTask | undefined) => {
     }
     if (c.runtime.engine?.config) {
         logInfo(
-            `Current engine: ${chalk().bold.white(c.runtime.engine?.id)} ${chalk().grey(
-                `(${c.runtime.engine?.rootPath})`
-            )}`
+            `Current engine: ${chalk.bold.white(c.runtime.engine?.id)} ${chalk.grey(`(${c.runtime.engine?.rootPath})`)}`
         );
     } else {
         logInfo(`Current engine: n/a`);
@@ -102,7 +100,7 @@ const _executeTaskInstance = async (opts: {
     const inOnlyMode = c.program.opts().only;
 
     c._currentTask = taskInstance.task;
-    // logInitTask(`${pt}=> [${chalk().bold.rgb(170, 106, 170)(task)}]`);
+    // logInitTask(`${pt}=> [${chalk.bold.rgb(170, 106, 170)(task)}]`);
     logInitTask(`${taskInstance.task}`);
 
     if (!executedTasks[taskInstance.task]) executedTasks[taskInstance.task] = 0;
@@ -149,7 +147,7 @@ Description: ${taskInstance.description}
                     parentTaskName: taskInstance.task,
                     originTaskName,
                     ctx: c,
-                    shouldSkip: false,
+                    shouldSkip: false
                 });
             }
             await executeTask({ taskName: dep, parentTaskName: taskInstance.task, originTaskName });
@@ -161,7 +159,7 @@ Description: ${taskInstance.description}
             parentTaskName,
             originTaskName,
             shouldSkip,
-            ctx: c,
+            ctx: c
         });
     }
     if (doPipe) await _executePipe(taskInstance, 'after');

@@ -14,24 +14,29 @@
         "lib",
         "types.d.ts"
     ],
-    "main": "lib/index.js",
+    "private": "false",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "publishConfig": {
+        "access": "public",
+        "main": "./lib/index.js",
+        "types": "./lib/index.d.ts"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/flexn-io/renative.git"
     },
     "scripts": {
-        "bootstrap": "yarn && yarn build && npm link",
-        "build": "yarn clean && yarn compile",
+        "build": "tsc -b tsconfig.json",
         "compile": "tsc -b tsconfig.json",
-        "compile:prod": "tsc -b tsconfig.json",
-        "lint": "eslint . --ext .ts",
         "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
         "@rnv/sdk-utils": "workspace:*",
         "@types/tar": "catalog:",
+        "deepmerge": "catalog:",
         "iocane": "4.0.0",
-        "kill-port": "catalog:",
+        "kill-the-port": "^0.1.3",
         "lodash": "catalog:",
         "tar": "6.2.1",
         "typescript": "catalog:"
@@ -39,8 +44,7 @@
     "peerDependencies": {
         "@rnv/core": "workspace:*"
     },
-    "private": "false",
-    "publishConfig": {
-        "access": "public"
+    "devDependencies": {
+        "@types/lodash": "^4.17.25"
     }
 }

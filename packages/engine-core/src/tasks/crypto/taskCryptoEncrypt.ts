@@ -49,7 +49,7 @@ const initializeCryptoDirectory = async (sourceFolder: string) => {
             name: 'option',
             type: 'list',
             choices: options,
-            message: `Found existing private config in your project ${chalk().grey(
+            message: `Found existing private config in your project ${chalk.grey(
                 ctx.paths.project.configPrivate
             )}. What to do next?`,
         });
@@ -123,7 +123,7 @@ const _checkAndConfigureCrypto = async () => {
 
     if (!fsExistsSync(sourceFolder)) {
         logInfo(
-            `It seems you are running encrypt for the first time. Directory ${chalk().bold.white(
+            `It seems you are running encrypt for the first time. Directory ${chalk.bold.white(
                 sourceFolder
             )} does not exist yet.
 RNV will create it for you, make sure you add whatever you want encrypted in it and then run the command again`
@@ -143,7 +143,7 @@ RNV will create it for you, make sure you add whatever you want encrypted in it 
     if (!key) {
         const { confirm } = await inquirerPrompt({
             type: 'confirm',
-            message: `You haven't passed a key with --key or set an env variable named ${chalk().yellow(
+            message: `You haven't passed a key with --key or set an env variable named ${chalk.yellow(
                 envVar
             )} for the encryption key. Would you like to generate one?`,
         });
@@ -151,7 +151,7 @@ RNV will create it for you, make sure you add whatever you want encrypted in it 
             key = generateRandomKey(20);
             keyGenerated = true;
         } else {
-            return Promise.reject(`encrypt: You must pass ${chalk().bold.white('--key')} or have env var defined:
+            return Promise.reject(`encrypt: You must pass ${chalk.bold.white('--key')} or have env var defined:
 
 ${getEnvExportCmd(envVar, 'REPLACE_WITH_ENV_VARIABLE')}
 
@@ -160,7 +160,7 @@ Make sure you take into account special characters that might need to be escaped
 `);
         }
         if (keyGenerated) {
-            logSuccess(`The files were encrypted with key ${chalk().red(
+            logSuccess(`The files were encrypted with key ${chalk.red(
                 key
             )}. Make sure you keep it safe! Pass it with --key on decryption or set it as following env variable:
 
@@ -232,7 +232,7 @@ export default createTask({
             fsWriteFileSync(`${tsWorkspacePath}`, `${timestamp}`);
             logSuccess(`Files successfully encrypted into ${dest}`);
         } else {
-            logWarning(`You don't have {{ crypto.path }} specificed in ${chalk().bold.white(ctx.paths.appConfigBase)}`);
+            logWarning(`You don't have {{ crypto.path }} specificed in ${chalk.bold.white(ctx.paths.appConfigBase)}`);
         }
     },
     options: [TaskOptions.key],

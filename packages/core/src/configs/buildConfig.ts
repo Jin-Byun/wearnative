@@ -1,17 +1,16 @@
-import path from 'path';
+import path from 'node:path';
 import merge from 'deepmerge';
-
-import {
-    sanitizeDynamicRefs,
-    sanitizeDynamicProps,
-    fsExistsSync,
-    formatBytes,
-    mkdirSync,
-    writeFileSync
-} from '../system/fs';
-import { chalk, logDefault, logWarning, logDebug } from '../logger';
 import { getContext } from '../context/provider';
 import type { RnvContext, RnvContextBuildConfig } from '../context/types';
+import { chalk, logDebug, logDefault, logWarning } from '../logger';
+import {
+    formatBytes,
+    fsExistsSync,
+    mkdirSync,
+    sanitizeDynamicProps,
+    sanitizeDynamicRefs,
+    writeFileSync
+} from '../system/fs';
 import type { FileUtilsPropConfig } from '../system/types';
 import type { RnvPlatformKey } from '../types';
 
@@ -64,7 +63,7 @@ export const generateBuildConfig = () => {
         c.paths.project.config,
         c.paths.project.configLocal,
         ...c.paths.appConfig.configs,
-        ...c.paths.appConfig.configsLocal,
+        ...c.paths.appConfig.configsLocal
     ];
     //TODO: move this into private buildConfig
     const mergePathsPrivate = [
@@ -72,7 +71,7 @@ export const generateBuildConfig = () => {
         c.paths.workspace.project.configPrivate,
         ...c.paths.workspace.appConfig.configsPrivate,
         c.paths.project.configPrivate,
-        ...c.paths.appConfig.configsPrivate,
+        ...c.paths.appConfig.configsPrivate
     ];
     const mergePaths = [...mergePathsPublic, ...mergePathsPrivate];
 
@@ -91,7 +90,7 @@ export const generateBuildConfig = () => {
         c.files.project.config,
         c.files.project.configLocal,
         ...c.files.appConfig.configs,
-        ...c.files.appConfig.configsLocal,
+        ...c.files.appConfig.configsLocal
     ];
     //TODO: move this into private buildConfig
     const mergeFilesPrivate = [
@@ -99,7 +98,7 @@ export const generateBuildConfig = () => {
         c.files.workspace.project.configPrivate,
         ...c.files.workspace.appConfig.configsPrivate,
         c.files.project.configPrivate,
-        ...c.files.appConfig.configsPrivate,
+        ...c.files.appConfig.configsPrivate
     ];
     const mergeFiles = [...mergeFilesPublic, ...mergeFilesPrivate];
 
@@ -113,8 +112,7 @@ const _generateBuildConfig = (mergePaths: string[], mergeFiles: Array<object | u
         const exists = fsExistsSync(v);
         if (exists) {
             logDebug(`Merged: ${v}`);
-        } else {
-            // console.log(chalk().red(v));
+            chalk;
         }
         return exists;
     });
@@ -131,9 +129,9 @@ const _generateBuildConfig = (mergePaths: string[], mergeFiles: Array<object | u
         {
             _meta: {
                 generated: new Date().getTime(),
-                mergedConfigs: existsPaths,
-            },
-        },
+                mergedConfigs: existsPaths
+            }
+        }
     ];
     const existsFiles: object[] = [];
     mergeFiles.forEach((v) => {
@@ -147,7 +145,7 @@ const _generateBuildConfig = (mergePaths: string[], mergeFiles: Array<object | u
     );
 
     let out: RnvContextBuildConfig = merge.all<RnvContextBuildConfig>([...meta, ...existsFiles], {
-        arrayMerge: _arrayMergeOverride,
+        arrayMerge: _arrayMergeOverride
     });
     out = merge({}, out);
     // out.pluginTemplates = pluginTemplates;
@@ -158,7 +156,7 @@ const _generateBuildConfig = (mergePaths: string[], mergeFiles: Array<object | u
         files: c.files,
         runtimeProps: c.runtime,
         props: c.buildConfig._refs || {},
-        configProps: c.configPropsInjects,
+        configProps: c.configPropsInjects
     };
     c.buildConfig = sanitizeDynamicProps(c.buildConfig, propConfig);
 
@@ -191,7 +189,7 @@ const _generateBuildConfig = (mergePaths: string[], mergeFiles: Array<object | u
             const result = writeFileSync(c.paths.project.builds.config, c.buildConfig);
             if (result) {
                 const size = formatBytes(Buffer.byteLength(result || '', 'utf8'));
-                logDefault(chalk().grey('generateBuildConfig'), `size:${size}`);
+                logDefault(chalk.grey('generateBuildConfig'), `size:${size}`);
             } else {
                 logDebug(`generateBuildConfig NOT SAVED: ${c.paths.project.builds.config}`);
             }

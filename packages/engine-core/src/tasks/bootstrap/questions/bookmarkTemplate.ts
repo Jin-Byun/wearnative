@@ -23,9 +23,9 @@ const Question = async (data: NewProjectData) => {
         const { confirmAddTemplate } = await inquirerPrompt({
             name: 'confirmAddTemplate',
             type: 'confirm',
-            message: `Would you like to add ${chalk().bold.white(inputs.template.packageName)} to your ${
+            message: `Would you like to add ${chalk.bold.white(inputs.template.packageName)} to your ${
                 inputs.workspaceID
-            } workspace template list?`,
+            } workspace template list?`
         });
 
         const { templateName } = await inquirerPrompt({
@@ -33,7 +33,7 @@ const Question = async (data: NewProjectData) => {
             type: 'input',
             default: `${inputs.template.packageName} (local)`,
             validate: (v) => !allKeys.includes(v) || 'Name already exists',
-            message: 'Add short description',
+            message: 'Add short description'
         });
 
         if (configFile) {
@@ -44,7 +44,7 @@ const Question = async (data: NewProjectData) => {
                 configFile.projectTemplates[templateName] = {
                     packageName: inputs.template.packageName,
                     localPath: inputs.template.localPath,
-                    description: inputs.template.description,
+                    description: inputs.template.description
                 };
                 writeFileSync(c.paths.workspace.config, configFile);
 

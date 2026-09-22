@@ -1,6 +1,6 @@
 import { createTask, RnvTaskName } from '@rnv/core';
-import { checkAndConfigureAndroidSdks, checkAndroidSdk } from '../installer';
 import { SdkPlatforms } from '../constants';
+import { checkAndConfigureAndroidSdks, checkAndroidSdk } from '../installer';
 
 export default createTask({
     description: 'Configures sdks',
@@ -10,5 +10,5 @@ export default createTask({
         return checkAndroidSdk();
     },
     task: RnvTaskName.sdkConfigure,
-    platforms: SdkPlatforms,
+    platforms: SdkPlatforms
 });

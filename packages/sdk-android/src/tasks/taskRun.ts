@@ -1,8 +1,9 @@
-import { getConfigProp, logSummary, createTask, RnvTaskName, RnvTaskOptionPresets } from '@rnv/core';
+import { createTask, getConfigProp, logSummary, RnvTaskName, RnvTaskOptionPresets } from '@rnv/core';
 import { startBundlerIfRequired, waitForBundlerIfRequired } from '@rnv/sdk-react-native';
-import { getAndroidDeviceToRunOn, packageAndroid, runAndroid } from '../runner';
 import { SdkPlatforms } from '../constants';
+import { getAndroidDeviceToRunOn, packageAndroid, runAndroid } from '../runner';
 import { TaskOptions } from '../taskOptions';
+import type { AndroidDevice } from '../types';
 
 export default createTask({
     description: 'Run your rn app on target device or emulator',
@@ -19,13 +20,13 @@ export default createTask({
             if (bundleAssets || ctx.platform === 'androidwear') {
                 await packageAndroid();
             }
-            await runAndroid(runDevice!);
+            await runAndroid(runDevice as AndroidDevice);
             if (!bundleAssets) {
                 logSummary({ header: 'BUNDLER STARTED' });
             }
             return waitForBundlerIfRequired();
         }
-        await runAndroid(runDevice!);
+        await runAndroid(runDevice as AndroidDevice);
     },
     task: RnvTaskName.run,
     isPriorityOrder: true,
@@ -34,7 +35,7 @@ export default createTask({
         ...RnvTaskOptionPresets.withRun(),
         TaskOptions.resetAdb,
         TaskOptions.skipTargetCheck,
-        TaskOptions.uninstall,
+        TaskOptions.uninstall
     ],
-    platforms: SdkPlatforms,
+    platforms: SdkPlatforms
 });

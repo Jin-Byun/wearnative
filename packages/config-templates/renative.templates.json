@@ -478,7 +478,7 @@
                             "rawOutput.filter(device => !device.platform.includes('macos')).sort(device => device.simulator ? 1 : -1).map(device => {": "rawOutput.sort(device => device.simulator ? 1 : -1).map(device => { // <= PATCHED BY RENATIVE"
                         },
                         "build/commands/runIOS/index.js": {
-                            "_cliTools().logger.error(`Could not find a device named: \"${_chalk().default.bold(String(deviceName))}\". ${printFoundDevices(devices)}`);": "_cliTools().logger.error(`Could not find a device: \"${_chalk().default.bold(String(deviceName))}\". ${printFoundDevices(devices)}`);\n   throw 'Could not find device'; // <= PATCHED BY RENATIVE"
+                            "_cliTools().logger.error(`Could not find a device named: \"${_chalk.default.bold(String(deviceName))}\". ${printFoundDevices(devices)}`);": "_cliTools().logger.error(`Could not find a device: \"${_chalk.default.bold(String(deviceName))}\". ${printFoundDevices(devices)}`);\n   throw 'Could not find device'; // <= PATCHED BY RENATIVE"
                         }
                     },
                     "overridesFolderName": "overrides@12.3.6"

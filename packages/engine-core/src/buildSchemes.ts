@@ -1,5 +1,5 @@
-import merge from 'deepmerge';
 import { chalk, getContext, inquirerPrompt, logDefault, logError, logInfo, logWarning } from '@rnv/core';
+import merge from 'deepmerge';
 
 export const isBuildSchemeSupported = async () => {
     logDefault('isBuildSchemeSupported');
@@ -12,7 +12,7 @@ export const isBuildSchemeSupported = async () => {
 
     if (!platforms[c.platform]) {
         platforms[c.platform] = {
-            buildSchemes: {},
+            buildSchemes: {}
         };
     }
 
@@ -38,7 +38,7 @@ export const isBuildSchemeSupported = async () => {
         const schemeVals: Record<string, string> = {};
         Object.keys(buildSchemes).forEach((k) => {
             const s = buildSchemes[k];
-            const desc = s.description ? chalk().grey(` (${s.description})`) : '';
+            const desc = s.description ? chalk.grey(` (${s.description})`) : '';
             const key = `${k}${desc}`;
             schemeOptions.push(key);
             schemeVals[key] = k;
@@ -49,12 +49,12 @@ export const isBuildSchemeSupported = async () => {
             type: 'list',
             message: 'Pick one of available buildSchemes',
             choices: schemeOptions,
-            logMessage: 'You need to specify scheme',
+            logMessage: 'You need to specify scheme'
         });
 
         c.program.opts().scheme = schemeVals[selectedScheme];
         c.runtime.scheme = c.program.opts().scheme;
     }
-    logInfo(`Current Build Scheme: ${chalk().bold.white(c.runtime.scheme)}`);
+    logInfo(`Current Build Scheme: ${chalk.bold.white(c.runtime.scheme)}`);
     return true;
 };

@@ -1,23 +1,22 @@
-import path from 'path';
-
 import {
-    removeDirs,
+    chalk,
+    createTask,
+    executeAsync,
     fsExistsSync,
     fsReaddirSync,
-    chalk,
-    logToSummary,
-    logDebug,
-    executeAsync,
-    isSystemWin,
     inquirerPrompt,
+    isSystemWin,
+    logDebug,
+    logToSummary,
     RnvTaskName,
-    createTask,
+    removeDirs
 } from '@rnv/core';
+import path from 'path';
 
 function clearWindowsCacheFiles() {
     const opts = {
         detached: false,
-        stdio: 'ignore',
+        stdio: 'ignore'
     };
 
     // TODO using executeAsync for these scripts returns an error, so this is just a temporary workaround
@@ -117,7 +116,7 @@ export default createTask({
             distAndLib: false,
             gitIgnore: false,
             nothingToClean: !skipQuestion,
-            locals: false,
+            locals: false
         };
 
         if (pathsToRemove.length) {
@@ -125,9 +124,9 @@ export default createTask({
                 const { confirm } = await inquirerPrompt({
                     name: 'confirm',
                     type: 'confirm',
-                    message: `Do you want to remove node_module related files/folders? \n${chalk().red(
+                    message: `Do you want to remove node_module related files/folders? \n${chalk.red(
                         pathsToRemove.join('\n')
-                    )}`,
+                    )}`
                 });
                 answers.modules = confirm;
                 if (confirm) answers.nothingToClean = false;
@@ -141,9 +140,9 @@ export default createTask({
                 const { confirmBuilds } = await inquirerPrompt({
                     name: 'confirmBuilds',
                     type: 'confirm',
-                    message: `Do you want to clean your platformBuilds and platformAssets? \n${chalk().red(
+                    message: `Do you want to clean your platformBuilds and platformAssets? \n${chalk.red(
                         buildDirs.join('\n')
-                    )}`,
+                    )}`
                 });
                 answers.builds = confirmBuilds;
                 if (confirmBuilds) answers.nothingToClean = false;
@@ -157,7 +156,7 @@ export default createTask({
                 const { confirmLocals } = await inquirerPrompt({
                     name: 'confirmLocals',
                     type: 'confirm',
-                    message: `Do you want to clean local files? \n${chalk().red(localFiles.join('\n'))}`,
+                    message: `Do you want to clean local files? \n${chalk.red(localFiles.join('\n'))}`
                 });
                 answers.locals = confirmLocals;
                 if (confirmLocals) answers.nothingToClean = false;
@@ -170,7 +169,7 @@ export default createTask({
             const { confirmCache } = await inquirerPrompt({
                 name: 'confirmCache',
                 type: 'confirm',
-                message: 'Do you want to clean your npm/bundler cache?',
+                message: 'Do you want to clean your npm/bundler cache?'
             });
             answers.cache = confirmCache;
             if (confirmCache) answers.nothingToClean = false;
@@ -182,7 +181,7 @@ export default createTask({
             const { confirmCache } = await inquirerPrompt({
                 name: 'confirmCache',
                 type: 'confirm',
-                message: 'Do you want to clean your platformBuilds',
+                message: 'Do you want to clean your platformBuilds'
             });
             answers.cache = confirmCache;
             if (confirmCache) answers.nothingToClean = false;
@@ -224,5 +223,5 @@ export default createTask({
         return true;
     },
     task: RnvTaskName.clean,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

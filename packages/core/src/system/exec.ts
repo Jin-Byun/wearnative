@@ -1,37 +1,39 @@
 /* eslint-disable no-control-regex */
 
-import path from 'path';
-import { access, accessSync, constants } from 'fs';
-import execa, { ExecaChildProcess } from 'execa';
-import NClient from 'netcat/client';
-import { chalk, logDebug, logRaw, logError } from '../logger';
-import { fsExistsSync } from './fs';
-import { RnvContext } from '../context/types';
-import { ExecCallback, ExecOptions } from './types';
-import { getContext } from '../context/provider';
+import type { WithImplicitCoercion } from 'node:buffer';
+import { exec, execSync } from 'node:child_process';
+import { access, accessSync, constants } from 'node:fs';
+import net from 'node:net';
+import path from 'node:path';
+import { type Options as ExecaOptions, execa, type Subprocess } from 'execa';
 import { getApi } from '../api/provider';
+import { getContext } from '../context/provider';
+import type { RnvContext } from '../context/types';
+import { chalk, logDebug, logError, logRaw } from '../logger';
+import { fsExistsSync } from './fs';
+import type { ExecCallback, ExecOptions } from './types';
 
-const { exec, execSync } = require('child_process');
+// const { exec, execSync } = require('child_process');
 
 const FIRE_AND_FORGET: ExecOptions = {
     stdio: 'ignore', // Disable child_process output
     detached: true, // Killing rnv command will NOT kill process
     silent: true, // Disable spinner
-    shell: true, // runs `command` inside of a shell. Uses `/bin/sh` on UNIX and `cmd.exe` on Windows
+    shell: true // runs `command` inside of a shell. Uses `/bin/sh` on UNIX and `cmd.exe` on Windows
 };
 
 const NO_SPINNER_FULL_ERROR_SUMMARY: ExecOptions = {
     stdio: 'pipe', // pipe will print final error into SUMMARY box but nothing during execution
     detached: true, // Killing rnv command will NOT kill process
     silent: true, // Disable spinner
-    shell: true, // runs `command` inside of a shell. Uses `/bin/sh` on UNIX and `cmd.exe` on Windows
+    shell: true // runs `command` inside of a shell. Uses `/bin/sh` on UNIX and `cmd.exe` on Windows
 };
 
 const INHERIT_OUTPUT_NO_SPINNER: ExecOptions = {
     detached: false, // Killing command will kill process
     silent: true, // silent: true => will not show execa spinner
     stdio: 'inherit', // inherit will print during execution but no details in SUMMARY box
-    shell: true, // runs `command` inside of a shell. Uses `/bin/sh` on UNIX and `cmd.exe` on Windows
+    shell: true // runs `command` inside of a shell. Uses `/bin/sh` on UNIX and `cmd.exe` on Windows
     // mono: true,
 };
 
@@ -40,7 +42,7 @@ const SPINNER_FULL_ERROR_SUMMARY: ExecOptions = {
     silent: false,
     stdio: 'pipe', // pipe will print final error into SUMMARY box but nothing during execution
     shell: true, // runs `command` inside of a shell. Uses `/bin/sh` on UNIX and `cmd.exe` on Windows
-    mono: false,
+    mono: false
 };
 
 export const ExecOptionsPresets = {
@@ -48,7 +50,7 @@ export const ExecOptionsPresets = {
     FIRE_AND_FORGET,
     INHERIT_OUTPUT_NO_SPINNER,
     SPINNER_FULL_ERROR_SUMMARY,
-    NO_SPINNER_FULL_ERROR_SUMMARY,
+    NO_SPINNER_FULL_ERROR_SUMMARY
 } as const;
 
 const replaceOverridesInString = (string: string | undefined, overrides: Array<string>, mask: string) => {
@@ -63,35 +65,17 @@ const replaceOverridesInString = (string: string | undefined, overrides: Array<s
     return replacedString;
 };
 
-/**
- *
- * Also accepts the Node's child_process exec/spawn options
- *
- * @typedef {Object} Opts
- * @property {Object} privateParams - private params that will be masked in the logs
- * @property {Boolean} silent - don't print anything
- * @property {Boolean} ignoreErrors - will print the loader but it will finish with a
- * checkmark regardless of the outcome. Also, it never throws a catch.
- * @property {Boolean} interactive - when you want to execute a command that requires user input
- *
- * Execute commands
- *
- * @param {String} command - command to be executed
- * @param {Opts} [opts={}] - the options for the command
- * @returns {Promise}
- *
- */
-const _execute = (c: RnvContext, command: string | Array<string>, opts: ExecOptions = {}) => {
+const _execute = async (c: RnvContext, command: string | Array<string>, opts: ExecOptions = {}) => {
     const defaultOpts: ExecOptions = {
         stdio: 'pipe',
         localDir: path.resolve('./node_modules/.bin'),
         preferLocal: true,
         all: true,
         maxErrorLength: c.program?.opts().maxErrorLength,
-        mono: c.program?.opts().mono || c.program?.opts().json,
+        mono: c.program?.opts().mono || c.program?.opts().json
     };
 
-    const blue2 = chalk().rgb(50, 50, 255).bold;
+    const blue2 = chalk.rgb(50, 50, 255).bold;
 
     const mergedOpts = { ...defaultOpts, ...opts };
 
@@ -122,9 +106,9 @@ const _execute = (c: RnvContext, command: string | Array<string>, opts: ExecOpti
     }
 
     if (c.program.opts().printExec) {
-        let logMsg = printableEnv ? `${chalk().grey(printableEnv)} ${logMessage}` : logMessage;
+        let logMsg = printableEnv ? `${chalk.grey(printableEnv)} ${logMessage}` : logMessage;
         if (opts.cwd) {
-            logMsg = `cd ${opts.cwd} ${chalk().cyan('&&')} ${logMsg}`;
+            logMsg = `cd ${opts.cwd} ${chalk.cyan('&&')} ${logMsg}`;
         }
         logRaw(`${blue2('exec:')} ${blue2('○')} ${logMsg} ${blue2('○')}`);
     }
@@ -137,9 +121,6 @@ const _execute = (c: RnvContext, command: string | Array<string>, opts: ExecOpti
         getApi()
             .spinner({ text: `Executing: ${logMessage}` })
             .start('');
-    // if (opts.interactive) {
-    //     logRaw(`${chalk().green('✔')} Executing: ${logMessage}\n`);
-    // }
 
     if (mono) {
         interval = setInterval(() => {
@@ -147,12 +128,12 @@ const _execute = (c: RnvContext, command: string | Array<string>, opts: ExecOpti
             timer += intervalTimer;
         }, intervalTimer);
     }
-    let child: ExecaChildProcess;
+    let child: Subprocess;
     if (opts.rawCommand) {
         const { args } = opts.rawCommand;
-        child = execa(commandAsString, args, mergedOpts);
+        child = execa(commandAsString, args, Object.assign({ shell: true }, mergedOpts));
     } else {
-        child = execa.command(cleanCommand, mergedOpts);
+        child = execa(cleanCommand, Object.assign({ shell: true }, mergedOpts));
     }
 
     if (!opts.detached) {
@@ -183,87 +164,74 @@ const _execute = (c: RnvContext, command: string | Array<string>, opts: ExecOpti
         child.stdout.on('data', printLastLine);
     }
 
-    return child
-        .then((res) => {
-            if (child?.stdout?.off) {
-                spinner && child.stdout.off('data', printLastLine);
-            }
+    return await new Promise((res, rej) => {
+        child
+            .then(({ stdout }) => {
+                if (child?.stdout?.off && spinner) {
+                    child.stdout.off('data', printLastLine);
+                }
+                if (!silent && !mono && spinner) spinner.succeed(`Executing: ${logMessage}`);
+                logDebug(replaceOverridesInString(String(stdout), privateParams, privateMask));
+                if (interval) clearInterval(interval);
+                c.runningProcesses.splice(c.runningProcesses.indexOf(child), 1);
+                res(stdout);
+            })
+            .catch((err) => {
+                if (child?.stdout?.off && spinner) {
+                    child.stdout.off('data', printLastLine);
+                }
+                if (!silent && !mono && !ignoreErrors && spinner) {
+                    spinner.fail(`FAILED: ${logMessage}`);
+                } // parseErrorMessage will return false if nothing is found, default to previous implementation
+                logDebug(replaceOverridesInString(err.all, privateParams, privateMask));
+                if (interval) clearInterval(interval);
+                if (ignoreErrors && !silent && !mono && spinner) {
+                    spinner.succeed(`Executing: ${logMessage}`);
+                    return res('');
+                }
 
-            !silent && !mono && !!spinner && spinner.succeed(`Executing: ${logMessage}`);
-            logDebug(replaceOverridesInString(res.all, privateParams, privateMask));
-            interval && clearInterval(interval);
-            c.runningProcesses.splice(c.runningProcesses.indexOf(child), 1);
-            // logDebug(res);
-            return res.stdout;
-        })
-        .catch((err) => {
-            if (child?.stdout?.off) {
-                spinner && child.stdout.off('data', printLastLine);
-            }
+                let errMessage = '';
 
-            if (!silent && !mono && !ignoreErrors && !!spinner) {
-                spinner.fail(`FAILED: ${logMessage}`);
-            } // parseErrorMessage will return false if nothing is found, default to previous implementation
-            logDebug(replaceOverridesInString(err.all, privateParams, privateMask));
-            interval && clearInterval(interval);
-            // logDebug(err);
-            if (ignoreErrors && !silent && !mono && !!spinner) {
-                spinner.succeed(`Executing: ${logMessage}`);
-                return '';
-            }
+                if (!opts.stdio) {
+                    //In stdio mode all info received at summary so we want to skip doubles
+                    errMessage = parseErrorMessage(err.all, maxErrorLength);
+                }
 
-            let errMessage = '';
+                if (!errMessage) {
+                    errMessage = '';
+                } else {
+                    errMessage += '\n\n';
+                }
 
-            if (!opts.stdio) {
-                //In stdio mode all info received at summary so we want to skip doubles
-                errMessage = parseErrorMessage(err.all, maxErrorLength);
-            }
+                if (err.stack && !errMessage.includes(err.stack)) {
+                    errMessage += `${err.stack}\n\n`;
+                }
 
-            if (!errMessage) {
-                errMessage = '';
-            } else {
-                errMessage += '\n\n';
-            }
+                if (err.all && !errMessage.includes(err.all)) {
+                    errMessage += `${err.all}\n\n`;
+                }
 
-            if (err.stack && !errMessage.includes(err.stack)) {
-                errMessage += `${err.stack}\n\n`;
-            }
+                if (err.message && !errMessage.includes(err.message)) {
+                    errMessage += `${err.message}\n\n`;
+                }
 
-            if (err.all && !errMessage.includes(err.all)) {
-                errMessage += `${err.all}\n\n`;
-            }
+                if (err.stderr && !errMessage.includes(err.stderr)) {
+                    errMessage += `${err.stderr}\n\n`;
+                }
 
-            if (err.message && !errMessage.includes(err.message)) {
-                errMessage += `${err.message}\n\n`;
-            }
+                errMessage = replaceOverridesInString(errMessage, privateParams, privateMask);
+                c.runningProcesses.splice(c.runningProcesses.indexOf(child), 1);
 
-            if (err.stderr && !errMessage.includes(err.stderr)) {
-                errMessage += `${err.stderr}\n\n`;
-            }
-
-            errMessage = replaceOverridesInString(errMessage, privateParams, privateMask);
-            c.runningProcesses.splice(c.runningProcesses.indexOf(child), 1);
-
-            return Promise.reject(`COMMAND: \n\n${logMessage} \n\nFAILED with ERROR: \n\n${errMessage}`); // parseErrorMessage will return false if nothing is found, default to previous implementation
-        });
+                rej(`COMMAND: \n\n${logMessage} \n\nFAILED with ERROR: \n\n${errMessage}`); // parseErrorMessage will return false if nothing is found, default to previous implementation
+            });
+    });
 };
 
-/**
- *
- * Execute CLI command
- *
- * @param {Object} c - the trusty old c object
- * @param {String} cli - the cli to be executed
- * @param {String} command - the command to be executed
- * @param {Opts} [opts={}] - the options for the command
- * @returns {Promise}
- *
- */
-const execCLI = (cli: string, command: string, opts: ExecOptions = {}) => {
+const execCLI = async (cli: string, command: string, opts: ExecOptions = {}) => {
     const c = getContext();
 
     if (!c.program) {
-        return Promise.reject('You need to pass c object as first parameter to execCLI()');
+        throw new Error('You need to pass c object as first parameter to execCLI()');
     }
     const p = c.cli[cli];
     if (!fsExistsSync(p)) {
@@ -274,14 +242,14 @@ const execCLI = (cli: string, command: string, opts: ExecOptions = {}) => {
             '\nSDK Config:\n',
             c.buildConfig?.sdks
         );
-        return Promise.reject(
-            `Location of your cli ${chalk().bold.white(p)} does not exists. check your ${chalk().bold.white(
+        throw new Error(
+            `Location of your cli ${chalk.bold.white(p)} does not exists. check your ${chalk.bold.white(
                 c.paths.workspace.config
-            )} file if your ${chalk().bold.white('sdks')} paths are correct`
+            )} file if your ${chalk.bold.white('sdks')} paths are correct`
         );
     }
 
-    return _execute(c, `"${p}" ${command}`, { ...opts, shell: true });
+    return await _execute(c, `"${p}" ${command}`, { ...opts, shell: true });
 };
 
 /**
@@ -296,72 +264,65 @@ const execCLI = (cli: string, command: string, opts: ExecOptions = {}) => {
 
 const executeAsync = async (cmd: string | Array<string>, opts?: ExecOptions): Promise<string> => {
     const c = getContext();
-
+    // change to pnpm
     if (cmd.includes('npm') && process.platform === 'win32') {
         if (typeof cmd === 'string') {
             cmd.replace('npm', 'npm.cmd');
         } else {
-            cmd = cmd.join(' ').replace('npm', 'npm.cmd');
-            cmd = cmd.split(' ');
+            cmd = cmd.map((c) => c.replace('npm', 'npm.cmd'));
         }
     }
 
     const result = await _execute(c, cmd, opts);
-    return result;
+    return String(result);
 };
 
-export const execaCommand = (cmd: string, options?: execa.Options) => {
-    return execa.command(cmd, options);
+export const execaCommand = (cmd: string, options?: ExecaOptions) => {
+    return execa(cmd, Object.assign({ shell: true }, options));
 };
 
-/**
- *
- * Connect to a local telnet server and execute a command
- *
- * @param {Number|String} port - where do you want me to connect to?
- * @param {String} command - the command to be executed once I'm connected
- * @returns {Promise}
- *
- */
+// Connect to a local telnet server and execute a command
 const executeTelnet = (port: string, command: string) =>
     new Promise<string>((resolve) => {
         logDebug(`execTelnet: ${port} ${command}`);
         const c = getContext();
-
         try {
+            const socket = net.createConnection({ port: Number(port), host: c.runtime.localhost as string });
+            const timeout = setTimeout(() => {
+                logError('Timed out, 30s');
+                socket.destroy();
+                resolve('');
+            }, 30_000);
             let output = '';
-            const nc2 = new NClient();
-            nc2.addr(c.runtime.localhost).port(parseInt(port, 10)).connect().send(`${command}\n`);
-            nc2.on('data', (data: WithImplicitCoercion<ArrayBuffer | SharedArrayBuffer>) => {
-                const resp = Buffer.from(data).toString();
-                output += resp;
-                if (output.includes('OK')) nc2.close();
+            socket.on('connect', () => {
+                socket.write(`${command}\n`);
             });
-            nc2.on('close', () => resolve(output));
-        } catch (e) {
-            logError(e);
+            socket.on('data', (data: Buffer) => {
+                output += data.toString();
+                if (output.includes('OK')) {
+                    socket.end();
+                }
+            });
+            socket.on('close', () => {
+                clearTimeout(timeout);
+                resolve(output);
+            });
+            socket.setTimeout(10000, () => {
+                logError('socket idle for 10s');
+                socket.destroy();
+                resolve('');
+            });
+            socket.on('error', (err) => {
+                clearTimeout(timeout);
+                socket.destroy();
+                logError(err);
+                resolve('');
+            });
+        } catch (err) {
+            logError(err);
             resolve('');
         }
     });
-
-// Legacy error parser
-// export const parseErrorMessage = (text, maxErrorLength = 800) => {
-//     const errors = [];
-//     const toSearch = /(exception|error|fatal|\[!])/i;
-//
-//     const extractError = (t) => {
-//         const errorFound = t ? t.search(toSearch) : -1;
-//         if (errorFound === -1) return errors.length ? errors.join(' ') : false; // return the errors or false if we found nothing at all
-//         const usefulString = t.substring(errorFound); // dump first part of the string that doesn't contain what we look for
-//         let extractedError = usefulString.substring(0, maxErrorLength);
-//         if (extractedError.length === maxErrorLength) extractedError += '...'; // add elipsis if string is bigger than maxErrorLength
-//         errors.push(extractedError); // save the error
-//         const newString = usefulString.substring(100); // dump everything we processed and continue
-//         return extractError(newString);
-//     };
-//
-//     return extractError(text);
-// };
 
 export const parseErrorMessage = (text: string, maxErrorLength = 800) => {
     if (!text) return '';
@@ -407,10 +368,6 @@ export const parseErrorMessage = (text: string, maxErrorLength = 800) => {
         ) {
             return false;
         }
-        // Special Helper for iOS
-        // if (v.endsWith('^')) {
-        //     arr[i - 1] = chalk().red(arr[i - 1]);
-        // }
         if (v.search(toSearch) !== -1) {
             errFound = 5;
             return true;
@@ -445,14 +402,14 @@ const fileNotExistsSync = (commandName: string) => {
     try {
         accessSync(commandName, constants.F_OK);
         return false;
-    } catch (e) {
+    } catch (_e) {
         return true;
     }
 };
 
 const localExecutable = (commandName: string, callback?: ExecCallback) => {
     access(commandName, constants.F_OK | constants.X_OK, (err) => {
-        callback && callback(null, !err);
+        callback?.(null, !err);
     });
 };
 
@@ -460,7 +417,7 @@ const localExecutableSync = (commandName: string) => {
     try {
         accessSync(commandName, constants.F_OK | constants.X_OK);
         return true;
-    } catch (e) {
+    } catch (_e) {
         return false;
     }
 };
@@ -471,7 +428,7 @@ const commandExistsUnix = (commandName: string, cleanedCommandName: string, call
             exec(
                 `command -v ${cleanedCommandName} 2>/dev/null` + ` && { echo >&1 ${cleanedCommandName}; exit 0; }`,
                 (_error: unknown, stdout: unknown) => {
-                    callback && callback(null, !!stdout);
+                    callback?.(null, !!stdout);
                 }
             );
             return;
@@ -481,17 +438,15 @@ const commandExistsUnix = (commandName: string, cleanedCommandName: string, call
     });
 };
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally checking for control characters
+const contains0to31 = /[\x00-\x1f<>:"|?*]/;
 const commandExistsWindows = (commandName: string, cleanedCommandName: string, callback?: ExecCallback) => {
-    if (/[\x00-\x1f<>:"|?*]/.test(commandName)) {
-        callback && callback(null, false);
+    if (contains0to31.test(commandName)) {
+        callback?.(null, false);
         return;
     }
     exec(`where ${cleanedCommandName}`, (error: unknown) => {
-        if (error !== null) {
-            callback && callback(null, false);
-        } else {
-            callback && callback(null, true);
-        }
+        callback?.(null, error === null);
     });
 };
 
@@ -502,7 +457,7 @@ const commandExistsUnixSync = (commandName: string, cleanedCommandName: string) 
                 `command -v ${cleanedCommandName} 2>/dev/null` + ` && { echo >&1 ${cleanedCommandName}; exit 0; }`
             );
             return !!stdout;
-        } catch (error) {
+        } catch (_error) {
             return false;
         }
     }
@@ -510,13 +465,13 @@ const commandExistsUnixSync = (commandName: string, cleanedCommandName: string) 
 };
 
 const commandExistsWindowsSync = (commandName: string, cleanedCommandName: string) => {
-    if (/[\x00-\x1f<>:"|?*]/.test(commandName)) {
+    if (contains0to31.test(commandName)) {
         return false;
     }
     try {
         const stdout = execSync(`where ${cleanedCommandName}`, { stdio: [] });
         return !!stdout;
-    } catch (error) {
+    } catch (_error) {
         return false;
     }
 };
@@ -592,10 +547,10 @@ export const waitForExecCLI = async (
             execCLI(cli, command, {
                 silent: true,
                 timeout: 10000,
-                maxErrorLength,
+                maxErrorLength
             })
                 .then((resp) => {
-                    if (callback(resp)) {
+                    if (callback(resp as string | true)) {
                         clearInterval(interval);
                         spinner.succeed('');
                         return resolve(true);
@@ -619,12 +574,12 @@ export const waitForExecCLI = async (
     });
 };
 
-export { executeAsync, execCLI, commandExists, commandExistsSync, openCommand, executeTelnet };
+export { commandExists, commandExistsSync, execCLI, executeAsync, executeTelnet, openCommand };
 
 export default {
     executeAsync,
     execCLI,
     openCommand,
     executeTelnet,
-    commandExistsSync,
+    commandExistsSync
 };

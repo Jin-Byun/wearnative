@@ -52,10 +52,9 @@
         "url": "git://github.com/flexn-io/renative.git"
     },
     "scripts": {
-        "build": "yarn clean && yarn compile",
-        "compile": "tsc -b tsconfig.json",
-        "compile:prod": "tsc -b tsconfig.json",
-        "watch": "tsc --watch --preserveWatchOutput"
+      "build": "tsc -b tsconfig.json",
+      "compile": "tsc -b tsconfig.json",
+      "watch": "tsc --watch --preserveWatchOutput"
     },
     "private": false,
     "publishConfig": {

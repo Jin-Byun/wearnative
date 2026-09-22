@@ -1,39 +1,10 @@
 {
     "name": "rnv",
     "version": "1.10.0-rc.1",
-    "description": "💻 CLI for ReNative (https://www.npmjs.com/package/renative). Supports `iOS`, `tvOS`, `Android`, `Android TV`, `Android Wear`, `Web`, `Tizen TV`, `Tizen Watch`, `LG webOS`, `macOS/OSX`, `Windows`, `KaiOS`, `Linux",
+    "description": "fork of renative for wear os and active maintenance",
     "keywords": [
-        "android tv",
         "android wear",
-        "apple tv",
-        "boilerplate",
-        "cocoapods",
-        "cross-platform",
-        "desktop",
-        "electron",
-        "kaios",
-        "kit",
-        "kotlin",
-        "lg",
-        "linux",
-        "macos",
-        "multiplatform",
-        "native",
-        "osx",
-        "react",
-        "react-native",
-        "smart tv",
-        "starter",
-        "swift",
-        "template",
-        "tizen",
-        "tizen mobile",
-        "tizen watch",
-        "tvos",
-        "watch",
-        "web",
-        "webos",
-        "windows"
+        "watch"
     ],
     "homepage": "https://github.com/flexn-io/renative#readme",
     "bugs": {
@@ -61,11 +32,9 @@
         "url": "git://github.com/flexn-io/renative.git"
     },
     "scripts": {
-        "build": "yarn clean && yarn compile",
-        "compile": "tsc -b tsconfig.json",
-        "compile:prod": "tsc -b tsconfig.json",
-        "prepublishOnly": "yarn clean && yarn compile:prod",
-        "watch": "tsc --watch --preserveWatchOutput"
+      "build": "tsc -b tsconfig.json",
+      "compile": "tsc -b tsconfig.json",
+      "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
         "@rnv/cli": "workspace:*",

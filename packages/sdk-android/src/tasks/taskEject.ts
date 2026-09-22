@@ -1,6 +1,6 @@
-import { RnvTaskName, RnvTaskOptionPresets, createTask } from '@rnv/core';
-import { ejectGradleProject } from '../ejector';
+import { createTask, RnvTaskName, RnvTaskOptionPresets } from '@rnv/core';
 import { SdkPlatforms } from '../constants';
+import { ejectGradleProject } from '../ejector';
 
 export default createTask({
     description: 'Eject current project app to self contained native project',
@@ -14,5 +14,5 @@ export default createTask({
     },
     task: RnvTaskName.eject,
     options: RnvTaskOptionPresets.withConfigure(),
-    platforms: SdkPlatforms,
+    platforms: SdkPlatforms
 });

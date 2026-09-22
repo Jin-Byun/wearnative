@@ -1,13 +1,13 @@
-import path from 'path';
-import { isSystemWin } from '../system/is';
-import { fsExistsSync, fsReadFileSync } from '../system/fs';
-import { RnvContext } from './types';
-import { generateRuntimePropInjects } from '../system/injectors';
-import { getConfigProp } from './contextProps';
+import path from 'node:path';
 import { logDebug, logDefault } from '../logger';
+import { fsExistsSync, fsReadFileSync } from '../system/fs';
+import { generateRuntimePropInjects } from '../system/injectors';
+import { isSystemWin } from '../system/is';
+import { getConfigProp } from './contextProps';
 import { getContext } from './provider';
+import type { RnvContext } from './types';
 
-export const configureRuntimeDefaults = async () => {
+export const configureRuntimeDefaults = () => {
     const c = getContext();
 
     c.runtime.appId = c.files.project?.configLocal?._meta?.currentAppConfigId || _getAppId(c);
@@ -69,7 +69,7 @@ const _getAppId = (c: RnvContext) => {
 
         const appId = JSON.parse(fileAsString)?._meta?.currentAppConfigId;
         return appId;
-    } catch (error) {
+    } catch (_e) {
         return undefined;
     }
 };

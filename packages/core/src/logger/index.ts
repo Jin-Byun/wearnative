@@ -1,7 +1,7 @@
 import { getApi } from '../api/provider';
-import { RnvApiChalk, RnvApiLogger } from '../api/types';
+import type { RnvApiLogger } from '../api/types';
 
-export const chalk = (): RnvApiChalk => getApi().logger.chalk();
+export const { chalk } = getApi().logger;
 
 export const logWelcome: RnvApiLogger['logWelcome'] = () => getApi().logger.logWelcome();
 
@@ -41,7 +41,7 @@ export const isInfoEnabled: RnvApiLogger['isInfoEnabled'] = () => getApi().logge
 
 export const logSuccess: RnvApiLogger['logSuccess'] = (msg) => getApi().logger.logSuccess(msg);
 
-export const logError: RnvApiLogger['logError'] = (e, skipAnalytics) => getApi().logger.logError(e, skipAnalytics);
+export const logError: RnvApiLogger['logError'] = (e) => getApi().logger.logError(e);
 
 export const logInitialize: RnvApiLogger['logInitialize'] = () => {
     getApi().logger.logInitialize();

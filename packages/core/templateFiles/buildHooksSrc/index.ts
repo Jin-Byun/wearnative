@@ -1,11 +1,11 @@
-import { RnvContext } from '@rnv/core';
+import type { RnvContext } from '@rnv/core';
 
 const hooks = {
     hello: async (c: RnvContext) => {
         console.log('Hello build hook!', c.rnvVersion);
-    },
+    }
 };
 
 const pipes = {};
 
-export { pipes, hooks };
+export { hooks, pipes };

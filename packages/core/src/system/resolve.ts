@@ -1,6 +1,5 @@
-import resolve from 'resolve';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { DoResolveFn, ResolveOptions } from './types';
 /**
  * An attempt at drying out filesystem references to [external packages](https://tinyurl.com/mao2dy6).
@@ -48,7 +47,7 @@ export const doResolvePath = (aPath: string, mandatory = true, options: ResolveO
     options.basedir = options.basedir ?? process.cwd();
 
     try {
-        const pathArr = aPath.split('/');
+        const pathArr = aPath.split('/').filter(Boolean);
         // Take care of scenario when someone wrote: "/node_modules/.." instead of "node_modules/..."
         if (pathArr[0] === '') {
             pathArr.shift();
@@ -72,6 +71,7 @@ export const doResolvePath = (aPath: string, mandatory = true, options: ResolveO
     } catch (err) {
         if (mandatory) throw err;
     }
+    return '';
 };
 
 export const isScopedPackagePath = (aPath: string) => {
@@ -86,13 +86,9 @@ export const isScopedPackagePath = (aPath: string) => {
 };
 
 const _getPackagePathParts = (aPath: string) => {
-    let parts: RegExpMatchArray | null;
-    if (isScopedPackagePath(aPath)) {
-        parts = aPath.match(/^([^/]+\/[^/]+)(?:\/?(.*))/);
-    } else {
-        parts = aPath.match(/^([^/]+)\/?(.*)/);
-    }
-    if (!Array.isArray(parts)) {
+    const rePart = isScopedPackagePath(aPath) ? /^([^/]+\/[^/]+)(?:\/?(.*))/ : /^([^/]+)\/?(.*)/;
+    const parts = aPath.match(rePart);
+    if (!parts) {
         throw new Error(`Unsuitable path for resolving: ${aPath}`);
     }
     return parts.slice(1);
@@ -124,25 +120,19 @@ const _doResolveFSPath = (aPath: string, options: ResolveOptions) => {
 const _doResolveExternalPackage = (aPath: string, options: ResolveOptions) => {
     const [packageBase, packageSuffix] = _getPackagePathParts(aPath);
     try {
-        const resolvedPath = resolve
-            .sync(packageBase, {
-                packageFilter: (pkg) => {
-                    pkg.main = 'package.json';
-                    return pkg;
-                },
-                ...options,
-                extensions: ['.js', '.json'].concat(options.extensions ?? []),
-            })
-            .replace(/(\\|\/)package.json$/, '');
-        return options.keepSuffix ?? false ? `${resolvedPath}/${packageSuffix}` : resolvedPath;
-    } catch (e) {
+        const packageJsonPath = require.resolve(path.join(packageBase, 'package.json'), {
+            paths: options.basedir ? [options.basedir] : undefined
+        });
+        const resolvedPath = path.dirname(packageJsonPath);
+        return `${resolvedPath}${!!options.keepSuffix && `/${packageSuffix}`}`;
+    } catch {
         try {
             //Last resort we try to resolve it as standard require.resolve
             const fallback = require.resolve(aPath);
             if (fallback) {
                 return fallback.replace(/(\\|\/)package.json$/, '').replace(/(\\|\/)index.js$/, '');
             }
-        } catch (e) {
+        } catch {
             return null;
         }
         return null;

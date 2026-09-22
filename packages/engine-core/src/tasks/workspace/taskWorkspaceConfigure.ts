@@ -1,19 +1,19 @@
-import path from 'path';
 import {
+    chalk,
     copyFileSync,
-    mkdirSync,
-    fsWriteFileSync,
+    createTask,
     fsExistsSync,
     fsReadFileSync,
-    chalk,
-    logWarning,
+    fsWriteFileSync,
     logDebug,
     logInfo,
-    createTask,
-    RnvTaskName,
+    logWarning,
+    mkdirSync,
     RnvFileName,
+    RnvTaskName
 } from '@rnv/core';
 import { writeFileSync } from 'fs';
+import path from 'path';
 
 export default createTask({
     description: 'Preconfigures your current workspace defined via "workspaceID" prop in renative config file',
@@ -44,8 +44,8 @@ export default createTask({
                         IOS_SDK: 'No need. Just install Xcode',
                         TIZEN_SDK: '/Users/<USER>/tizen-studio',
                         WEBOS_SDK: '/Users/<USER>/Library/webOS_TV_SDK',
-                        KAIOS_SDK: '/Applications/Kaiosrt.app',
-                    },
+                        KAIOS_SDK: '/Applications/Kaiosrt.app'
+                    }
                 };
                 writeFileSync(paths.workspace.config, JSON.stringify(defaultWorkspaceCnf, null, 2));
             }
@@ -57,13 +57,13 @@ export default createTask({
             if (files.workspace.config?.appConfigsPath) {
                 if (!fsExistsSync(files.workspace.config.appConfigsPath)) {
                     logWarning(
-                        `Your custom global appConfig is pointing to ${chalk().bold.white(
+                        `Your custom global appConfig is pointing to ${chalk.bold.white(
                             files.workspace.config.appConfigsPath
                         )} which doesn't exist! Make sure you create one in that location`
                     );
                 } else {
                     logInfo(
-                        `Found custom appConfing location pointing to ${chalk().bold.white(
+                        `Found custom appConfing location pointing to ${chalk.bold.white(
                             files.workspace.config.appConfigsPath
                         )}. ReNativewill now swith to that location!`
                     );
@@ -74,14 +74,14 @@ export default createTask({
             // Check config sanity
             if (files.workspace.config?.defaultTargets === undefined) {
                 logWarning(
-                    `You're missing defaultTargets in your config ${chalk().bold.white(
+                    `You're missing defaultTargets in your config ${chalk.bold.white(
                         paths.workspace.config
                     )}. Let's add them!`
                 );
 
                 const newConfig = {
                     ...files.workspace.config,
-                    defaultTargets: {},
+                    defaultTargets: {}
                 };
                 fsWriteFileSync(paths.workspace.config, JSON.stringify(newConfig, null, 2));
             }
@@ -90,5 +90,5 @@ export default createTask({
         return true;
     },
     task: RnvTaskName.workspaceConfigure,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

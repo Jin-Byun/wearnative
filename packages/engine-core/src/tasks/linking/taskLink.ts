@@ -1,18 +1,18 @@
 import {
-    logInfo,
+    chalk,
+    createTask,
     fsExistsSync,
     fsRenameSync,
     fsSymlinkSync,
-    createTask,
-    RnvTaskName,
-    mkdirSync,
-    chalk,
     fsUnlinkSync,
-    removeDirSync,
     inquirerPrompt,
+    logInfo,
+    mkdirSync,
+    RnvTaskName,
+    removeDirSync
 } from '@rnv/core';
-import { LinkablePackage } from './types';
 import { getSourceDir, traverseTargetProject } from './linker';
+import type { LinkablePackage } from './types';
 
 const _linkPackage = (pkg: LinkablePackage) => {
     if (!fsExistsSync(pkg.cacheDir)) {
@@ -20,7 +20,7 @@ const _linkPackage = (pkg: LinkablePackage) => {
     }
 
     if (pkg.isBrokenLink) {
-        logInfo(`${pkg.name} is a ${chalk().red('broken')} link. Attempting to fix...`);
+        logInfo(`${pkg.name} is a ${chalk.red('broken')} link. Attempting to fix...`);
         fsUnlinkSync(pkg.nmPath);
     } else if (pkg.isLinked) {
         logInfo(`${pkg.name} is already linked. SKIPPING`);
@@ -34,11 +34,11 @@ const _linkPackage = (pkg: LinkablePackage) => {
         mkdirSync(pkg.unlinkedPath);
         fsRenameSync(pkg.nmPath, pkg.unlinkedPath);
         fsSymlinkSync(pkg.sourcePath, pkg.nmPath);
-        logInfo(`${chalk().green('✔')} ${pkg.name} (${chalk().gray(pkg.nmPath)})`);
+        logInfo(`${chalk.green('✔')} ${pkg.name} (${chalk.gray(pkg.nmPath)})`);
     } else if (pkg.unlinkedPathExists) {
         logInfo(`${pkg.name} found in unlinked cache. Attempting to relink...`);
         fsSymlinkSync(pkg.sourcePath, pkg.nmPath);
-        logInfo(`${pkg.name} => link => ${chalk().green('SUCCESS')} (${chalk().gray(pkg.nmPath)})`);
+        logInfo(`${pkg.name} => link => ${chalk.green('SUCCESS')} (${chalk.gray(pkg.nmPath)})`);
     }
 };
 
@@ -54,13 +54,13 @@ export default createTask({
         const choices: { name: string; value: LinkablePackage }[] = [];
 
         linkablePackages.forEach((pkg) => {
-            const title = `${pkg.nmPath.replace(pkg.name, chalk().bold.white(pkg.name))} ${
-                pkg.isBrokenLink ? chalk().red('(broken)') : pkg.isLinked ? chalk().green('(linked)') : '(unlinked)'
+            const title = `${pkg.nmPath.replace(pkg.name, chalk.bold.white(pkg.name))} ${
+                pkg.isBrokenLink ? chalk.red('(broken)') : pkg.isLinked ? chalk.green('(linked)') : '(unlinked)'
             }\n`;
 
             msg += title;
             const addon = runtimeLibs.includes(pkg.name)
-                ? chalk().yellow(' (Runtime lib. will not work with react-native)')
+                ? chalk.yellow(' (Runtime lib. will not work with react-native)')
                 : '';
 
             choices.push({ name: `${pkg.name}${addon}`, value: pkg });
@@ -76,7 +76,7 @@ export default createTask({
             message: `Found following packages to link?`,
             default: slpDefaults,
             loop: false,
-            choices,
+            choices
         });
 
         logInfo('Linking packages...');
@@ -89,5 +89,5 @@ export default createTask({
     task: RnvTaskName.link,
     options: [{ key: 'dir', description: 'Source folder to be linked into project', isValueType: true }],
     isGlobalScope: true,
-    ignoreEngines: true,
+    ignoreEngines: true
 });

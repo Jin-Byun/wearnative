@@ -1,4 +1,4 @@
-import { generateOptions, chalk, logToSummary, createTask, RnvTaskName } from '@rnv/core';
+import { chalk, createTask, generateOptions, logToSummary, RnvTaskName } from '@rnv/core';
 
 export default createTask({
     description: 'Show list of all available workspaces',
@@ -10,12 +10,12 @@ export default createTask({
             null,
             (i, obj, mapping, defaultVal) => {
                 const isConnected = '';
-                return ` [${chalk().grey(i + 1)}]> ${chalk().bold.white(defaultVal)}${isConnected} \n`;
+                return ` [${chalk.grey(i + 1)}]> ${chalk.bold.white(defaultVal)}${isConnected} \n`;
             }
         );
 
         logToSummary(`Workspaces:\n\n${opts.asString}`);
     },
     task: RnvTaskName.workspaceList,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

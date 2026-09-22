@@ -1,44 +1,44 @@
 import {
-    checkForPluginDependencies,
-    configurePlugins,
-    overrideTemplatePlugins,
-    resolvePluginDependants,
-    chalk,
-    logInfo,
-    updateRenativeConfigs,
-    configureRuntimeDefaults,
     applyTemplate,
-    isTemplateInstalled,
+    chalk,
+    checkAndMigrateProject,
+    checkForPluginDependencies,
+    cleanPlaformAssets,
+    configureEngines,
+    configurePlugins,
+    configureRuntimeDefaults,
+    copyRuntimeAssets,
+    createTask,
+    executeTask,
+    findSuitableTask,
     fsExistsSync,
     fsMkdirSync,
-    checkAndMigrateProject,
-    copyRuntimeAssets,
-    cleanPlaformAssets,
-    versionCheck,
-    configureEngines,
-    executeTask,
-    initializeTask,
-    findSuitableTask,
-    generatePlatformAssetsRuntimeConfig,
-    createTask,
     generateLocalJsonSchemas,
-    RnvTaskName,
+    generatePlatformAssetsRuntimeConfig,
     getContext,
+    initializeTask,
     inquirerPrompt,
+    isTemplateInstalled,
+    logInfo,
     logWarning,
+    overrideTemplatePlugins,
+    RnvTaskName,
+    resolvePluginDependants,
+    updateRenativeConfigs,
+    versionCheck
 } from '@rnv/core';
-import { checkCrypto } from '../crypto/common';
-import { checkAndInstallIfRequired, installPackageDependenciesAndPlugins } from '../../taskHelpers';
 import { configureFonts } from '@rnv/sdk-utils';
+import { checkAndInstallIfRequired, installPackageDependenciesAndPlugins } from '../../taskHelpers';
+import { checkCrypto } from '../crypto/common';
 
 const checkIsRenativeProject = async () => {
     const c = getContext();
     const { paths } = c;
     if (!paths.project.configExists) {
         return Promise.reject(
-            `This directory is not ReNative project. Project config ${chalk().bold.white(
+            `This directory is not ReNative project. Project config ${chalk.bold.white(
                 paths.project.config
-            )} is missing!. You can create new project with ${chalk().bold.white('rnv new')}`
+            )} is missing!. You can create new project with ${chalk.bold.white('rnv new')}`
         );
     }
     return true;
@@ -59,14 +59,14 @@ const checkProjectPathSpaces = async () => {
     const hasSpaces = /\s/.test(projectDir);
     if (!hasSpaces) return true;
 
-    const warnMessage = `The project path ${chalk().bold.grey(
+    const warnMessage = `The project path ${chalk.bold.grey(
         projectDir
     )} contains spaces, which might cause issues with React Native and other tools. For more details, please visit: https://github.com/facebook/react-native/issues/34743.`;
 
     const { confirm } = await inquirerPrompt({
         type: 'confirm',
         name: 'confirm',
-        message: `${warnMessage} Do you want to proceed? (yes/no)`,
+        message: `${warnMessage} Do you want to proceed? (yes/no)`
     });
     if (!confirm) {
         logWarning(warnMessage, { skipSanitizePaths: true });
@@ -90,7 +90,7 @@ export default createTask({
 
         await executeTask({ taskName: RnvTaskName.workspaceConfigure, parentTaskName: taskName, originTaskName });
 
-        if (program.opts().only && !!parentTaskName) {
+        if (program.opts().only && parentTaskName) {
             await configureRuntimeDefaults();
             await executeTask({ taskName: RnvTaskName.appConfigure, parentTaskName: taskName, originTaskName });
 
@@ -137,14 +137,14 @@ export default createTask({
             if (!runtime.disableReset) {
                 if (program.opts().resetHard) {
                     logInfo(
-                        `You passed ${chalk().bold.white('-R, --resetHard')} argument. "${chalk().bold.white(
+                        `You passed ${chalk.bold.white('-R, --resetHard')} argument. "${chalk.bold.white(
                             './platformAssets'
                         )}" will be cleaned up first`
                     );
                     await cleanPlaformAssets();
                 } else if (program.opts().resetAssets) {
                     logInfo(
-                        `You passed ${chalk().bold.white('-a, --resetAssets')} argument. "${chalk().bold.white(
+                        `You passed ${chalk.bold.white('-a, --resetAssets')} argument. "${chalk.bold.white(
                             './platformAssets'
                         )}" will be cleaned up first`
                     );
@@ -170,5 +170,5 @@ export default createTask({
 
         return true;
     },
-    task: RnvTaskName.projectConfigure,
+    task: RnvTaskName.projectConfigure
 });

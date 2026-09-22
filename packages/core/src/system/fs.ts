@@ -1,23 +1,22 @@
-import fs from 'fs';
-import path from 'path';
-import rimraf from 'rimraf';
-import Svg2Js from 'svg2js';
-import shelljs from 'shelljs';
+import type { PathLike } from 'node:fs';
+import fs from 'node:fs';
+import path from 'node:path';
 import merge from 'deepmerge';
+import lGet from 'lodash/get';
 import ncp from 'ncp';
-import { chalk, logDebug, logError, logWarning, logInfo } from '../logger';
-import type { RnvContext } from '../context/types';
-import type { FileUtilsPropConfig, OverridesOptions, TimestampPathsConfig } from './types';
+import { rimraf, rimrafSync } from 'rimraf';
+import shelljs from 'shelljs';
 import { getApi } from '../api/provider';
 import { getContext } from '../context/provider';
-import { matchRegEx } from './regEx';
+import type { RnvContext } from '../context/types';
+import { chalk, logDebug, logError, logInfo, logWarning } from '../logger';
 import type { ConfigPropKey } from '../schema/types';
-import lGet from 'lodash/get';
+import { matchRegEx } from './regEx';
+import type { FileUtilsPropConfig, OverridesOptions, TimestampPathsConfig } from './types';
+
+const objIsString = (obj: string | object): obj is string => typeof obj === 'string';
 
 export const fsWriteFileSync = (dest: string | undefined, data: string, options?: fs.WriteFileOptions) => {
-    // if (dest && dest.includes('renative.json')) {
-    //     console.log('FS_WRITE', dest, data.length);
-    // }
     if (!dest) return;
     fs.writeFileSync(dest, data, options);
 };
@@ -27,17 +26,25 @@ export const fsCopyFileSync = (source: string, dest: string) => {
     fs.copyFileSync(source, dest);
 };
 
-export const fsExistsSync = (dest: fs.PathLike | undefined) => fs.existsSync(dest!);
+export const fsExistsSync = (dest: PathLike | undefined) => fs.existsSync(dest as PathLike);
+export const fsExistsAsync = async (dest: PathLike | undefined) => {
+    try {
+        await fs.promises.access(dest as PathLike, fs.constants.F_OK);
+        return dest as PathLike;
+    } catch (_err) {
+        return '';
+    }
+};
 
-export const fsReaddirSync = (dest: fs.PathLike | undefined) => fs.readdirSync(dest!);
+export const fsReaddirSync = (dest: PathLike | undefined) => fs.readdirSync(dest as PathLike);
 
-export const fsLstatSync = (dest: fs.PathLike | undefined) => fs.lstatSync(dest!);
+export const fsLstatSync = (dest: PathLike | undefined) => fs.lstatSync(dest as PathLike);
 
-export const fsReadFileSync = (dest: fs.PathLike | undefined) => fs.readFileSync(dest!);
+export const fsReadFileSync = (dest: PathLike | undefined) => fs.readFileSync(dest as PathLike);
 
-export const fsChmodSync = (dest: fs.PathLike | undefined, flag: fs.Mode) => fs.chmodSync(dest!, flag);
+export const fsChmodSync = (dest: PathLike | undefined, flag: fs.Mode) => fs.chmodSync(dest as PathLike, flag);
 
-export const fsRenameSync = (arg1: fs.PathLike | undefined, arg2: fs.PathLike) => {
+export const fsRenameSync = (arg1: PathLike | undefined, arg2: PathLike) => {
     // One of the paths does not exist
     if (!arg1 || !arg2) return logError(`Cannot rename file. source path doesn't exist: ${!arg1 ? arg1 : arg2}`);
 
@@ -51,34 +58,35 @@ export const fsRenameSync = (arg1: fs.PathLike | undefined, arg2: fs.PathLike) =
     return fs.renameSync(arg1, arg2);
 };
 
-export const fsStatSync = (arg1: fs.PathLike | undefined) => fs.statSync(arg1!);
+export const fsStatSync = (arg1: PathLike | undefined) => fs.statSync(arg1 as PathLike);
 
-export const fsMkdirSync = (arg1: fs.PathLike | undefined) => fs.mkdirSync(arg1!);
+export const fsMkdirSync = (arg1: PathLike | undefined) => fs.mkdirSync(arg1 as PathLike);
 
-export const fsUnlinkSync = (arg1: fs.PathLike | undefined) => fs.unlinkSync(arg1!);
+export const fsUnlinkSync = (arg1: PathLike | undefined) => fs.unlinkSync(arg1 as PathLike);
 
-export const fsSymlinkSync = (arg1: fs.PathLike | undefined, arg2: fs.PathLike) => {
-    fs.symlinkSync(arg1!, arg2);
+export const fsSymlinkSync = (arg1: PathLike | undefined, arg2: PathLike) => {
+    fs.symlinkSync(arg1 as PathLike, arg2);
 };
 
-export const fsReadFile = (arg1: fs.PathLike, arg2: (err: unknown, data: Buffer) => void) => {
+export const fsReadFile = (arg1: PathLike, arg2: (err: unknown, data: Buffer) => void) => {
     fs.readFile(arg1, arg2);
 };
 
-export const fsReaddir = (arg1: fs.PathLike, arg2: (err: unknown, files: string[]) => void) => fs.readdir(arg1, arg2);
+export const fsReaddir = (arg1: PathLike, arg2: (err: unknown, files: string[]) => void) => fs.readdir(arg1, arg2);
 
 const _getSanitizedPath = (origPath: string, timestampPathsConfig?: TimestampPathsConfig) => {
-    if (timestampPathsConfig?.paths?.length && timestampPathsConfig?.timestamp) {
-        const pths = timestampPathsConfig.paths;
-        if (pths.includes(origPath)) {
-            const ext = path.extname(origPath);
-            const fileName = path.basename(origPath, ext);
-            const dirPath = path.dirname(origPath);
-            const newPath = path.join(dirPath, `${fileName}-${timestampPathsConfig.timestamp}${ext}`);
-            return newPath;
-        }
+    if (
+        !timestampPathsConfig?.paths?.length ||
+        !timestampPathsConfig.timestamp ||
+        !timestampPathsConfig.paths.includes(origPath)
+    ) {
+        return origPath;
     }
-    return origPath;
+    const ext = path.extname(origPath);
+    const fileName = path.basename(origPath, ext);
+    const dirPath = path.dirname(origPath);
+    const newPath = path.join(dirPath, `${fileName}-${timestampPathsConfig.timestamp}${ext}`);
+    return newPath;
 };
 
 export const copyFileSync = (
@@ -122,54 +130,35 @@ export const writeCleanFile = (
     timestampPathsConfig?: TimestampPathsConfig,
     c?: RnvContext
 ) => {
-    // logDefault(`writeCleanFile`)
-    // console.log('writeCleanFile', destination);
-    const api = getApi();
     if (!fs.existsSync(source)) {
         logError(`Cannot write file. source path doesn't exist: ${source}`);
         return;
     }
     if (!fs.existsSync(destination)) {
         logDebug(`destination path doesn't exist: ${destination}. will create new one`);
-        // return;
     }
+    const api = getApi();
     const ext = path.extname(source);
     if (SKIP_INJECT_EXTENSIONS.includes(ext)) {
         fsCopyFileSync(source, _getSanitizedPath(destination, timestampPathsConfig));
-    } else {
-        const pFile = fs.readFileSync(source, 'utf8');
-        if (/\ufffd/.test(pFile) === true) {
-            // Handle uncaught binary files
-            fsCopyFileSync(source, _getSanitizedPath(destination, timestampPathsConfig));
-        } else {
-            let pFileClean = pFile;
-            if (overrides?.forEach) {
-                overrides.forEach((v) => {
-                    if (v.override !== undefined) {
-                        const regEx = new RegExp(v.pattern, 'g');
-
-                        if (typeof v.override === 'number') {
-                            pFileClean = pFileClean.replace(regEx, v.override.toString());
-                        } else {
-                            pFileClean = pFileClean.replace(regEx, v.override);
-                        }
-                    }
-                });
-            }
-            if (c) {
-                const regEx = /{{configProps.([\s\S]*?)}}/g;
-                const occurences = pFileClean.match(regEx);
-                if (occurences) {
-                    occurences.forEach((occ) => {
-                        const val = occ.replace('{{configProps.', '').replace('}}', '') as ConfigPropKey;
-                        const configVal = api.getConfigProp(val) || '';
-                        pFileClean = pFileClean.replace(occ, configVal);
-                    });
-                }
-            }
-            fsWriteFileSync(_getSanitizedPath(destination, timestampPathsConfig), pFileClean, 'utf8');
-        }
+        return;
     }
+    let pFile = fs.readFileSync(source, 'utf8');
+    if (/\ufffd/.test(pFile) === true) {
+        // Handle uncaught binary files
+        fsCopyFileSync(source, _getSanitizedPath(destination, timestampPathsConfig));
+        return;
+    }
+    for (const { override, pattern } of overrides ?? []) {
+        if (override === undefined) continue;
+        const reOverride = new RegExp(pattern, 'g');
+        pFile = pFile.replace(reOverride, String(override));
+    }
+    if (c) {
+        const reConfigProp = /{{configProps\.([\s\S]*?)}}/g;
+        pFile = pFile.replace(reConfigProp, (_, key: ConfigPropKey) => api.getConfigProp(key) || '');
+    }
+    fsWriteFileSync(_getSanitizedPath(destination, timestampPathsConfig), pFile, 'utf8');
 };
 
 export const readCleanFile = (source: string, overrides?: OverridesOptions) => {
@@ -299,58 +288,53 @@ export const copyFolderContentsRecursiveSync = (
     target: string | null | undefined,
     convertSvg = true,
     skipPaths?: Array<string>,
-    skipOverride?: boolean,
+    skipOverride = false,
     injectObject?: OverridesOptions,
     timestampPathsConfig?: TimestampPathsConfig,
     c?: RnvContext,
     extFilter?: Array<string>
 ) => {
     logDebug('copyFolderContentsRecursiveSync', source, target, skipPaths);
-    if (!source || !target) return;
-    if (!fs.existsSync(source)) return;
-    let files = [];
+    if (!source || !target || !fs.existsSync(source)) return;
+
     const targetFolder = path.join(target);
     if (!fs.existsSync(targetFolder)) {
         mkdirSync(targetFolder);
     }
-    if (fs.lstatSync(source).isDirectory()) {
-        files = fs.readdirSync(source);
-        files.forEach((file) => {
-            const curSource = path.join(source, file);
-            if (!skipPaths || (skipPaths && !skipPaths.includes(curSource))) {
-                if (fs.lstatSync(curSource).isDirectory()) {
-                    copyFolderRecursiveSync(
-                        curSource,
-                        targetFolder,
-                        convertSvg,
-                        skipOverride || false,
-                        injectObject,
-                        timestampPathsConfig,
-                        c,
-                        extFilter
-                    );
-                } else if (injectObject !== null) {
-                    copyFileWithInjectSync(
-                        curSource,
-                        targetFolder,
-                        skipOverride || false,
-                        injectObject,
-                        timestampPathsConfig,
-                        c
-                    );
-                } else if (path.extname(curSource) === '.svg' && convertSvg === true) {
-                    const jsDest = path.join(targetFolder, `${path.basename(curSource)}.js`);
-                    logDebug(`file ${curSource} is svg and convertSvg is set to true. converting to ${jsDest}`);
-                    saveAsJs(curSource, jsDest);
-                } else if (extFilter && extFilter?.length > 0) {
-                    if (extFilter.includes(path.extname(curSource)) || extFilter.includes(path.basename(curSource))) {
-                        copyFileSync(curSource, targetFolder, skipOverride, timestampPathsConfig);
-                    }
-                } else {
-                    copyFileSync(curSource, targetFolder, skipOverride, timestampPathsConfig);
-                }
+    if (!fs.lstatSync(source).isDirectory()) return;
+
+    const files = fs.readdirSync(source);
+    for (const file of files) {
+        const curSource = path.join(source, file);
+        if (skipPaths?.includes(curSource)) continue;
+        switch (true) {
+            case fs.lstatSync(curSource).isDirectory():
+                copyFolderRecursiveSync(
+                    curSource,
+                    targetFolder,
+                    convertSvg,
+                    skipOverride,
+                    injectObject,
+                    timestampPathsConfig,
+                    c,
+                    extFilter
+                );
+                break;
+            case injectObject !== null:
+                copyFileWithInjectSync(curSource, targetFolder, skipOverride, injectObject, timestampPathsConfig, c);
+                break;
+            case path.extname(curSource) === '.svg' && convertSvg: {
+                const jsDest = path.join(targetFolder, `${path.basename(curSource)}.js`);
+                logDebug(`file ${curSource} is svg and convertSvg is set to true. converting to ${jsDest}`);
+                saveAsJs(curSource, jsDest);
+                break;
             }
-        });
+            // biome-ignore lint/suspicious/noFallthroughSwitchClause: If extFilter includes curSource, copyFile.
+            case !!extFilter?.length:
+                if (!extFilter.some((v) => v === path.extname(curSource) || v === path.basename(curSource))) break;
+            default:
+                copyFileSync(curSource, targetFolder, skipOverride, timestampPathsConfig);
+        }
     }
 };
 
@@ -371,14 +355,9 @@ export const copyFolderContentsRecursive = (source: string, target: string, conv
     });
 
 export const saveAsJs = (source: string, dest: string) => {
-    Svg2Js.createSync({
-        source,
-        destination: dest,
-    });
-};
-
-export const removeDir = (pth: string, callback: () => void) => {
-    rimraf(pth, callback);
+    const svgData = fsReadFileSync(source);
+    const dataString = `module.exports = \`${svgData.toString()}\`\n`;
+    writeFileSync(dest, dataString);
 };
 
 export const mkdirSync = (dir: string) => {
@@ -391,14 +370,13 @@ export const mkdirSync = (dir: string) => {
     }
 };
 
-export const cleanFolder = (d: string) =>
-    new Promise<void>((resolve) => {
-        logDebug('cleanFolder', d);
-        removeDir(d, () => {
-            mkdirSync(d);
-            resolve();
-        });
-    });
+export const cleanFolder = async (d: string) => {
+    logDebug('cleanFolder', d);
+    try {
+        await rimraf(d);
+    } catch (_e) {}
+    mkdirSync(d);
+};
 
 export const removeFilesSync = (filePaths: Array<string>) => {
     logDebug('removeFilesSync', filePaths);
@@ -427,73 +405,54 @@ export const removeDirsSync = (dirPaths: Array<string>) => {
     }
 };
 
-export const removeDirs = (dirPaths: Array<string>) =>
-    new Promise<void>((resolve) => {
-        logDebug('removeDirs', dirPaths);
-        const allFolders = dirPaths.length;
-        let deletedFolders = 0;
-        for (let i = 0; i < allFolders; i++) {
-            rimraf(dirPaths[i], (e: string | Error) => {
-                if (e) {
-                    logError(e);
-                }
-                deletedFolders++;
-                if (deletedFolders >= allFolders) resolve();
-            });
-        }
-        if (allFolders === 0) resolve();
-    });
+export const removeDirs = async (dirPaths: Array<string>) => {
+    logDebug('removeDirs', dirPaths);
+    await Promise.all(
+        dirPaths.map(async (p) => {
+            try {
+                await rimraf(p);
+            } catch (e) {
+                logError(e);
+            }
+        })
+    );
+};
 
-export const removeDirSync = (_dir: string, _rmSelf?: boolean) => {
-    let dir = _dir;
-    let rmSelf = _rmSelf;
-    let files;
-    rmSelf = rmSelf === undefined ? true : rmSelf;
-    dir += '/';
+export const removeDirSync = (dir: string, rmSelf = true) => {
+    if (rmSelf) {
+        try {
+            rimrafSync(dir);
+        } catch (e) {
+            logDebug(`rimraf error:${e}`);
+        }
+        return;
+    }
+    let files: string[];
     try {
         files = fs.readdirSync(dir);
-    } catch (e) {
+    } catch (_e) {
         logDebug('!Oops, directory not exist.');
         return;
     }
-    if (files.length > 0) {
-        files.forEach((x) => {
-            try {
-                if (fs.statSync(dir + x).isDirectory()) {
-                    removeDirSync(dir + x);
-                } else {
-                    fs.unlinkSync(dir + x);
-                }
-            } catch (e) {
-                logDebug(`removeDirSync error:${e}. will try to unlink`);
-                try {
-                    fs.unlinkSync(dir + x);
-                } catch (e2) {
-                    logDebug(`removeDirSync error:${e}`);
-                }
-            }
-        });
-    }
-    if (rmSelf) {
-        // check if user want to delete the directory ir just the files in this directory
-        fs.rmdirSync(dir);
+    for (const file of files) {
+        try {
+            rimrafSync(file);
+        } catch (e) {
+            logDebug(`rimraf error:${e}`);
+        }
     }
 };
 
 export const writeFileSync = (filePath: string | undefined, obj: string | object, spaces = 4, addNewLine = true) => {
     if (!filePath) return;
+    const invalidPath = ['?', 'undefined'];
+    if (invalidPath.some((p) => filePath.includes(p))) return;
     logDebug('writeFileSync', filePath);
-    if (filePath.includes('?') || filePath.includes('undefined')) return;
-    let output;
-    if (typeof obj === 'string') {
-        output = obj;
-    } else {
-        output = `${JSON.stringify(obj, null, spaces)}${addNewLine ? '\n' : ''}`;
-    }
-    if (fs.existsSync(filePath)) {
+    const output = objIsString(obj) ? obj : `${JSON.stringify(obj, null, spaces)}${addNewLine ? '\n' : ''}`;
+    try {
         if (fs.readFileSync(filePath).toString() === output) return;
-    }
-    logDebug('writeFileSync', filePath, 'executed', `size:${output?.length}`);
+    } catch {}
+    logDebug('writeFileSync', filePath, 'executed', `size:${output.length}`);
     fsWriteFileSync(filePath, output);
     return output;
 };
@@ -505,7 +464,6 @@ export const writeObjectSync = (filePath: string, obj: string | object, spaces: 
 };
 
 export const readObjectSync = <T = object>(filePath?: string, sanitize?: boolean, c?: RnvContext) => {
-    logDebug(`readObjectSync:${sanitize}:${filePath}`);
     if (!filePath) {
         logDebug('readObjectSync: filePath is undefined');
         return null;
@@ -514,7 +472,8 @@ export const readObjectSync = <T = object>(filePath?: string, sanitize?: boolean
         logDebug(`readObjectSync: File at ${filePath} does not exist`);
         return null;
     }
-    let obj;
+    logDebug(`readObjectSync:${sanitize}:${filePath}`);
+    let obj: any;
     try {
         obj = JSON.parse(fs.readFileSync(filePath).toString());
         if (sanitize) {
@@ -527,25 +486,20 @@ export const readObjectSync = <T = object>(filePath?: string, sanitize?: boolean
                     files: c?.files,
                     runtimeProps: c?.runtime,
                     props: obj._refs,
-                    configProps: c?.injectableConfigProps,
+                    configProps: c?.injectableConfigProps
                 });
             }
         }
     } catch (e) {
-        logError(`readObjectSync: Parsing of ${chalk().bold.white(filePath)} failed with ${e}`);
+        logError(`readObjectSync: Parsing of ${chalk.bold.white(filePath)} failed with ${e}`);
         return null;
     }
     return obj as T;
 };
 
 export const updateObjectSync = (filePath: string, updateObj: object) => {
-    let output: object;
     const obj = readObjectSync(filePath);
-    if (obj) {
-        output = merge(obj, updateObj);
-    } else {
-        output = updateObj;
-    }
+    const output = obj ? (merge(obj, updateObj) as object) : updateObj;
     writeFileSync(filePath, output);
     return output;
 };
@@ -553,7 +507,7 @@ export const updateObjectSync = (filePath: string, updateObj: object) => {
 export const getRealPath = (p: string | undefined, key = 'undefined', original?: string) => {
     if (!p) {
         if (original) {
-            logDebug(`Path ${chalk().bold.white(key)} is not defined. using default: ${chalk().bold.white(original)}`);
+            logDebug(`Path ${chalk.bold.white(key)} is not defined. using default: ${chalk.bold.white(original)}`);
         }
         return original;
     }
@@ -581,14 +535,14 @@ const _refToValue = (ref: string, key: string) => {
     // val=> ['./my/path/to/file.json', 'prop.subProp']
     const realPath = getRealPath(val[0], key);
 
-    if (realPath && realPath.includes('.json') && val.length === 2) {
+    if (realPath?.includes('.json') && val.length === 2) {
         if (fs.existsSync(realPath)) {
             const obj = readObjectSync(realPath);
             const valPath = val[1]; // valPath=> 'prop.subProp'
             const output = lGet(obj, valPath);
             return output;
         } else {
-            logWarning(`_refToValue: ${chalk().bold.white(realPath)} does not exist!`);
+            logWarning(`_refToValue: ${chalk.bold.white(realPath)} does not exist!`);
         }
     }
     return ref;
@@ -602,29 +556,28 @@ export const arrayMerge = (destinationArray: Array<string>, sourceArray: Array<s
 
 const _arrayMergeOverride = (_destinationArray: Array<string>, sourceArray: Array<string>) => sourceArray;
 
-type DynaObj = Record<string, unknown> | Array<unknown>;
 export const sanitizeDynamicRefs = <T = unknown>(c: RnvContext, obj: T) => {
     if (!obj) return obj;
     if (Array.isArray(obj)) {
-        obj.forEach((v) => {
+        for (const v of obj) {
             sanitizeDynamicRefs(c, v);
-        });
+        }
         return obj;
-    } else if (typeof obj === 'object') {
-        Object.keys(obj).forEach((key) => {
-            const val = obj[key as keyof T];
-            if (val) {
-                if (typeof val === 'string') {
-                    if (val.startsWith('$REF$:')) {
-                        obj[key as keyof T] = _refToValue(val, key);
-                    }
-                } else if (Array.isArray(val) || typeof val === 'object') {
-                    sanitizeDynamicRefs(c, val as DynaObj);
-                }
-            }
-        });
     }
-
+    if (typeof obj === 'object') {
+        for (const v of Object.keys(obj)) {
+            const key = v as keyof T;
+            const val = obj[key];
+            if (!val) continue;
+            if (objIsString(val) && val.startsWith('$REF$:')) {
+                obj[key] = _refToValue(val, v);
+                continue;
+            }
+            if (Array.isArray(val) || typeof val === 'object') {
+                sanitizeDynamicRefs(c, val);
+            }
+        }
+    }
     return obj;
 };
 
@@ -639,30 +592,28 @@ export const resolvePackage = (text: string) => {
             const val = match.replace('{{resolvePackage(', '').replace(')}}', '');
             // TODO: Figure out WIN vs LINUX treatment here
             // forceForwardPaths is required for WIN Android to work correctly
-            newText = newText.replace(match, api.doResolve(val, false, { forceForwardPaths: true })!);
+            newText = newText.replace(match, api.doResolve(val, false, { forceForwardPaths: true }) as string);
         });
     }
     return newText;
 };
 
 export const sanitizeDynamicProps = <T = unknown>(obj: T, propConfig: FileUtilsPropConfig): T => {
-    if (!obj) {
-        return obj;
-    }
+    if (!obj) return obj;
+    if (objIsString(obj)) return resolvePackage(obj) as T;
     if (Array.isArray(obj)) {
         obj.forEach((v, i) => {
-            const val = v;
-            if (typeof val === 'string') {
-                _bindStringVals(obj, val, i, propConfig);
+            if (objIsString(v)) {
+                _bindStringVals(obj, v, i, propConfig);
             } else {
                 sanitizeDynamicProps(v, propConfig);
             }
         });
-    } else if (typeof obj === 'object') {
+        return obj;
+    }
+    if (typeof obj === 'object') {
         Object.keys(obj).forEach((key) => {
             const val = obj[key as keyof T];
-            // TODO: evaluate if this is still needed
-            // Some values are passed as keys so have to validate keys as well
             const newKey = resolvePackage(key) as keyof T;
             delete obj[key as keyof T];
             obj[newKey] = val;
@@ -674,10 +625,7 @@ export const sanitizeDynamicProps = <T = unknown>(obj: T, propConfig: FileUtilsP
                 }
             }
         });
-    } else if (typeof obj === 'string') {
-        return resolvePackage(obj) as T;
     }
-
     return obj;
 };
 
@@ -687,31 +635,32 @@ const BIND_CONFIG_PROPS = '{{configProps.';
 const BIND_RUNTIME_PROPS = '{{runtimeProps.';
 const BIND_ENV = '{{env.';
 
-const _bindStringVals = <T, K extends keyof T>(obj: T, _val: string, newKey: K, propConfig: FileUtilsPropConfig) => {
-    const { props = {}, configProps = {}, runtimeProps = {} } = propConfig;
-    let val = _val;
+const _bindStringVals = <T, K extends keyof T>(
+    obj: T,
+    val: string,
+    newKey: K,
+    { props = {}, configProps = {}, runtimeProps = {}, files }: FileUtilsPropConfig
+) => {
     if (val.includes(BIND_FILES)) {
         const key = val.replace(BIND_FILES, '').replace('}}', '');
-        //TODO: this any not good
-
-        const nVal = lGet(propConfig.files, key);
+        const nVal = lGet(files, key);
         obj[newKey] = resolvePackage(nVal) as T[K];
-    } else if (val.includes(BIND_PROPS)) {
-        Object.keys(props).forEach((pk) => {
-            val = val.replace(`${BIND_PROPS}${pk}}}`, props?.[pk]);
+        return;
+    }
+    const bindToProp: Record<string, Record<string, string> | Record<string, any>> = {
+        [BIND_PROPS]: props,
+        [BIND_CONFIG_PROPS]: configProps,
+        [BIND_RUNTIME_PROPS]: runtimeProps
+    };
+    const binder = Object.keys(bindToProp).find((bind) => val.includes(bind));
+    if (binder) {
+        for (const [k, v] of Object.entries(bindToProp[binder])) {
+            val = val.replace(`${BIND_PROPS}${k}}}`, v);
             obj[newKey] = resolvePackage(val) as T[K];
-        });
-    } else if (val.includes(BIND_CONFIG_PROPS)) {
-        Object.keys(configProps).forEach((pk2) => {
-            val = val.replace(`${BIND_CONFIG_PROPS}${pk2}}}`, configProps[pk2]);
-            obj[newKey] = resolvePackage(val) as T[K];
-        });
-    } else if (val.includes(BIND_RUNTIME_PROPS)) {
-        Object.keys(runtimeProps).forEach((pk3) => {
-            val = val.replace(`${BIND_RUNTIME_PROPS}${pk3}}}`, runtimeProps[pk3]);
-            obj[newKey] = resolvePackage(val) as T[K];
-        });
-    } else if (val.includes(BIND_ENV)) {
+        }
+        return;
+    }
+    if (val.includes(BIND_ENV)) {
         const key = val.replace(BIND_ENV, '').replace('}}', '');
         obj[newKey] = process.env[key] as T[K];
     }
@@ -727,7 +676,7 @@ export const mergeObjects = <T1>(
     if (!obj2) return obj1 as T1;
     if (!obj1) return obj2 as T1;
     const obj = merge(obj1, obj2, {
-        arrayMerge: replaceArrays ? _arrayMergeOverride : arrayMerge,
+        arrayMerge: replaceArrays ? _arrayMergeOverride : arrayMerge
     });
     const out = dynamicRefs ? sanitizeDynamicRefs(c, obj) : obj;
     return out as T1;
@@ -738,13 +687,13 @@ export const replaceHomeFolder = (p: string) => {
     return p.replace('~', process.env.HOME || '');
 };
 
-export const getFileListSync = (dir: fs.PathLike) => {
+export const getFileListSync = (dir: PathLike) => {
     let results: Array<string> = [];
     const list = fs.readdirSync(dir);
     list.forEach((file) => {
         const fileFixed = `${dir}/${file}`;
         const stat = fs.statSync(fileFixed);
-        if (stat && stat.isDirectory()) {
+        if (stat?.isDirectory()) {
             /* Recurse into a subdirectory */
             results = results.concat(getFileListSync(fileFixed));
         } else {
@@ -776,15 +725,6 @@ export const loadFile = <T, K extends Extract<keyof T, string>>(
             fileObj[key] = JSON.parse(fileString);
             pathObj[pKey] = true;
             logDebug(`FILE_EXISTS: ${key}:true size:${formatBytes(Buffer.byteLength(fileString, 'utf8'))}`);
-            // if (validateRuntimeObjectSchema && fileObj[key]) {
-            //     const valid = ajv.validate(schemaRoot, fileObj[key]);
-            //     if (!valid) {
-            //         logWarning(`Invalid schema in ${pathObj[key]}. ISSUES: ${JSON.stringify(ajv.errors, null, 2)}`);
-            //     }
-            // }
-            // if (pathObj[key].includes?.('renative.json')) {
-            //     console.log(`FILE_EXISTS: ${key}:true size:${formatBytes(Buffer.byteLength(fileString, 'utf8'))}`);
-            // }
         }
 
         return fileObj[key];
@@ -865,7 +805,6 @@ export default {
     removeDirs,
     copyFileSync,
     copyFolderRecursiveSync,
-    removeDir,
     removeDirsSync,
     removeFilesSync,
     saveAsJs,
@@ -882,5 +821,5 @@ export default {
     getDirectories,
     resolvePackage,
     cleanEmptyFoldersRecursively,
-    copyContentsIfNotExistsRecursiveSync,
+    copyContentsIfNotExistsRecursiveSync
 };

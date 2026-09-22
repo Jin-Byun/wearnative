@@ -1,16 +1,16 @@
-import path from 'path';
+import path from 'node:path';
 import {
-    getAppFolder,
-    logDefault,
-    getConfigProp,
-    writeCleanFile,
     copyFolderContentsRecursiveSync,
-    fsChmodSync,
     DEFAULTS,
+    fsChmodSync,
+    getAppFolder,
+    getConfigProp,
     getContext,
-    RnvFolderName,
+    logDefault,
+    RnvFolderName
 } from '@rnv/core';
-import { addSystemInjects, getBuildFilePath } from '@rnv/sdk-utils';
+import { addSystemInjects } from '@rnv/sdk-utils';
+import { createOverridesOption, writeParsedFiles } from './utils';
 
 const GRADLE_SOURCE_PATH = path.join(__dirname, RnvFolderName.UP, RnvFolderName.templateFiles, 'gradleProject');
 
@@ -31,23 +31,13 @@ export const parseGradleWrapperSync = () => {
 
     copyGradleProjectTemplate();
 
-    const appFolder = getAppFolder();
-
     c.payload.pluginConfigAndroid.gradleWrapperVersion =
         getConfigProp('gradleWrapperVersion') || DEFAULTS.gradleWrapperVersion;
     const injects = [
-        {
-            pattern: '{{INJECT_GRADLE_WRAPPER_VERSION}}',
-            override: c.payload.pluginConfigAndroid.gradleWrapperVersion,
-        },
+        createOverridesOption('{{INJECT_GRADLE_WRAPPER_VERSION}}', c.payload.pluginConfigAndroid.gradleWrapperVersion)
     ];
     addSystemInjects(injects);
 
-    writeCleanFile(
-        getBuildFilePath('gradle/wrapper/gradle-wrapper.properties', GRADLE_SOURCE_PATH),
-        path.join(appFolder, 'gradle/wrapper/gradle-wrapper.properties'),
-        injects,
-        undefined,
-        c
-    );
+    const wrapperProperties = 'gradle/wrapper/gradle-wrapper.properties';
+    writeParsedFiles(wrapperProperties, injects, c, GRADLE_SOURCE_PATH);
 };

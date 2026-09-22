@@ -1,206 +1,118 @@
-import { OverridesOptions, ConfigPluginPlatformSchema, getAppFolder, getConfigProp, writeCleanFile } from '@rnv/core';
-import path from 'path';
-import { getBuildFilePath, getEntryFile, getAppId, addSystemInjects } from '@rnv/sdk-utils';
-import { Context, getContext } from './getContext';
+import path from 'node:path';
+import { type ConfigPluginPlatformSchema, getConfigProp, type OverridesOptions } from '@rnv/core';
+import { addSystemInjects, getAppId, getEntryFile } from '@rnv/sdk-utils';
+import { type Context, getContext } from './getContext';
+import { createOverridesOption, writeParsedFiles } from './utils';
+
+const TEMPLATE_DIR = 'app/src/main/java/rnv_template';
 
 export const parseMainApplicationSync = () => {
     const c = getContext();
-    const appFolder = getAppFolder();
-    const { platform } = c;
+    if (!c.platform) return;
 
-    if (!platform) return;
-
-    const templatePath = 'app/src/main/java/rnv_template/MainApplication.kt';
+    const { pluginConfigAndroid } = c.payload;
 
     const injects: OverridesOptions = [
-        { pattern: '{{APPLICATION_ID}}', override: getAppId() },
-        { pattern: '{{ENTRY_FILE}}', override: getEntryFile() || '' },
-        // { pattern: '{{GET_JS_BUNDLE_FILE}}', override: bundleFile },
-        {
-            pattern: '{{PLUGIN_IMPORTS}}',
-            override: c.payload.pluginConfigAndroid.pluginApplicationImports,
-        },
-        {
-            pattern: '{{PLUGIN_PACKAGES}}',
-            override: c.payload.pluginConfigAndroid.pluginPackages,
-        },
-        {
-            pattern: '{{PLUGIN_METHODS}}',
-            override: c.payload.pluginConfigAndroid.pluginApplicationMethods,
-        },
-        {
-            pattern: '{{RN_HOST_METHODS}}',
-            override: c.payload.pluginConfigAndroid.reactNativeHostMethods,
-        },
-        {
-            pattern: '{{PLUGIN_ON_CREATE}}',
-            override: c.payload.pluginConfigAndroid.pluginApplicationCreateMethods,
-        },
-        {
-            pattern: '{{PLUGIN_DEBUG_SERVER}}',
-            override: c.payload.pluginConfigAndroid.pluginApplicationDebugServer,
-        },
+        createOverridesOption('{{APPLICATION_ID}}', getAppId()),
+        createOverridesOption('{{ENTRY_FILE}}', getEntryFile() || ''),
+        createOverridesOption('{{PLUGIN_IMPORTS}}', pluginConfigAndroid.pluginApplicationImports),
+        createOverridesOption('{{PLUGIN_PACKAGES}}', pluginConfigAndroid.pluginPackages),
+        createOverridesOption('{{PLUGIN_METHODS}}', pluginConfigAndroid.pluginApplicationMethods),
+        createOverridesOption('{{RN_HOST_METHODS}}', pluginConfigAndroid.reactNativeHostMethods),
+        createOverridesOption('{{PLUGIN_ON_CREATE}}', pluginConfigAndroid.pluginApplicationCreateMethods),
+        createOverridesOption('{{PLUGIN_DEBUG_SERVER}}', pluginConfigAndroid.pluginApplicationDebugServer)
     ];
 
     addSystemInjects(injects);
 
-    writeCleanFile(getBuildFilePath(templatePath), path.join(appFolder, templatePath), injects, undefined, c);
+    const mainApplication = path.join(TEMPLATE_DIR, 'MainApplication.kt');
+    writeParsedFiles(mainApplication, injects, c);
 };
 
 export const parseMainActivitySync = () => {
     const c = getContext();
-    const appFolder = getAppFolder();
+    const { pluginConfigAndroid } = c.payload;
 
-    const templatePath = 'app/src/main/java/rnv_template/MainActivity.kt';
-
-    if (!c.payload.pluginConfigAndroid.injectActivityOnCreate) {
-        const templateAndroid = getConfigProp('templateAndroid');
-
-        const mainActivity = templateAndroid?.MainActivity_kt;
-        c.payload.pluginConfigAndroid.injectActivityOnCreate =
-            mainActivity?.onCreate || 'super.onCreate(savedInstanceState)';
+    if (!pluginConfigAndroid.injectActivityOnCreate) {
+        const { MainActivity_kt } = getConfigProp('templateAndroid') ?? {};
+        pluginConfigAndroid.injectActivityOnCreate = MainActivity_kt?.onCreate || 'super.onCreate(savedInstanceState)';
     }
 
-    const injects = [
-        { pattern: '{{APPLICATION_ID}}', override: getAppId() },
-        {
-            pattern: '{{PLUGIN_ACTIVITY_IMPORTS}}',
-            override: c.payload.pluginConfigAndroid.pluginActivityImports,
-        },
-        {
-            pattern: '{{PLUGIN_ACTIVITY_METHODS}}',
-            override: c.payload.pluginConfigAndroid.pluginActivityMethods,
-        },
-        {
-            pattern: '{{PLUGIN_ON_CREATE}}',
-            override: c.payload.pluginConfigAndroid.pluginActivityCreateMethods,
-        },
-        {
-            pattern: '{{INJECT_ON_CREATE}}',
-            override: c.payload.pluginConfigAndroid.injectActivityOnCreate,
-        },
-        {
-            pattern: '{{PLUGIN_ON_ACTIVITY_RESULT}}',
-            override: c.payload.pluginConfigAndroid.pluginActivityResultMethods,
-        },
+    const injects: OverridesOptions = [
+        createOverridesOption('{{APPLICATION_ID}}', getAppId()),
+        createOverridesOption('{{PLUGIN_ACTIVITY_IMPORTS}}', pluginConfigAndroid.pluginActivityImports),
+        createOverridesOption('{{PLUGIN_ACTIVITY_METHODS}}', pluginConfigAndroid.pluginActivityMethods),
+        createOverridesOption('{{PLUGIN_ON_CREATE}}', pluginConfigAndroid.pluginActivityCreateMethods),
+        createOverridesOption('{{INJECT_ON_CREATE}}', pluginConfigAndroid.injectActivityOnCreate),
+        createOverridesOption('{{PLUGIN_ON_ACTIVITY_RESULT}}', pluginConfigAndroid.pluginActivityResultMethods)
     ];
-
     addSystemInjects(injects);
 
-    writeCleanFile(getBuildFilePath(templatePath), path.join(appFolder, templatePath), injects, undefined, c);
+    const mainActivity = path.join(TEMPLATE_DIR, 'MainActivity.kt');
+    writeParsedFiles(mainActivity, injects, c);
 };
 
 export const parseSplashActivitySync = () => {
     const c = getContext();
-    const appFolder = getAppFolder();
 
-    const splashTemplatePath = 'app/src/main/java/rnv_template/SplashActivity.kt';
-
-    // TODO This is temporary ANDROIDX support. whole kotlin parser will be refactored in the near future
-    const enableAndroidX = getConfigProp('enableAndroidX') || true;
-    if (enableAndroidX === true) {
-        c.payload.pluginConfigAndroid.pluginSplashActivityImports +=
-            'import androidx.appcompat.app.AppCompatActivity;\n';
-    } else {
-        c.payload.pluginConfigAndroid.pluginSplashActivityImports +=
-            'import android.support.v7.app.AppCompatActivity\n';
-    }
-
-    const injects = [
-        { pattern: '{{APPLICATION_ID}}', override: getAppId() },
-        {
-            pattern: '{{PLUGIN_SPLASH_ACTIVITY_IMPORTS}}',
-            override: c.payload.pluginConfigAndroid.pluginSplashActivityImports,
-        },
+    c.payload.pluginConfigAndroid.pluginSplashActivityImports += 'import androidx.appcompat.app.AppCompatActivity;\n';
+    const injects: OverridesOptions = [
+        createOverridesOption('{{APPLICATION_ID}}', getAppId()),
+        createOverridesOption(
+            '{{PLUGIN_SPLASH_ACTIVITY_IMPORTS}}',
+            c.payload.pluginConfigAndroid.pluginSplashActivityImports
+        )
     ];
 
     addSystemInjects(injects);
 
-    writeCleanFile(
-        getBuildFilePath(splashTemplatePath),
-        path.join(appFolder, splashTemplatePath),
-        injects,
-        undefined,
-        c
-    );
+    const splashActivity = path.join(TEMPLATE_DIR, 'SplashActivity.kt');
+    writeParsedFiles(splashActivity, injects, c);
 };
 
-export const injectPluginKotlinSync = (plugin: ConfigPluginPlatformSchema, key: string, pkg: string | undefined) => {
+export const injectPluginKotlinSync = (plugin: ConfigPluginPlatformSchema) => {
     const c = getContext();
-    const templ = plugin.templateAndroid;
-    const mainActivity = templ?.MainActivity_kt;
-    if (mainActivity?.imports) {
-        mainActivity.imports.forEach((activityImport) => {
-            // Avoid duplicate imports
-            if (c.payload.pluginConfigAndroid.pluginActivityImports.indexOf(activityImport) === -1) {
-                c.payload.pluginConfigAndroid.pluginActivityImports += `import ${activityImport}\n`;
-            }
-        });
-    }
-
-    if (mainActivity?.methods) {
-        c.payload.pluginConfigAndroid.pluginActivityMethods += '\n';
-        c.payload.pluginConfigAndroid.pluginActivityMethods += `${mainActivity.methods.join('\n    ')}`;
-    }
+    const { pluginConfigAndroid: pca } = c.payload;
+    const { package: pkg, templateAndroid: templ } = plugin;
+    const { MainActivity_kt: mainActivity, MainApplication_kt: mainApplication } = templ ?? {};
 
     if (mainActivity) {
-        if (mainActivity.createMethods) {
-            c.payload.pluginConfigAndroid.pluginActivityCreateMethods += '\n';
-            c.payload.pluginConfigAndroid.pluginActivityCreateMethods += `${mainActivity.createMethods.join('\n    ')}`;
-        }
-
-        if (mainActivity.resultMethods) {
-            c.payload.pluginConfigAndroid.pluginActivityResultMethods += '\n';
-            c.payload.pluginConfigAndroid.pluginActivityResultMethods += `${mainActivity.resultMethods.join('\n    ')}`;
-        }
-    }
-    if (mainActivity?.onCreate) {
-        c.payload.pluginConfigAndroid.injectActivityOnCreate = mainActivity.onCreate;
+        const { imports = [], methods, createMethods, resultMethods, onCreate = '' } = mainActivity;
+        pca.pluginActivityImports += Array.from(new Set(imports))
+            .flatMap((activityImport) =>
+                pca.pluginActivityImports.includes(activityImport) ? [] : `import ${activityImport}\n`
+            )
+            .join('');
+        pca.pluginActivityMethods += methods ? `\n${methods.join('\n    ')}` : '';
+        pca.pluginActivityCreateMethods += createMethods ? `\n${createMethods.join('\n    ')}` : '';
+        pca.pluginActivityResultMethods += resultMethods ? `\n${resultMethods.join('\n    ')}` : '';
+        pca.injectActivityOnCreate = onCreate;
     }
     _injectPackage(c, plugin, pkg);
 
-    const mainApplication = templ?.MainApplication_kt;
+    if (!mainApplication) return;
 
-    if (mainApplication?.packages) {
-        mainApplication.packages.forEach((v) => {
-            _injectPackage(c, plugin, v);
-        });
+    const { packages = [], createMethods, imports = [], methods } = mainApplication;
+    for (const p of packages) {
+        _injectPackage(c, plugin, p);
     }
-
-    if (mainApplication?.createMethods) {
-        c.payload.pluginConfigAndroid.pluginApplicationCreateMethods += '\n';
-        c.payload.pluginConfigAndroid.pluginApplicationCreateMethods += `${mainApplication.createMethods.join(
-            '\n    '
-        )}`;
-    }
-
-    if (mainApplication?.imports) {
-        mainApplication.imports.forEach((v) => {
-            c.payload.pluginConfigAndroid.pluginApplicationImports += `import ${v}\n`;
-        });
-    }
-
-    if (mainApplication?.methods) {
-        c.payload.pluginConfigAndroid.pluginApplicationMethods += '\n';
-        c.payload.pluginConfigAndroid.pluginApplicationMethods += `${mainApplication.methods.join('\n    ')}`;
-    }
+    pca.pluginApplicationCreateMethods += createMethods ? `\n${createMethods.join('\n    ')}` : '';
+    pca.pluginApplicationImports += Array.from(new Set(imports))
+        .flatMap((appImport) => (pca.pluginApplicationImports.includes(appImport) ? [] : `import ${appImport}\n`))
+        .join('');
+    pca.pluginApplicationMethods += methods ? `\n${methods.join('\n    ')}` : '';
 };
 
 const _injectPackage = (c: Context, plugin: ConfigPluginPlatformSchema, pkg: string | undefined) => {
-    if (pkg && !plugin?.forceLinking) {
-        c.payload.pluginConfigAndroid.pluginApplicationImports += `import ${pkg}\n`;
-    }
-    let packageParams = '';
+    if (!pkg || plugin?.forceLinking) return;
+    c.payload.pluginConfigAndroid.pluginApplicationImports += `import ${pkg}\n`;
+
+    const className = _extractClassName(pkg);
+    if (!className) return;
+
     const mainApplication = plugin.templateAndroid?.MainApplication_kt;
-    if (mainApplication?.packageParams) {
-        packageParams = mainApplication.packageParams.join(',');
-    }
-    if (pkg && plugin?.forceLinking) {
-        const className = _extractClassName(pkg);
-        if (className) {
-            c.payload.pluginConfigAndroid.pluginPackages += `add(${className}(${packageParams}));\n`;
-        }
-    }
+    const packageParams = mainApplication?.packageParams?.join(',') || '';
+    c.payload.pluginConfigAndroid.pluginPackages += `add(${className}(${packageParams}));\n`;
 };
 
-const _extractClassName = (pkg: string) => (pkg ? pkg.split('.').pop() : null);
+const _extractClassName = (pkg: string) => pkg?.split('.')?.pop();

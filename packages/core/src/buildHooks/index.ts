@@ -1,11 +1,11 @@
-import path from 'path';
 import { build } from 'esbuild';
-import { logDebug, logError, logHook, logInfo } from '../logger';
-import { fsExistsSync, copyFolderContentsRecursiveSync } from '../system/fs';
+import path from 'path';
 import { inquirerPrompt } from '../api';
 import { getConfigRootProp } from '../context/contextProps';
 import { getContext } from '../context/provider';
 import { RnvFolderName } from '../enums/folderName';
+import { logDebug, logError, logHook, logInfo } from '../logger';
+import { copyFolderContentsRecursiveSync, fsExistsSync } from '../system/fs';
 
 export const executePipe = async (key: string) => {
     const c = getContext();
@@ -64,7 +64,7 @@ export const buildHooks = async () => {
             const { confirm } = await inquirerPrompt({
                 type: 'confirm',
                 name: 'confirm',
-                message: 'Build hooks not configured in this project. Configure?',
+                message: 'Build hooks not configured in this project. Configure?'
             });
             confirmed = confirm;
         }
@@ -101,9 +101,9 @@ export const buildHooks = async () => {
                 external: [
                     '@rnv/core', // exclude rnv core from build
                     ...Object.keys(c.files.project.package.dependencies || {}),
-                    ...Object.keys(c.files.project.package.devDependencies || {}),
+                    ...Object.keys(c.files.project.package.devDependencies || {})
                 ], // exclude everything that's present in node_modules
-                outfile: `${c.paths.buildHooks.dist.dir}/index.js`,
+                outfile: `${c.paths.buildHooks.dist.dir}/index.js`
             });
         } catch (e) {
             // Fail Builds instead of warn when hook fails

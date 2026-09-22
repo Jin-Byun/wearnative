@@ -1,12 +1,13 @@
-import path from 'path';
+import type { RnvContext } from '@context/types';
 import merge from 'deepmerge';
-import { fsExistsSync, fsWriteFileSync, loadFile, readObjectSync } from '../system/fs';
-import { logDefault, logWarning, logInfo } from '../logger';
-import { RnvFileName } from '../enums/fileName';
-import { getContext } from '../context/provider';
-import { type NpmPackageFile } from '../configs/types';
+import path from 'path';
+import type { NpmPackageFile } from '../configs/types';
 import { writeRenativeConfigFile } from '../configs/utils';
+import { getContext } from '../context/provider';
+import { RnvFileName } from '../enums/fileName';
+import { logDefault, logInfo, logWarning } from '../logger';
 import type { ConfigFileTemplate } from '../schema/types';
+import { fsExistsSync, fsWriteFileSync, loadFile, readObjectSync } from '../system/fs';
 
 export const updatePackage = (override: Partial<NpmPackageFile>) => {
     const c = getContext();
@@ -16,8 +17,7 @@ export const updatePackage = (override: Partial<NpmPackageFile>) => {
     c._requiresNpmInstall = true;
 };
 
-const packageJsonIsValid = () => {
-    const c = getContext();
+const packageJsonIsValid = (c: RnvContext) => {
     if (!fsExistsSync(c.paths.project.package)) return false;
     const pkg = readObjectSync(c.paths.project.package);
     if (!pkg) return false;
@@ -26,17 +26,15 @@ const packageJsonIsValid = () => {
     return true;
 };
 
-export const checkAndCreateProjectPackage = async () => {
+export const checkAndCreateProjectPackage = async (c: RnvContext) => {
     logDefault('checkAndCreateProjectPackage');
 
-    const c = getContext();
-
-    if (!packageJsonIsValid()) {
+    if (!packageJsonIsValid(c)) {
         logInfo(`Your ${c.paths.project.package} is missing. CREATING...DONE`);
-
-        const packageName = c.files.project.config?.projectName || c.paths.project.dir.split('/').pop();
-        const packageVersion = c.files.project.config?.projectVersion || '0.1.0';
-        const templateName = c.files.project.config?.templateConfig?.name;
+        const projectConfig = c.files.project.config;
+        const packageName = projectConfig?.projectName || c.paths.project.dir.split('/').pop();
+        const packageVersion = projectConfig?.projectVersion || '0.1.0';
+        const templateName = projectConfig?.templateConfig?.name;
         if (!templateName) {
             logWarning('You are missing currentTemplate in your renative.json');
         }

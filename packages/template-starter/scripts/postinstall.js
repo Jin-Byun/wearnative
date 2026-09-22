@@ -1,4 +1,4 @@
-const path = require('path');
+const path = require('node:path');
 const {
     createRnvContext,
     loadWorkspacesConfigSync,
@@ -14,7 +14,7 @@ const {
     fsMkdirSync,
     fsReadFileSync,
     removeDirSync,
-    revertOverrideToOriginal,
+    revertOverrideToOriginal
 } = require('@rnv/core');
 
 const Logger = require('@rnv/cli/lib/logger');
@@ -25,12 +25,12 @@ const RNV_HOME_DIR = path.join(__dirname, '..');
         createRnvApi({
             logger: Logger,
             getConfigProp,
-            doResolve,
+            doResolve
         });
         createRnvContext({ RNV_HOME_DIR });
 
         loadWorkspacesConfigSync();
-        await loadDefaultConfigTemplates();
+        loadDefaultConfigTemplates();
         await updateRenativeConfigs();
         await resetOverrides();
 

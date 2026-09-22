@@ -1,12 +1,14 @@
-import { RnvTask, RnvTaskMap } from './types';
+import type { RnvTask, RnvTaskMap } from './types';
 
 const REGISTERED_TASKS: RnvTaskMap = {};
 
-export const registerRnvTasks = async (tasks: RnvTaskMap<any>) => {
-    Object.values(tasks).forEach((task) => registerRnvTask(task));
+export const registerRnvTasks = (tasks: RnvTaskMap<any>) => {
+    Object.values(tasks).forEach((task) => {
+        registerRnvTask(task);
+    });
 };
 
-const registerRnvTask = async (taskInstance: RnvTask) => {
+const registerRnvTask = (taskInstance: RnvTask) => {
     if (!taskInstance.key) {
         throw new Error('Task key is required');
     }

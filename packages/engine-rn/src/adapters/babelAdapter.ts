@@ -1,4 +1,4 @@
-import { BabelConfig, withBabelPluginModuleResolver } from '@rnv/adapter';
+import { type BabelConfig, withBabelPluginModuleResolver } from '@rnv/adapter';
 
 export const withRNVBabel = (cnf: BabelConfig): BabelConfig => {
     const plugins = cnf?.plugins || [];
@@ -7,6 +7,6 @@ export const withRNVBabel = (cnf: BabelConfig): BabelConfig => {
         retainLines: true,
         presets: ['module:@react-native/babel-preset'],
         ...cnf,
-        plugins: [withBabelPluginModuleResolver(), ...plugins],
+        plugins: [withBabelPluginModuleResolver(), ...plugins]
     };
 };

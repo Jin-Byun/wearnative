@@ -1,15 +1,15 @@
 import {
     chalk,
-    logSuccess,
+    createTask,
+    ejectPlatform,
+    generatePlatformChoices,
+    inquirerPrompt,
     logError,
     logInfo,
-    writeFileSync,
-    generatePlatformChoices,
-    ejectPlatform,
-    inquirerPrompt,
-    RnvPlatformKey,
-    createTask,
+    logSuccess,
+    type RnvPlatformKey,
     RnvTaskName,
+    writeFileSync
 } from '@rnv/core';
 
 export default createTask({
@@ -25,15 +25,15 @@ export default createTask({
         if (ctx.platform) {
             selectedPlatforms = [ctx.platform];
         } else {
-            logInfo(`Preparing to eject engine platforms to local ${chalk().bold.white('./platformTemplates')}`);
+            logInfo(`Preparing to eject engine platforms to local ${chalk.bold.white('./platformTemplates')}`);
             const { ejectedPlatforms } = await inquirerPrompt({
                 name: 'ejectedPlatforms',
                 message: 'Select platforms you would like to eject (use SPACE key)',
                 type: 'checkbox',
                 choices: generatePlatformChoices().map((choice) => ({
                     ...choice,
-                    disabled: !choice.isConnected,
-                })),
+                    disabled: !choice.isConnected
+                }))
             });
             selectedPlatforms = ejectedPlatforms;
         }
@@ -54,16 +54,14 @@ export default createTask({
             });
 
             logSuccess(
-                `${chalk().bold.white(
-                    selectedPlatforms.join(',')
-                )} platform templates are located in ${chalk().bold.white(
+                `${chalk.bold.white(selectedPlatforms.join(','))} platform templates are located in ${chalk.bold.white(
                     ctx.files.project.config?.paths?.platformTemplatesDirs?.[selectedPlatforms[0]]
                 )} now. You can edit them directly!`
             );
         } else {
             logError(`You haven't selected any platform to eject.
-TIP: You can select options with ${chalk().bold.white('SPACE')} key before pressing ENTER!`);
+TIP: You can select options with ${chalk.bold.white('SPACE')} key before pressing ENTER!`);
         }
     },
-    task: RnvTaskName.platformEject,
+    task: RnvTaskName.platformEject
 });

@@ -1,23 +1,23 @@
-import path from 'path';
-import { fsExistsSync, readObjectSync, writeFileSync } from '../system/fs';
-import { installPackageDependencies } from '../projects/npm';
-import { logDebug, logDefault, chalk, logInfo, logWarning, logError } from '../logger';
-import { configurePlugins } from '../plugins';
+import path from 'node:path';
+import { inquirerPrompt } from '../api';
+import { generateLookupPaths } from '../configs';
+import { getEngineTemplateByPlatform } from '../configs/engines';
+import { writeRenativeConfigFile } from '../configs/utils';
+import { getConfigRootProp } from '../context/contextProps';
+import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
+import { chalk, logDebug, logDefault, logError, logInfo, logWarning } from '../logger';
+import { configurePlugins } from '../plugins';
+import { createDependencyMutation } from '../projects/mutations';
+import { installPackageDependencies } from '../projects/npm';
+import { checkAndCreateProjectPackage } from '../projects/package';
+import type { ConfigFileEngine } from '../schema/types';
+import { fsExistsSync, readObjectSync, writeFileSync } from '../system/fs';
+import { registerRnvTasks } from '../tasks/taskRegistry';
 import type { RnvTask } from '../tasks/types';
 import type { RenativeConfigVersion, RnvPlatform } from '../types';
-import type { RnvEngine, RnvEngineInstallConfig, RnvEngineTemplate } from './types';
-import { inquirerPrompt } from '../api';
-import { getContext } from '../context/provider';
-import { writeRenativeConfigFile } from '../configs/utils';
-import { checkAndCreateProjectPackage } from '../projects/package';
-import { getEngineTemplateByPlatform } from '../configs/engines';
-import { getConfigRootProp } from '../context/contextProps';
-import { registerRnvTasks } from '../tasks/taskRegistry';
-import { createDependencyMutation } from '../projects/mutations';
-import type { ConfigFileEngine } from '../schema/types';
-import { generateLookupPaths } from '../configs';
 import { extractEngineName } from './nameExtractor';
+import type { RnvEngine, RnvEngineInstallConfig, RnvEngineTemplate } from './types';
 
 export const registerEngine = async (engine: RnvEngine, platform?: RnvPlatform, engConfig?: RnvEngineTemplate) => {
     const c = getContext();
@@ -65,7 +65,7 @@ export const registerEngineExtension = (ext: string | null, eExt?: string | null
             `${e1}tsx`,
             `${e1}${e2}ts`,
             `${e1}ts`,
-            ...extras,
+            ...extras
         ];
     } else {
         extArr = [`${e1}jsx`, `${e1}js`, `${e1}tsx`, `${e1}ts`, ...extras];
@@ -107,7 +107,7 @@ export const configureEngines = async (c: RnvContext) => {
                     if (devDependencies[k] !== engVer) {
                         needsPackageUpdate = true;
                         logInfo(
-                            `Updating missing engine ${k} ${chalk().red(devDependencies[k])}=>${chalk().green(
+                            `Updating missing engine ${k} ${chalk.red(devDependencies[k])}=>${chalk.green(
                                 engVer
                             )} to package.json`
                         );
@@ -136,12 +136,11 @@ export const registerMissingPlatformEngines = async (taskInstance?: RnvTask) => 
         (!taskInstance.isGlobalScope && taskInstance?.platforms?.length === 0) ||
         c.program.opts().platform === 'all'
     ) {
-        const registerEngineList: Array<Promise<void>> = [];
-        c.buildConfig.defaults?.supportedPlatforms?.forEach((platform) => {
-            registerEngineList.push(registerPlatformEngine(platform));
-        });
+        const registerEngineList = c.buildConfig.defaults?.supportedPlatforms?.map((platform) =>
+            registerPlatformEngine(platform)
+        );
 
-        if (registerEngineList.length) {
+        if (registerEngineList?.length) {
             await Promise.all(registerEngineList);
         }
     }
@@ -169,10 +168,8 @@ export const registerAllPlatformEngines = async () => {
     return true;
 };
 
-export const loadEnginePluginDeps = async (engineConfigs: Array<RnvEngineInstallConfig>) => {
+export const loadEnginePluginDeps = async (c: RnvContext, engineConfigs: Array<RnvEngineInstallConfig>) => {
     logDefault('loadEnginePluginDeps');
-    const c = getContext();
-
     if (c.buildConfig?.isTemplate) return 0;
 
     const cnf = c.files.project.config_original;
@@ -182,40 +179,37 @@ export const loadEnginePluginDeps = async (engineConfigs: Array<RnvEngineInstall
     const addedPlugins: Record<string, Array<string>> = {};
     let hasAddedPlugins = false;
     const originalProjectPlugins = cnf.plugins || {};
-    engineConfigs.forEach((ecf) => {
+    for (const ecf of engineConfigs) {
         const engineConfig = readObjectSync<ConfigFileEngine>(ecf.configPath);
-
         const engPlugins = engineConfig?.plugins;
-        if (engPlugins) {
-            const projectPlugins = c.files.project.config?.plugins;
-            // Comparing original config causes engine think that template is not extended with additional deps
-            if (projectPlugins) {
-                Object.keys(engPlugins).forEach((k) => {
-                    if (!projectPlugins[k]) {
-                        hasAddedPlugins = true;
-                        originalProjectPlugins[k] = engPlugins[k];
-                        addedPlugins[k] = addedPlugins[k] || [];
-                        addedPlugins[k].push(k);
-                    }
-                });
-            }
+        const projectPlugins = c.files.project.config?.plugins;
+        if (!engPlugins || !projectPlugins) {
+            continue;
         }
-    });
+        // Comparing original config causes engine think that template is not extended with additional deps
+        for (const k of Object.keys(engPlugins)) {
+            if (projectPlugins[k]) continue;
+            hasAddedPlugins = true;
+            originalProjectPlugins[k] = engPlugins[k];
+            addedPlugins[k] = addedPlugins[k] || [];
+            addedPlugins[k].push(k);
+        }
+    }
 
     if (hasAddedPlugins) {
         const engineKeys = engineConfigs.map((v) => v.key);
         const addedPluginsKeys = Object.keys(addedPlugins);
 
         logInfo(
-            `Engines: ${chalk().yellow(engineKeys.join(','))} require plugins ${chalk().bold.white(
+            `Engines: ${chalk.yellow(engineKeys.join(','))} require plugins ${chalk.bold.white(
                 addedPluginsKeys.join(',')
-            )} to be added to ${chalk().bold.white(c.paths.project.config)}`
+            )} to be added to ${chalk.bold.white(c.paths.project.config)}`
         );
         const confirm = await inquirerPrompt({
             name: 'selectedScheme',
             type: 'confirm',
             message: `Continue?.
-If you don't want to use this dependency make sure you remove platform which requires this engine from supportedPlatforms`,
+If you don't want to use this dependency make sure you remove platform which requires this engine from supportedPlatforms`
         });
         if (confirm) {
             logInfo(`Adding ${addedPluginsKeys.join(',')}. ...DONE`);
@@ -227,7 +221,7 @@ If you don't want to use this dependency make sure you remove platform which req
     return Object.keys(addedPlugins).length;
 };
 
-export const loadEnginePackageDeps = async (engineConfigs: Array<RnvEngineInstallConfig>) => {
+export const loadEnginePackageDeps = async (c: RnvContext, engineConfigs: Array<RnvEngineInstallConfig>) => {
     logDefault('loadEnginePackageDeps');
     const c = getContext();
 
@@ -258,12 +252,12 @@ export const loadEnginePackageDeps = async (engineConfigs: Array<RnvEngineInstal
                                     createDependencyMutation({
                                         name: k,
                                         updated: {
-                                            version: npm.devDependencies?.[k] || 'N/A',
+                                            version: npm.devDependencies?.[k] || 'N/A'
                                         },
                                         type: 'devDependencies',
                                         msg: `Missing dependency for platform ${platform}`,
                                         source: `engine.npm (${ecf.key})`,
-                                        targetPath: c.paths.project.package,
+                                        targetPath: c.paths.project.package
                                     });
                                     // if (npm.devDependencies?.[k]) {
                                     //     deps[k] = npm.devDependencies[k];
@@ -291,12 +285,12 @@ export const loadEnginePackageDeps = async (engineConfigs: Array<RnvEngineInstal
                                     createDependencyMutation({
                                         name: k,
                                         updated: {
-                                            version: npm.dependencies?.[k] || 'N/A',
+                                            version: npm.dependencies?.[k] || 'N/A'
                                         },
                                         type: 'dependencies',
                                         msg: `Missing dependency for platform ${platform}`,
                                         source: `engine.npm (${ecf.key})`,
-                                        targetPath: c.paths.project.package,
+                                        targetPath: c.paths.project.package
                                     });
                                     // if (npm.dependencies?.[k]) {
                                     //     deps[k] = npm.dependencies[k];
@@ -317,12 +311,12 @@ export const loadEnginePackageDeps = async (engineConfigs: Array<RnvEngineInstal
                                 createDependencyMutation({
                                     name: k,
                                     updated: {
-                                        version: npm.optionalDependencies?.[k] || 'N/A',
+                                        version: npm.optionalDependencies?.[k] || 'N/A'
                                     },
                                     type: 'optionalDependencies',
                                     msg: `Missing optionalDependency for platform ${platform}`,
                                     source: `engine.npm (${ecf.key})`,
-                                    targetPath: c.paths.project.package,
+                                    targetPath: c.paths.project.package
                                 });
                                 // if (npm.optionalDependencies?.[k]) {
                                 //     deps[k] = npm.optionalDependencies[k];
@@ -359,27 +353,27 @@ export const getFilteredEngines = (c: RnvContext) => {
 
     const filteredEngines: Record<string, string> = {};
 
-    supportedPlatforms.forEach((v) => {
+    for (const v of supportedPlatforms) {
         if (c.files.project.config) {
             const platforms = c.files.project.config?.platforms || {};
             const engineId = platforms[v]?.engine || rnvPlatforms?.[v]?.engine;
 
-            if (engineId) {
-                // We need to engineName from engineId if present.
-                // This happens if user uses shortcut name ie: 'engine-rn' instead of '@rnv/engine-rn'
-                const engineName = extractEngineName(engineId);
-                if (engines[engineName]) {
-                    filteredEngines[engineName] = engines[engineName];
-                } else if (engines[engineId]) {
-                    filteredEngines[engineId] = engines[engineId];
-                } else {
-                    logWarning(`Platform ${v} requires engine ${engineName} which is not available in engines list`);
-                }
-            } else {
+            if (!engineId) {
                 logWarning(`Platform ${v} has no engine configured`);
+                continue;
+            }
+            // We need to engineName from engineId if present.
+            // This happens if user uses shortcut name ie: 'engine-rn' instead of '@rnv/engine-rn'
+            const engineName = extractEngineName(engineId);
+            if (engines[engineName]) {
+                filteredEngines[engineName] = engines[engineName];
+            } else if (engines[engineId]) {
+                filteredEngines[engineId] = engines[engineId];
+            } else {
+                logWarning(`Platform ${v} requires engine ${engineName} which is not available in engines list`);
             }
         }
-    });
+    }
     return filteredEngines;
 };
 
@@ -389,22 +383,27 @@ export const getScopedVersion = (
     val: RenativeConfigVersion,
     sourceObjKey: 'engineTemplates' | 'plugins' | 'pluginTemplates'
 ) => {
-    if (typeof val === 'string') {
-        if (val.startsWith('source:')) {
-            const sourceObj = c.buildConfig?.[sourceObjKey];
-            const sourceObjVal = sourceObj?.[key];
-            if (typeof sourceObjVal !== 'string') {
-                return sourceObjVal?.version;
-            } else {
-                //TODO: should we warnd about this state?
-            }
-        } else {
-            return val;
-        }
-    } else {
+    if (typeof val !== 'string') {
         return val?.version;
     }
+    if (!val.startsWith('source:')) {
+        return val;
+    }
+    const sourceObjVal = c.buildConfig?.[sourceObjKey]?.[key];
+    if (typeof sourceObjVal !== 'string') {
+        return sourceObjVal?.version;
+    }
     return null;
+};
+
+const engineMissingRejectMsg = (e2i: Array<RnvEngineInstallConfig>): string => {
+    return `Failed to load some engines:
+${e2i.map((v) => `> ${v.key}@${v.version} path: ${v.engineRootPath}`).join('\n')}`;
+};
+const engineMissingInfoMsg = (e2i: Array<RnvEngineInstallConfig>): string => {
+    return `Some engines not installed in your project:
+${e2i.map((v) => `> ${v.key}@${v.version}`).join('\n')}
+ADDING TO PACKAGE.JSON...DONE`;
 };
 
 export const installEngines = async (failOnMissingDeps?: boolean): Promise<boolean> => {
@@ -425,57 +424,52 @@ export const installEngines = async (failOnMissingDeps?: boolean): Promise<boole
 
         const pathLookups = generateLookupPaths(k);
         const engineRootPath = pathLookups.find((v) => fsExistsSync(v));
-
         const configPath = engineRootPath ? path.join(engineRootPath, 'renative.engine.json') : null;
+
         if (!configPath || !fsExistsSync(configPath)) {
             const engVer = getScopedVersion(c, k, filteredEngines[k], 'engineTemplates');
             if (engVer) {
                 enginesToInstall.push({
                     key: k,
                     version: engVer,
-                    engineRootPath,
+                    engineRootPath
                 });
             }
         } else {
             readyEngines.push(k);
-            logDefault(`Found engine: ${k} ${chalk().gray(`(${engineRootPath})`)}`);
+            logDefault(`Found engine: ${k} ${chalk.gray(`(${engineRootPath})`)}`);
             engineConfigs.push({
                 key: k,
                 engineRootPath,
-                configPath,
+                configPath
             });
         }
     });
 
     if (enginesToInstall.length) {
         if (failOnMissingDeps) {
-            return Promise.reject(`Failed to load some engines:
-${enginesToInstall.map((v) => `> ${v.key}@${v.version} path: ${v.engineRootPath}`).join('\n')}`);
+            return Promise.reject(engineMissingRejectMsg(enginesToInstall));
         }
-        logInfo(`Some engines not installed in your project:
-${enginesToInstall.map((v) => `> ${v.key}@${v.version}`).join('\n')}
- ADDING TO PACKAGE.JSON...DONE`);
+        logInfo(engineMissingInfoMsg(enginesToInstall));
 
-        await checkAndCreateProjectPackage(); //TODO: consider to move this to better location
+        await checkAndCreateProjectPackage(c); //TODO: consider to move this to better location
         const pkg = c.files.project.package;
         const devDeps = pkg.devDependencies || {};
-        pkg.devDependencies = devDeps;
-        enginesToInstall.forEach((v) => {
-            if (v.key && v.version) {
-                devDeps[v.key] = v.version;
+        for (const { key, version } of enginesToInstall) {
+            if (key && version) {
+                devDeps[key] = version;
             }
-        });
+        }
+        pkg.devDependencies = devDeps;
         writeFileSync(c.paths.project.package, c.files.project.package);
 
         await installPackageDependencies();
         return installEngines(true);
     }
-    const plugDepsCount = await loadEnginePluginDeps(engineConfigs);
-    // const pkgDepsCount = await loadEnginePackageDeps(engineConfigs);
-    await loadEnginePackageDeps(engineConfigs);
+    const plugDepsCount = await loadEnginePluginDeps(c, engineConfigs);
+    await loadEnginePackageDeps(c, engineConfigs);
 
     if (plugDepsCount > 0) {
-        // if (plugDepsCount + pkgDepsCount > 0) {
         c.runtime._skipPluginScopeWarnings = true;
         await configurePlugins(); // TODO: This is too early as scoped plugin have not been installed
         c.runtime._skipPluginScopeWarnings = false;
@@ -519,8 +513,8 @@ const _resolvePkgPath = (c: RnvContext, packageName: string) => {
 export const registerPlatformEngine = async (platform: RnvPlatform | boolean): Promise<void> => {
     // Only register active platform engine to be faster
     const c = getContext();
-    if (platform === true || !platform) return;
-    const selectedEngineTemplate = getEngineTemplateByPlatform(platform);
+    if ((platform as unknown as boolean) === true || !platform) return;
+    const selectedEngineTemplate = getEngineTemplateByPlatform(c, platform);
 
     if (selectedEngineTemplate) {
         const existingEngine = c.runtime.enginesById[selectedEngineTemplate.id];

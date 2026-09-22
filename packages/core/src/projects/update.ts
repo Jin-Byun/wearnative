@@ -1,18 +1,18 @@
 import path from 'path';
-import { chalk, logDefault, logError, logInfo } from '../logger';
+import { inquirerPrompt } from '../api';
 import { getContext } from '../context/provider';
+import { chalk, logDefault, logError, logInfo } from '../logger';
+import type { ConfigFileTemplate } from '../schema/types';
 import {
     copyFileSync,
     copyFolderContentsRecursiveSync,
     fsExistsSync,
     fsLstatSync,
     readObjectSync,
-    writeFileSync,
+    writeFileSync
 } from '../system/fs';
-import { ConfigFileTemplate } from '../schema/types';
-import { inquirerPrompt } from '../api';
 import { applyTemplate } from '../templates';
-import { RnvPlatform } from '../types';
+import type { RnvPlatform } from '../types';
 
 export const checkAndUpdateProjectIfRequired = async () => {
     logDefault('checkAndUpdateIfRequired');
@@ -37,15 +37,15 @@ export const checkAndUpdateProjectIfRequired = async () => {
             templateConfigFile,
             platform,
             projectPath: c.paths.project.dir,
-            templatePath: c.paths.template.dir,
+            templatePath: c.paths.template.dir
         });
 
         if (missingFiles.length || !supportedPlatforms?.includes(platform)) {
             const { confirm } = await inquirerPrompt({
                 type: 'confirm',
-                message: `You are trying to run platform ${chalk().bold.magenta(
+                message: `You are trying to run platform ${chalk.bold.magenta(
                     platform
-                )} which is not configured. Do you want to configure it now?`,
+                )} which is not configured. Do you want to configure it now?`
             });
             if (!confirm) {
                 return Promise.reject('Cancelled by user');
@@ -67,10 +67,10 @@ export const checkAndUpdateProjectIfRequired = async () => {
                 if (!fsExistsSync(destPath) && fsExistsSync(sourcePath)) {
                     try {
                         if (fsLstatSync(sourcePath).isDirectory()) {
-                            logInfo(`Missing directory ${chalk().bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
+                            logInfo(`Missing directory ${chalk.bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
                             copyFolderContentsRecursiveSync(sourcePath, destPath);
                         } else {
-                            logInfo(`Missing file ${chalk().bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
+                            logInfo(`Missing file ${chalk.bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
                             copyFileSync(sourcePath, destPath);
                         }
                     } catch (e) {

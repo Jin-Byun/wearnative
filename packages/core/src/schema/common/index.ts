@@ -1,6 +1,6 @@
-import { AnyZodObject, z } from 'zod';
-import { zodBuildSchemeFragment, zodExt, zodRuntime } from '../shared';
+import { type ZodObject, z } from 'zod';
 import { zodPlatformBaseFragment } from '../platforms/fragments/base';
+import { zodBuildSchemeFragment, zodExt, zodRuntime } from '../shared';
 
 export const zodCommonSchemaFragment = z
     .object({
@@ -18,7 +18,8 @@ export const zodCommonSchemaFragment = z
         idSuffix: z.string().optional(),
         version: z.string().describe('Semver style version of your app'),
         versionCode: z.string().describe('Manual verride of generated version code'),
-        versionFormat: z.string()
+        versionFormat: z
+            .string()
             .describe(`Allows you to fine-tune app version defined in package.json or renative.json.
     If you do not define versionFormat, no formatting will apply to version.
     `),
@@ -71,11 +72,11 @@ export const zodCommonSchemaFragment = z
                 "Defines an array of all excluded plugins for specific config or buildScheme. only full keys as defined in `plugin` should be used.\n\nNOTE: excludedPlugins is evaluated after includedPlugins. Use: `['*']` to exclude all"
             ),
         runtime: z.optional(zodRuntime),
-        custom: z.optional(zodExt),
+        custom: z.optional(zodExt)
     })
     .partial();
 
-export const zodCommonSchema: AnyZodObject = zodCommonSchemaFragment
+export const zodCommonSchema: ZodObject = zodCommonSchemaFragment
     .merge(
         z
             .object({
@@ -84,7 +85,7 @@ export const zodCommonSchema: AnyZodObject = zodCommonSchemaFragment
                         z.string(),
                         zodCommonSchemaFragment.merge(zodBuildSchemeFragment.merge(zodPlatformBaseFragment))
                     )
-                ),
+                )
             })
             .partial()
     )

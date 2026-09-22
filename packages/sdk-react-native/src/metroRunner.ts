@@ -1,119 +1,73 @@
 import {
     CoreEnvVars,
-    RnvPlatformKey,
     chalk,
+    type ExecOptions,
     executeAsync,
+    getContext,
+    logDefault,
     logError,
     logInfo,
     logRaw,
-    logDefault,
-    getContext,
+    type RnvPlatformKey
 } from '@rnv/core';
+import { confirmActiveBundler, getEntryFile } from '@rnv/sdk-utils';
 import { isBundlerActive } from './common';
 import { EnvVars } from './env';
-import { confirmActiveBundler, getEntryFile } from '@rnv/sdk-utils';
 
 const BUNDLER_PLATFORMS: Partial<Record<RnvPlatformKey, RnvPlatformKey>> = {};
 
-BUNDLER_PLATFORMS['ios'] = 'ios';
-BUNDLER_PLATFORMS['tvos'] = 'ios';
-BUNDLER_PLATFORMS['macos'] = 'ios';
-BUNDLER_PLATFORMS['android'] = 'android';
-BUNDLER_PLATFORMS['androidtv'] = 'android';
-BUNDLER_PLATFORMS['firetv'] = 'android';
-BUNDLER_PLATFORMS['androidwear'] = 'android';
+BUNDLER_PLATFORMS.android = 'android';
+BUNDLER_PLATFORMS.androidwear = 'android';
 
-export const startReactNative = async (opts: {
+type StartOption = {
     waitForBundler?: boolean;
     customCliPath?: string;
     metroConfigName?: string;
-}) => {
+};
+
+export const startReactNative = async ({ waitForBundler, customCliPath, metroConfigName }: StartOption) => {
     const c = getContext();
     logDefault('startReactNative');
 
-    if (!c.platform) {
-        return false;
-    }
+    if (!c.platform) return false;
 
-    const { waitForBundler, customCliPath, metroConfigName } = opts;
-
-    let startCmd = '';
-
-    if (customCliPath) {
-        startCmd = `node ${customCliPath.replace(/ /g, '\\ ')} start`;
-    } else {
-        startCmd = `npx react-native start`;
-    }
-
-    startCmd += ` --port ${c.runtime.port}`;
-
-    startCmd += ` --no-interactive`;
-
-    if (metroConfigName) {
-        startCmd += ` --config=${metroConfigName}`;
-    }
-
+    // start command setup
+    const flags = [`--port ${c.runtime.port}`, '--no-interactive', !!metroConfigName && `--config=${metroConfigName}`];
     if (c.program.opts().resetHard || c.program.opts().reset) {
-        startCmd += ' --reset-cache';
+        flags.push('--reset-cache');
+        logInfo(`You passed ${chalk.bold.white('-r')} argument. --reset-cache will be applied to react-native`);
     }
+    const buildCmd = customCliPath ? `node ${customCliPath.replaceAll(' ', '\\ ')}` : 'npx react-native';
+    const startCmd = `${buildCmd} start ${flags.filter(Boolean).join(' ')}`;
 
-    if (c.program.opts().resetHard || c.program.opts().reset) {
-        logInfo(`You passed ${chalk().bold.white('-r')} argument. --reset-cache will be applied to react-native`);
-    }
-    // logSummary('BUNDLER STARTED');
-
-    const url = chalk().cyan(
+    const url = chalk.cyan(
         `http://${c.runtime.localhost}:${c.runtime.port}/${getEntryFile()}.bundle?platform=${
             BUNDLER_PLATFORMS[c.platform]
         }`
     );
-    logRaw(`
-Dev server running at: ${url}
-`);
-    if (waitForBundler) {
-        const isRunning = await isBundlerActive();
-        let resetCompleted = false;
-        if (isRunning) {
-            resetCompleted = await confirmActiveBundler();
-        }
+    logRaw(`\nDev server running at: ${url}\n`);
 
-        if (!isRunning || (isRunning && resetCompleted)) {
-            return executeAsync(startCmd, {
-                stdio: 'inherit',
-                silent: true,
-                env: {
-                    ...CoreEnvVars.BASE(),
-                    ...CoreEnvVars.RNV_EXTENSIONS(),
-                    ...EnvVars.RNV_REACT_NATIVE_PATH(),
-                    ...EnvVars.RNV_APP_ID(),
-                    ...EnvVars.RCT_NO_LAUNCH_PACKAGER(),
-                },
-            });
-        }
-        if (resetCompleted) {
-            return executeAsync(startCmd, {
-                stdio: 'inherit',
-                silent: true,
-                env: {
-                    ...CoreEnvVars.BASE(),
-                    ...CoreEnvVars.RNV_EXTENSIONS(),
-                    ...EnvVars.RNV_REACT_NATIVE_PATH(),
-                    ...EnvVars.RNV_APP_ID(),
-                },
-            });
-        }
-
-        return true;
-    }
-    executeAsync(startCmd, {
+    const baseExecOption: ExecOptions = {
         stdio: 'inherit',
         silent: true,
-        env: {
-            ...CoreEnvVars.BASE(),
-            ...EnvVars.RNV_REACT_NATIVE_PATH(),
-            ...EnvVars.RNV_APP_ID(),
-            ...CoreEnvVars.RNV_EXTENSIONS(),
-        },
-    }).catch((e) => logError(e));
+        env: Object.assign(
+            {},
+            CoreEnvVars.BASE(),
+            CoreEnvVars.RNV_EXTENSIONS(),
+            EnvVars.RNV_REACT_NATIVE_PATH(),
+            EnvVars.RNV_APP_ID()
+        )
+    };
+    if (waitForBundler) {
+        const isRunning = await isBundlerActive();
+        const resetCompleted = isRunning && (await confirmActiveBundler());
+
+        if (!isRunning || resetCompleted) {
+            Object.assign(baseExecOption.env as Record<string, any>, EnvVars.RCT_NO_LAUNCH_PACKAGER());
+            return executeAsync(startCmd, baseExecOption);
+        }
+        return true;
+    }
+    executeAsync(startCmd, baseExecOption).catch((e) => logError(e));
     return true;
 };

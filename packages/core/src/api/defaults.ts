@@ -1,9 +1,8 @@
-import { fsExistsSync, fsReadFileSync, fsReaddirSync, fsWriteFileSync } from '../system/fs';
-
 import path from 'path';
-import { RnvApi } from './types';
-import { doResolve } from '../system/resolve';
 import { getConfigProp } from '../context/contextProps';
+import { fsExistsSync, fsReaddirSync, fsReadFileSync, fsWriteFileSync } from '../system/fs';
+import { doResolve } from '../system/resolve';
+import type { RnvApi } from './types';
 
 const spinner: any = () => ({
     start: () => {
@@ -15,7 +14,7 @@ const spinner: any = () => ({
     succeed: () => {
         //NOOP
     },
-    text: '',
+    text: ''
 });
 
 const defaultLog: any = (v: string) => {
@@ -52,18 +51,7 @@ export const generateApiDefaults = (): RnvApi => ({
         logWelcome: defaultLog,
         printBoxEnd: defaultLog,
         printBoxStart: defaultLog,
-        printIntoBox: defaultLog,
-    },
-    analytics: {
-        captureEvent: () => {
-            //NOOP
-        },
-        captureException() {
-            //NOOP
-        },
-        teardown: async () => {
-            //NOOP
-        },
+        printIntoBox: defaultLog
     },
     prompt: {
         generateOptions() {
@@ -74,7 +62,7 @@ export const generateApiDefaults = (): RnvApi => ({
                 keysAsObject: {},
                 optionsAsArray: [],
                 valuesAsArray: [],
-                valuesAsObject: {},
+                valuesAsObject: {}
             };
         },
         inquirerPrompt: async () => {
@@ -82,12 +70,12 @@ export const generateApiDefaults = (): RnvApi => ({
         },
         inquirerSeparator() {
             //NOOP
-        },
+        }
     },
     spinner: spinner,
     fsExistsSync,
     fsReadFileSync,
     fsReaddirSync,
     fsWriteFileSync,
-    path,
+    path
 });

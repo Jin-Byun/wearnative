@@ -1,17 +1,16 @@
-import { DEFAULTS, chalk, getConfigProp, getContext, inquirerPrompt, isSystemWin, logDefault } from '@rnv/core';
-import axios from 'axios';
-import open from 'better-opn';
-import detectPort from 'detect-port';
-import killPort from 'kill-port';
-import os from 'os';
+import os from 'node:os';
+import { chalk, DEFAULTS, getConfigProp, getContext, inquirerPrompt, isSystemWin, logDefault } from '@rnv/core';
+import { detect } from 'detect-port';
+import { killPort } from 'kill-the-port';
 
 export const confirmActiveBundler = async () => {
     const c = getContext();
     if (c.runtime.skipActiveServerCheck) return true;
+    const { port } = c.runtime;
 
     if (c.program.opts().ci) {
         //TODO: handle return codes properly
-        await killPort(c.runtime.port);
+        await killPort({ port });
         return true;
     }
 
@@ -21,40 +20,22 @@ export const confirmActiveBundler = async () => {
         name: 'selectedOption',
         type: 'list',
         choices,
-        warningMessage: `Another ${c.platform} server at port ${chalk().bold.white(c.runtime.port)} already running`,
+        warningMessage: `Another ${c.platform} server at port ${chalk.bold.white(port)} already running`
     });
 
-    if (choices[0] === selectedOption) {
-        await killPort(c.runtime.port);
-    } else {
+    if (choices[0] !== selectedOption) {
         return false;
     }
+    await killPort({ port });
     return true;
 };
 
-export const getValidLocalhost = (value: string, localhost: string) => {
-    if (!value) return localhost;
-    switch (value) {
-        case 'localhost':
-        case '0.0.0.0':
-        case '127.0.0.1':
-            return localhost;
-        default:
-            return value;
-    }
-};
-
-export const openBrowser = open;
-
-export const getDevServerHost = () => {
-    const c = getContext();
-    const devServerHostOrig = getConfigProp('devServerHost');
-
-    const devServerHostFixed = devServerHostOrig
-        ? getValidLocalhost(devServerHostOrig, c.runtime.localhost || DEFAULTS.devServerHost)
-        : DEFAULTS.devServerHost;
-
-    return devServerHostFixed;
+const getDevServerHost = () => {
+    const devServerHost0 = getConfigProp('devServerHost');
+    const localhost = getContext().runtime.localhost || DEFAULTS.devServerHost;
+    if (!devServerHost0 || typeof devServerHost0 !== 'string') return localhost;
+    if (['localhost', '0.0.0.0', '127.0.0.1'].includes(devServerHost0)) return localhost;
+    return devServerHost0;
 };
 
 export const waitForHost = async (
@@ -66,35 +47,26 @@ export const waitForHost = async (
     let attempts = 0;
     const maxAttempts = opts?.maxAttempts || 10;
     const CHECK_INTEVAL = opts?.checkInterval || 2000;
-    // const spinner = ora('Waiting for webpack to finish...').start();
 
     const devServerHost = getDevServerHost();
     const url = `http://${devServerHost}:${c.runtime.port}/${suffix}`;
 
     return new Promise((resolve, reject) => {
         const interval = setInterval(() => {
-            axios
-                .get(url)
+            if (attempts > maxAttempts) {
+                clearInterval(interval);
+                return reject(`Can't connect to host ${url}. Try restarting it.`);
+            }
+            fetch(url)
                 .then((res) => {
                     if (res.status === 200) {
                         clearInterval(interval);
-                        // spinner.succeed();
                         return resolve(true);
                     }
-                    attempts++;
-                    if (attempts === maxAttempts) {
-                        clearInterval(interval);
-                        // spinner.fail('Can\'t connect to webpack. Try restarting it.');
-                        return reject(`Can't connect to host ${url}. Try restarting it.`);
-                    }
                 })
-                .catch(() => {
+                .catch(() => {})
+                .finally(() => {
                     attempts++;
-                    if (attempts > maxAttempts) {
-                        clearInterval(interval);
-                        // spinner.fail('Can\'t connect to webpack. Try restarting it.');
-                        return reject(`Can't connect to host ${url}. Try restarting it.`);
-                    }
                 });
         }, CHECK_INTEVAL);
     });
@@ -103,27 +75,16 @@ export const waitForHost = async (
 export const checkPortInUse = (port: number) =>
     new Promise((resolve, reject) => {
         if (port === undefined || port === null) {
-            resolve(false);
-            return;
+            return resolve(false);
         }
-        detectPort(port, (err: string, availablePort: string) => {
-            if (err) {
+        detect(port)
+            .then((realPort) => {
+                resolve(port !== realPort);
+            })
+            .catch((err) => {
                 reject(err);
-                return;
-            }
-            const result = port !== parseInt(availablePort, 10);
-            resolve(result);
-        });
+            });
     });
-
-export const isUrlLocalhost = (value: string) => {
-    if (value?.includes) {
-        if (value.includes('localhost')) return true;
-        if (value.includes('0.0.0.0')) return true;
-        if (value.includes('127.0.0.1')) return true;
-    }
-    return false;
-};
 
 const ipFromLong = (longIp: number) =>
     `${longIp >>> 24}.${(longIp >> 16) & 255}.${(longIp >> 8) & 255}.${longIp & 255}`;
@@ -147,18 +108,10 @@ const isLoopback = (address: string) => {
 export const getIP = () => {
     const interfaces = os.networkInterfaces();
 
-    const all = Object.keys(interfaces)
-        .map((netIntInfoKey) => {
-            const addresses = interfaces?.[netIntInfoKey]?.filter((netIntInfo) => {
-                if (netIntInfo.family !== 'IPv4' || isLoopback(netIntInfo.address)) {
-                    return false;
-                }
-                return true;
-            });
-
-            return addresses?.length ? addresses[0].address : undefined;
-        })
-        .filter(Boolean);
-
-    return all.length ? (isSystemWin && all.length > 1 ? all[1] : all[0]) : '127.0.0.1';
+    const all = Object.values(interfaces).flatMap(
+        (netIntInfoValue) =>
+            netIntInfoValue?.find((netIntInfo) => netIntInfo.family === 'IPv4' && !isLoopback(netIntInfo.address))
+                ?.address ?? []
+    );
+    return all[Number(isSystemWin && all.length > 1)] ?? '127.0.0.1';
 };

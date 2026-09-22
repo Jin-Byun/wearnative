@@ -1,5 +1,5 @@
 {
-    "$schema": "https://biomejs.dev/schemas/2.5.10/schema.json",
+    "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
     "vcs": {
         "enabled": true,
         "clientKind": "git",
@@ -12,51 +12,49 @@
         "enabled": true,
         "indentStyle": "space",
         "indentWidth": 4,
-        "lineWidth": 120,
+        "lineWidth": 120
     },
     "linter": {
         "enabled": true,
         "rules": {
             "preset": "recommended",
             "suspicious": {
-              "noEmptyInterface": "warn",
-              "noConsole": "error",
-              "noUselessEscapeInString": "error",
-              "noTsIgnore": "warn",
-              "noUnusedExpressions": {
-                "level": "error",
-              }
+                "noEmptyInterface": "warn",
+                "noConsole": "warn",
+                "noUselessEscapeInString": "error",
+                "noTsIgnore": "warn",
+                "noUnusedExpressions": {
+                    "level": "error"
+                }
             },
             "style": {
-              "useDestructuring": {
-                "level": "error",
-                "options": {
-                  "variableDeclarator":{
-                    "array": false
-                  }
+                "useDestructuring": {
+                    "level": "error",
+                    "options": {
+                        "variableDeclarator": {
+                            "array": false
+                        }
+                    }
                 }
-              }
             },
             "correctness": {
-              "useJsxKeyInIterable": {
-                "level": "error",
-                "options": {
-                  "checkShorthandFragments": true
+                "useJsxKeyInIterable": {
+                    "level": "error",
+                    "options": {
+                        "checkShorthandFragments": true
+                    }
                 }
-              }
             }
         }
     },
     "javascript": {
-      "globals": [
-        "CoreManager",
-      ],
+        "globals": ["CoreManager"],
         "formatter": {
             "quoteStyle": "single",
             "quoteProperties": "asNeeded",
-            "trailingCommas": "es5",
+            "trailingCommas": "none",
             "semicolons": "always",
-            "arrowParentheses": "always",
+            "arrowParentheses": "always"
         }
     },
     "assist": {

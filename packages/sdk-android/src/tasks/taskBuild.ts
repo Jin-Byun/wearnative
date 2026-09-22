@@ -1,4 +1,4 @@
-import { RnvTaskName, RnvTaskOptionPresets, createTask } from '@rnv/core';
+import { createTask, RnvTaskName, RnvTaskOptionPresets } from '@rnv/core';
 import { buildReactNativeAndroid } from '@rnv/sdk-react-native';
 import { SdkPlatforms } from '../constants';
 
@@ -10,5 +10,5 @@ export default createTask({
     task: RnvTaskName.build,
     dependsOn: [RnvTaskName.package],
     options: RnvTaskOptionPresets.withConfigure(),
-    platforms: SdkPlatforms,
+    platforms: SdkPlatforms
 });

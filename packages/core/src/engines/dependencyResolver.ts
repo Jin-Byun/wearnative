@@ -1,9 +1,9 @@
 import merge from 'deepmerge';
+import type { NpmDepKey, NpmPackageFile } from '../configs/types';
 import { getContext } from '../context/provider';
 import { logDefault } from '../logger';
-import { getEngineRunnerByPlatform } from '.';
-import { NpmDepKey, NpmPackageFile } from '../configs/types';
 import { createDependencyMutation } from '../projects/mutations';
+import { getEngineRunnerByPlatform } from '.';
 
 export const resolveEngineDependencies = async () => {
     logDefault('resolveEngineDependencies');
@@ -26,26 +26,26 @@ export const resolveEngineDependencies = async () => {
                         createDependencyMutation({
                             name: k,
                             updated: {
-                                version: deps[k],
+                                version: deps[k]
                             },
                             type: depType,
                             msg: 'Missing dependency',
                             source: 'engine.npm (renative.engine.json)',
-                            targetPath: c.paths.project.package,
+                            targetPath: c.paths.project.package
                         });
                     } else if (ver !== deps[k]) {
                         createDependencyMutation({
                             name: k,
                             original: {
-                                version: ver,
+                                version: ver
                             },
                             updated: {
-                                version: deps[k],
+                                version: deps[k]
                             },
                             type: depType,
                             msg: 'Outdated dependency',
                             source: 'engine.npm (renative.engine.json)',
-                            targetPath: c.paths.project.package,
+                            targetPath: c.paths.project.package
                         });
                     }
                 });
@@ -60,14 +60,14 @@ export const resolveEngineDependencies = async () => {
 //     const { isMonorepo } = c.buildConfig;
 //     if (isMonorepo) {
 //         logInfo(
-//             `Found extra npm dependencies required by ${chalk().bold(
+//             `Found extra npm dependencies required by ${chalk.bold(
 //                 engine.config.id
 //             )} engine. project marked as monorepo. SKIPPING`
 //         );
 //     } else {
 //         // do npm i only if something new is added
 //         logInfo(
-//             `Found extra npm dependencies required by ${chalk().bold(engine.config.id)} engine. ADDING...DONE`
+//             `Found extra npm dependencies required by ${chalk.bold(engine.config.id)} engine. ADDING...DONE`
 //         );
 //         if (handleExtraDepsCallback) {
 //             await handleExtraDepsCallback();

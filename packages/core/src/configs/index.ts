@@ -1,19 +1,18 @@
-import path from 'path';
-
-import { mergeObjects, fsExistsSync, fsReaddirSync, getRealPath, readObjectSync, loadFile } from '../system/fs';
-import { logWarning, logDebug, logDefault, chalk } from '../logger';
-import { doResolve } from '../system/resolve';
-import type { RnvContextFileObj, RnvContextPathObj, RnvContextFileKey } from '../context/types';
-import { generateRnvConfigPathObj } from '../context/defaults';
+import path from 'node:path';
 import { generateContextPaths } from '../context';
+import { generateRnvConfigPathObj } from '../context/defaults';
+import { getContext } from '../context/provider';
+import type { RnvContextFileKey, RnvContextFileObj, RnvContextPathObj } from '../context/types';
+import { RnvFileName } from '../enums/fileName';
+import { RnvFolderName } from '../enums/folderName';
+import { chalk, logDebug, logDefault, logWarning } from '../logger';
+import type { ConfigFileTemplates } from '../schema/types';
+import { fsExistsSync, fsReaddirSync, getRealPath, loadFile, mergeObjects, readObjectSync } from '../system/fs';
+import { doResolve } from '../system/resolve';
 import { generateBuildConfig } from './buildConfig';
 import { generateLocalConfig } from './configLocal';
-import { getWorkspaceDirPath } from './workspaces';
 import { generatePlatformTemplatePaths } from './configProject';
-import { RnvFileName } from '../enums/fileName';
-import { getContext } from '../context/provider';
-import { RnvFolderName } from '../enums/folderName';
-import type { ConfigFileTemplates } from '../schema/types';
+import { getWorkspaceDirPath } from './workspaces';
 
 export const loadFileExtended = (fileObj: Record<string, any>, pathObj: RnvContextPathObj, key: RnvContextFileKey) => {
     const c = getContext();
@@ -103,7 +102,7 @@ const _loadConfigFiles = (
         const fileObj1: RnvContextFileObj<object> = {
             configs: [],
             configsLocal: [],
-            configsPrivate: [],
+            configsPrivate: []
         };
 
         // PATH1: appConfigs/base
@@ -113,7 +112,7 @@ const _loadConfigFiles = (
             ...generateRnvConfigPathObj(),
             config: path.join(path1, RnvFileName.renative),
             configLocal: path.join(path1, RnvFileName.renativeLocal),
-            configPrivate: path.join(path1, RnvFileName.renativePrivate),
+            configPrivate: path.join(path1, RnvFileName.renativePrivate)
         };
         pathObj.dirs.push(path1);
         pathObj.fontsDirs.push(path.join(path1, 'fonts'));
@@ -137,12 +136,12 @@ const _loadConfigFiles = (
                     ...generateRnvConfigPathObj(),
                     config: path.join(path2, RnvFileName.renative),
                     configLocal: path.join(path2, RnvFileName.renativeLocal),
-                    configPrivate: path.join(path2, RnvFileName.renativePrivate),
+                    configPrivate: path.join(path2, RnvFileName.renativePrivate)
                 };
                 const fileObj2: RnvContextFileObj<unknown> = {
                     configs: [],
                     configsLocal: [],
-                    configsPrivate: [],
+                    configsPrivate: []
                 };
                 // PATH2: appConfigs/<extendConfig>
                 pathObj.dirs.push(path2);
@@ -192,12 +191,12 @@ export const generateLookupPaths = (pkgName: string) => {
         // Following ones are for globally installed RNV
         path.join(__dirname, '../..', pkgName),
         path.resolve(__dirname, '../../..', pkgName),
-        path.resolve(__dirname, '../../../..', pkgName),
+        path.resolve(__dirname, '../../../..', pkgName)
     ];
     return pathLookups;
 };
 
-export const loadDefaultConfigTemplates = async () => {
+export const loadDefaultConfigTemplates = () => {
     const ctx = getContext();
     //This comes from project dependency
     const pkgName = '@rnv/config-templates';
@@ -209,15 +208,15 @@ export const loadDefaultConfigTemplates = async () => {
         configTemplatesPath = pathLookups.find((v) => fsExistsSync(v));
 
         if (!configTemplatesPath) {
-            return Promise.reject(
-                `RNV Cannot find package: ${chalk().bold.white(pkgName)}. Looked in: ${chalk().gray(
+            throw new Error(
+                `RNV Cannot find package: ${chalk.bold.white(pkgName)}. Looked in: ${chalk.gray(
                     pathLookups.join(', ')
                 )}`
             );
         }
     }
 
-    if (!configTemplatesPath) return Promise.reject(`@rnv/config-templates missing`);
+    if (!configTemplatesPath) throw new Error(`@rnv/config-templates missing`);
 
     ctx.paths.rnvConfigTemplates.pluginTemplatesDir = path.join(configTemplatesPath, 'pluginTemplates');
     ctx.paths.rnvConfigTemplates.config = path.join(configTemplatesPath, 'renative.templates.json');
@@ -227,17 +226,17 @@ export const loadDefaultConfigTemplates = async () => {
     if (rnvConfigTemplates) {
         ctx.files.rnvConfigTemplates.config = rnvConfigTemplates;
         ctx.files.scopedConfigTemplates = {
-            rnv: rnvConfigTemplates,
+            rnv: rnvConfigTemplates
         };
     }
 
     ctx.paths.scopedConfigTemplates = {
         configs: {
-            rnv: ctx.paths.rnvConfigTemplates.config,
+            rnv: ctx.paths.rnvConfigTemplates.config
         },
         pluginTemplatesDirs: {
-            rnv: ctx.paths.rnvConfigTemplates.pluginTemplatesDir,
-        },
+            rnv: ctx.paths.rnvConfigTemplates.pluginTemplatesDir
+        }
     };
 };
 
@@ -266,18 +265,6 @@ export const parseRenativeConfigs = async () => {
         generateContextPaths(c.paths.workspace, wsDir);
         _loadConfigFiles(c.files.workspace, c.paths.workspace);
     }
-
-    // LOAD DEFAULT WORKSPACE //not needed anymore. loaded at the initial stage
-    // generateContextPaths(c.paths.defaultWorkspace, c.paths.GLOBAL_RNV_DIR);
-    // _loadConfigFiles(c, c.files.defaultWorkspace, c.paths.defaultWorkspace);
-
-    // LOAD CONFIG TEMPLATES
-    //NOTE: loaded in loadDefaultConfigTemplates
-    // c.files.rnvConfigTemplates.config =
-    //     readObjectSync<ConfigFileTemplates>(c.paths.rnvConfigTemplates.config) || undefined;
-
-    // // LOAD PLUGIN TEMPLATES
-    // await loadPluginTemplates(c);
 
     if (!c.files.project.config) {
         logDebug(`BUILD_CONFIG: c.files.project.config does not exists. path: ${c.paths.project.config}`);

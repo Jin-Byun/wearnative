@@ -1,8 +1,8 @@
 import path from 'path';
-import { RnvContext } from '../context/types';
-import { resolvePackage } from '../system/fs';
 import { getContext } from '../context/provider';
+import type { RnvContext } from '../context/types';
 import { logInfo } from '../logger';
+import { resolvePackage } from '../system/fs';
 
 export const resolveRelativePackage = (c: RnvContext, v: string) => {
     if (v?.startsWith?.('./')) {

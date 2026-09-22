@@ -1,16 +1,15 @@
+import path from 'node:path';
 import {
     CoreEnvVars,
     doResolve,
-    executeAsync,
     fsWriteFileSync,
     getAppFolder,
     getConfigProp,
     getContext,
     getRelativePath,
-    parsePlugins,
+    parsePlugins
 } from '@rnv/core';
 import { getAppId } from '@rnv/sdk-utils';
-import path from 'path';
 
 export const EnvVars = {
     RCT_METRO_PORT: () => {
@@ -22,8 +21,8 @@ export const EnvVars = {
         return {
             RNV_REACT_NATIVE_PATH: getRelativePath(
                 ctx.paths.project.dir,
-                doResolve(ctx.runtime.runtimeExtraProps?.reactNativePackageName || 'react-native')!
-            ),
+                doResolve(ctx.runtime.runtimeExtraProps?.reactNativePackageName || 'react-native') as string
+            )
         };
     },
     RCT_NO_LAUNCH_PACKAGER: () => {
@@ -51,61 +50,53 @@ export const EnvVars = {
     },
     RNV_SKIP_LINKING: () => {
         const { platform } = getContext();
+        if (!platform) return {};
         const skipPlugins: string[] = [];
-        if (platform) {
-            parsePlugins(
-                (plugin, pluginPlat, key) => {
-                    if (
-                        pluginPlat.disabled ||
-                        plugin.disabled ||
-                        (plugin.supportedPlatforms && !plugin.supportedPlatforms.includes(platform))
-                    ) {
-                        skipPlugins.push(key);
-                    }
-                },
-                false,
-                true
-            );
-        }
-        if (skipPlugins.length > 0) {
+        parsePlugins(
+            (plugin, pluginPlat, key) => {
+                if (
+                    pluginPlat.disabled ||
+                    plugin.disabled ||
+                    (plugin.supportedPlatforms && !plugin.supportedPlatforms.includes(platform))
+                ) {
+                    skipPlugins.push(key);
+                }
+            },
+            false,
+            true
+        );
+        if (skipPlugins.length) {
             return { RNV_SKIP_LINKING: skipPlugins.join(',') };
         }
-
         return {};
-    },
+    }
 };
 
 export const generateEnvVarsFile = async () => {
     const c = getContext();
     if (!c.platform) return;
 
-    const isApplePlatform = c.platform === 'ios' || c.platform === 'tvos';
-    const fileName = isApplePlatform ? '.xcode.env.local' : '.env';
+    const fileName = '.env';
     const destDir = getAppFolder();
     const destPath = path.join(destDir, fileName);
 
-    const envVars: Record<string, any> = {
-        ...CoreEnvVars.BASE(),
-        RNV_EXTENSIONS: CoreEnvVars.RNV_EXTENSIONS().RNV_EXTENSIONS.join(','),
-        ...EnvVars.RCT_METRO_PORT(),
-        ...EnvVars.RNV_REACT_NATIVE_PATH(),
-        ...EnvVars.RCT_NO_LAUNCH_PACKAGER(),
-        ...EnvVars.RNV_APP_ID(),
-        ...EnvVars.RCT_NEW_ARCH_ENABLED(),
-        ...EnvVars.RNV_FLIPPER_ENABLED(),
-        ...EnvVars.RNV_SKIP_LINKING(),
-        ...(isApplePlatform
-            ? {
-                  NODE_BINARY: await executeAsync(`which node`, {
-                      cwd: c.paths.project.dir,
-                  }),
-              }
-            : {}),
-    };
-    let env = '';
-    Object.keys(envVars).forEach((key) => {
-        env += ` ${isApplePlatform ? 'export' : ''} ${key}=${envVars[key]}\n`;
-    });
+    const envVars: Record<string, any> = Object.assign(
+        {
+            RNV_EXTENSIONS: CoreEnvVars.RNV_EXTENSIONS().RNV_EXTENSIONS.join(',')
+        },
+        CoreEnvVars.BASE(),
+        EnvVars.RCT_METRO_PORT(),
+        EnvVars.RNV_REACT_NATIVE_PATH(),
+        EnvVars.RCT_NO_LAUNCH_PACKAGER(),
+        EnvVars.RNV_APP_ID(),
+        EnvVars.RCT_NEW_ARCH_ENABLED(),
+        EnvVars.RNV_FLIPPER_ENABLED(),
+        EnvVars.RNV_SKIP_LINKING()
+    );
+
+    const env = Object.entries(envVars)
+        .map(([key, value]) => `  ${key}=${value}\n`)
+        .join('');
 
     fsWriteFileSync(destPath, env);
 };

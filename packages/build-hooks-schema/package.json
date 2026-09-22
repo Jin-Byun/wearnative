@@ -9,19 +9,25 @@
     },
     "license": "MIT",
     "author": "Flexn",
-    "files": [
-        "LICENSE",
-        "lib",
-        "src"
-    ],
-    "main": "lib/index",
     "repository": {
         "directory": "packages/build-hooks-schema",
         "type": "git",
         "url": "git+https://github.com/flexn-io/renative.git"
     },
+    "files": [
+        "LICENSE",
+        "lib",
+        "src"
+    ],
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "publishConfig": {
+        "access": "public",
+        "main": "./lib/index.js",
+        "types": "./lib/index.d.ts"
+    },
     "scripts": {
-        "build": "yarn clean && yarn compile",
+        "build": "tsc -b tsconfig.json",
         "compile": "tsc -b tsconfig.json",
         "watch": "tsc --watch --preserveWatchOutput"
     },
@@ -31,9 +37,5 @@
     },
     "peerDependencies": {
         "@rnv/core": "workspace:*"
-    },
-    "publishConfig": {
-        "access": "public"
-    },
-    "types": "lib/index"
+    }
 }

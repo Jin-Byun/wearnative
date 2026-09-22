@@ -1,9 +1,6 @@
 import {
-    ConfigFileProject,
-    ConfigFileTemplate,
-    NpmPackageFile,
-    RnvFileName,
-    RnvFolderName,
+    type ConfigFileProject,
+    type ConfigFileTemplate,
     chalk,
     copyFileSync,
     copyFolderRecursiveSync,
@@ -17,15 +14,17 @@ import {
     listAndSelectNpmVersion,
     logInfo,
     mkdirSync,
+    type NpmPackageFile,
+    RnvFileName,
+    RnvFolderName,
     readObjectSync,
-    writeFileSync,
+    writeFileSync
 } from '@rnv/core';
-import type { NewProjectData, TemplateOption } from '../types';
-import path from 'path';
-import { checkInputValue } from '../questionHelpers';
-import { saveProgressIntoProjectConfig } from '../questionHelpers';
 import { merge } from 'lodash';
+import path from 'path';
 import { getContext } from '../../../getContext';
+import { checkInputValue, saveProgressIntoProjectConfig } from '../questionHelpers';
+import type { NewProjectData, TemplateOption } from '../types';
 
 const mergeIntoProjectConfig = (data: NewProjectData, updateObj: ConfigFileProject) => {
     const { files } = data;
@@ -61,8 +60,8 @@ const Question = async (data: NewProjectData) => {
             const value = projectTemplates[k];
 
             const option: TemplateOption = {
-                name: `${k} ${chalk().grey(`- ${value.localPath || value.description}`)}`,
-                value: { ...value, type: 'existing', packageName: value?.packageName || k },
+                name: `${k} ${chalk.grey(`- ${value.localPath || value.description}`)}`,
+                value: { ...value, type: 'existing', packageName: value?.packageName || k }
             };
             options.push(option);
             if (value.localPath) {
@@ -81,7 +80,7 @@ const Question = async (data: NewProjectData) => {
             message: 'What template to use?',
             default: defaultOverride || defaults.templateName,
             loop: false,
-            choices: options,
+            choices: options
         });
         const result: TemplateOption['value'] = iRes.inputTemplate;
         inputs.template.type = result.type;
@@ -90,14 +89,14 @@ const Question = async (data: NewProjectData) => {
             const { inputTemplateCustom } = await inquirerPrompt({
                 name: 'inputTemplateCustom',
                 type: 'input',
-                message: 'NPM package name:',
+                message: 'NPM package name:'
             });
             inputs.template.packageName = inputTemplateCustom;
         } else if (result.type === 'local') {
             const { inputTemplateLocal } = await inquirerPrompt({
                 name: 'inputTemplateLocal',
                 type: 'input',
-                message: 'Path (absolute):',
+                message: 'Path (absolute):'
             });
             localTemplatePath = inputTemplateLocal;
         } else if (result.type === 'none') {
@@ -162,7 +161,7 @@ const Question = async (data: NewProjectData) => {
             'builds',
             RnvFolderName.platformAssets,
             RnvFolderName.secrets,
-            RnvFolderName.dotRnv,
+            RnvFolderName.dotRnv
         ];
         fsReaddirSync(localTemplatePath).forEach((file) => {
             if (!ignorePaths.includes(file) && localTemplatePath) {
@@ -193,19 +192,19 @@ const Question = async (data: NewProjectData) => {
         }
         mergeIntoProjectPackage(data, {
             devDependencies: {
-                [inputs.template?.packageName]: filePath,
-            },
+                [inputs.template?.packageName]: filePath
+            }
         });
         mergeIntoProjectConfig(data, {
             templateConfig: {
                 name: inputs.template.packageName,
-                version: filePath,
-            },
+                version: filePath
+            }
         });
         await saveProgressIntoProjectConfig(data);
 
         await executeAsync(`${isYarnInstalled() ? 'yarn' : 'npm install'}`, {
-            cwd: c.paths.project.dir,
+            cwd: c.paths.project.dir
         });
     } else {
         if (checkInputValue(templateVersion)) {
@@ -219,22 +218,22 @@ const Question = async (data: NewProjectData) => {
         await executeAsync(
             `${isYarnInstalled() ? 'yarn' : 'npm'} add ${inputs.template.packageName}@${inputs.template.version} --dev`,
             {
-                cwd: c.paths.project.dir,
+                cwd: c.paths.project.dir
             }
         );
         if (inputs.template.packageName && inputs.template.version) {
             // We update our in-memory package.json with the new template
             mergeIntoProjectPackage(data, {
                 devDependencies: {
-                    [inputs.template.packageName]: inputs.template.version,
-                },
+                    [inputs.template.packageName]: inputs.template.version
+                }
             });
         }
         mergeIntoProjectConfig(data, {
             templateConfig: {
                 name: inputs.template.packageName,
-                version: inputs.template.version,
-            },
+                version: inputs.template.version
+            }
         });
         await saveProgressIntoProjectConfig(data);
         // Check if node_modules folder exists

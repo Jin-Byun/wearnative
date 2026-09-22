@@ -1,12 +1,12 @@
-import { fsExistsSync, fsReadFileSync } from '../system/fs';
-import { CreateContextOptions, RnvContext, RnvContextPathObj } from './types';
-import { generateContextDefaults } from './defaults';
-import path from 'path';
-import { mkdirSync } from 'fs';
-import { isSystemWin } from '../system/is';
+import { mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import path from 'node:path';
 import { RnvFileName } from '../enums/fileName';
-import { homedir } from 'os';
 import { RnvFolderName } from '../enums/folderName';
+import { fsExistsSync, fsReadFileSync } from '../system/fs';
+import { isSystemWin } from '../system/is';
+import { generateContextDefaults } from './defaults';
+import type { CreateContextOptions, RnvContext, RnvContextPathObj } from './types';
 
 export const generateContextPaths = (pathObj: RnvContextPathObj, dir: string, configName?: string) => {
     pathObj.dir = dir;
@@ -33,10 +33,10 @@ export const createRnvContext = (ctxOpts?: CreateContextOptions) => {
     // console.trace('CREATE_RNV_CONTEXT', !!ctxOpts, !!global.RNV_CONTEXT, global.RNV_CONTEXT?.isDefault);
 
     let haltExecution = false;
-    if (!!ctxOpts && !!global.RNV_CONTEXT) {
+    if (ctxOpts && global.RNV_CONTEXT) {
         // Handle direct initialize of context
         if (!global.RNV_CONTEXT?.isDefault) {
-              haltExecution = true;
+            haltExecution = true;
         }
     } else if (!ctxOpts) {
         // Handle new imports of @rnv/core

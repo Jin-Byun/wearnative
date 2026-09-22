@@ -1,23 +1,21 @@
-import { getContext } from './context/provider';
-import { installEngines, registerMissingPlatformEngines } from './engines';
-import { loadRnvModulesFromProject } from './modules';
-import { checkAndMigrateProject } from './migrator';
-import { configureRuntimeDefaults } from './context/runtime';
-import { findSuitableTask } from './tasks/taskFinder';
-import { updateRenativeConfigs } from './plugins';
+import { getContext } from '@context/provider';
+import { configureRuntimeDefaults } from '@context/runtime';
+import { checkAndUpdateProjectIfRequired } from '@projects/update';
+import { initializeTask } from '@tasks/taskExecutors';
+import { findSuitableTask } from '@tasks/taskFinder';
+import { getTaskNameFromCommand, selectPlatformIfRequired } from '@tasks/taskHelpers';
+import type { RnvTask } from '@tasks/types';
+import { runInteractiveWizard } from '@tasks/wizard';
 import { loadDefaultConfigTemplates } from './configs';
-import { RnvTask } from './tasks/types';
-import { runInteractiveWizard } from './tasks/wizard';
-import { initializeTask } from './tasks/taskExecutors';
-import { getTaskNameFromCommand, selectPlatformIfRequired } from './tasks/taskHelpers';
+import { installEngines, registerMissingPlatformEngines } from './engines';
 import { logInfo } from './logger';
-import { checkAndUpdateProjectIfRequired } from './projects/update';
+import { checkAndMigrateProject } from './migrator';
+import { loadRnvModulesFromProject } from './modules';
+import { updateRenativeConfigs } from './plugins';
 
 export const exitRnvCore = async (code: number) => {
     const ctx = getContext();
-    if (ctx.process) {
-            ctx.process.exit(code);
-    }
+    ctx.process?.exit(code);
 };
 
 const _installAndRegisterAllEngines = async () => {
@@ -31,13 +29,11 @@ const _installAndRegisterAllEngines = async () => {
 
 export const executeRnvCore = async () => {
     const c = getContext();
-    await Promise.all([
-    loadDefaultConfigTemplates(),
-    configureRuntimeDefaults(),
-    checkAndMigrateProject(),
-    updateRenativeConfigs(),
-    checkAndUpdateProjectIfRequired(),
-    ])
+    loadDefaultConfigTemplates();
+    configureRuntimeDefaults();
+    checkAndMigrateProject();
+    await updateRenativeConfigs();
+    await checkAndUpdateProjectIfRequired();
 
     // TODO: rename to something more meaningful or DEPRECATE entirely
     if (c.program.opts().npxMode) {
@@ -47,11 +43,9 @@ export const executeRnvCore = async () => {
     // for "rnv" we simply load all engines upfront
     const { configExists } = c.paths.project;
     if (!c.command && configExists) {
-      await Promise.all([
-        _installAndRegisterAllEngines(),
-        loadRnvModulesFromProject(),
-      ])
-      return runInteractiveWizard();
+        await _installAndRegisterAllEngines();
+        loadRnvModulesFromProject();
+        return await runInteractiveWizard();
     }
 
     let initTask: RnvTask | undefined;
@@ -61,11 +55,11 @@ export const executeRnvCore = async () => {
     // ie rnv link
     initTask = await findSuitableTask();
     if (initTask) {
-        return initializeTask(initTask);
+        return await initializeTask(initTask);
     }
 
     // Next we load all integrations and see if there is a task that matches
-    await loadRnvModulesFromProject();
+    loadRnvModulesFromProject();
     initTask = await findSuitableTask();
     if (initTask) {
         if (initTask.platforms) {
@@ -74,17 +68,17 @@ export const executeRnvCore = async () => {
             await selectPlatformIfRequired(initTask, true);
         }
 
-        return initializeTask(initTask);
+        return await initializeTask(initTask);
     }
 
     // Still no task found. time to load all engines to see if anything matches
     await _installAndRegisterAllEngines();
     initTask = await findSuitableTask();
     if (initTask) {
-        return initializeTask(initTask);
+        return await initializeTask(initTask);
     }
 
     // Still no task found. time to check sub tasks options via wizard
     logInfo(`Did not find exact match for ${getTaskNameFromCommand()}. Running interactive wizard for sub-tasks`);
-    return runInteractiveWizard();
+    return await runInteractiveWizard();
 };

@@ -1,4 +1,4 @@
-import { RnvContext, chalk, getContext, inquirerPrompt, writeFileSync } from '@rnv/core';
+import { chalk, getContext, inquirerPrompt, type RnvContext, writeFileSync } from '@rnv/core';
 
 export const getTargetWithOptionalPrompt = async () => {
     const ctx = getContext();
@@ -6,28 +6,27 @@ export const getTargetWithOptionalPrompt = async () => {
     let target = program?.opts().target;
     const options = [];
 
-    if (platform && !target) {
-        const projectTarget = ctx.files.project.configLocal?.defaultTargets?.[platform];
-        if (projectTarget) {
-            options.push({ name: `${projectTarget} (project default)`, value: projectTarget });
-        }
-        const workspaceTarget = ctx.files.workspace.config?.defaultTargets?.[platform];
-        if (workspaceTarget) {
-            options.push({ name: `${workspaceTarget} (global default)`, value: workspaceTarget });
-        }
+    if (!platform || target) return target;
+    const projectTarget = ctx.files.project.configLocal?.defaultTargets?.[platform];
+    if (projectTarget) {
+        options.push({ name: `${projectTarget} (project default)`, value: projectTarget });
+    }
+    const workspaceTarget = ctx.files.workspace.config?.defaultTargets?.[platform];
+    if (workspaceTarget) {
+        options.push({ name: `${workspaceTarget} (global default)`, value: workspaceTarget });
+    }
 
-        options.push({ name: 'Pick from available targets...', value: true });
+    options.push({ name: 'Pick from available targets...', value: true });
 
-        const { selectedOption } = await inquirerPrompt({
-            name: 'selectedOption',
-            type: 'list',
-            message: 'Which target to use?',
-            choices: options,
-        });
+    const { selectedOption } = await inquirerPrompt({
+        name: 'selectedOption',
+        type: 'list',
+        message: 'Which target to use?',
+        choices: options
+    });
 
-        if (selectedOption) {
-            target = selectedOption;
-        }
+    if (selectedOption) {
+        target = selectedOption;
     }
     return target;
 };
@@ -36,9 +35,9 @@ export const updateDefaultTargets = async (c: RnvContext, currentTarget: string)
     if (!c.platform) return;
     const localOverridden = !!c.files.project.configLocal?.defaultTargets?.[c.platform];
     const defaultTarget = c.runtime.target;
-    const actionLocalUpdate = `Update ${chalk().green('project')} default target for platform ${c.platform}`;
-    const actionGlobalUpdate = `Update ${chalk().green('global')}${
-        localOverridden ? ` and ${chalk().green('project')}` : ''
+    const actionLocalUpdate = `Update ${chalk.green('project')} default target for platform ${c.platform}`;
+    const actionGlobalUpdate = `Update ${chalk.green('global')}${
+        localOverridden ? ` and ${chalk.green('project')}` : ''
     } default target for platform ${c.platform}`;
     const actionNoUpdate = "Don't update";
 
@@ -49,7 +48,7 @@ export const updateDefaultTargets = async (c: RnvContext, currentTarget: string)
         choices: [actionLocalUpdate, actionGlobalUpdate, actionNoUpdate],
         warningMessage: `Your default target for platform ${c.platform} is ${
             !defaultTarget ? 'not defined' : `set to ${defaultTarget}`
-        }.`,
+        }.`
     });
 
     c.runtime.target = currentTarget;

@@ -1,9 +1,9 @@
-import { getRealPath, writeFileSync } from '../system/fs';
+import { getContext } from '../context/provider';
 import { chalk, logDefault, logWarning } from '../logger';
+import type { ConfigFileProject } from '../schema/types';
+import { getRealPath, writeFileSync } from '../system/fs';
 import type { RnvPlatform, RnvPlatformKey } from '../types';
 import type { NpmPackageFile } from './types';
-import { getContext } from '../context/provider';
-import type { ConfigFileProject } from '../schema/types';
 
 const SYNCED_DEPS = [
     'rnv',
@@ -16,7 +16,7 @@ const SYNCED_DEPS = [
     '@rnv/engine-rn-windows',
     '@rnv/engine-rn-tvos',
     '@rnv/renative',
-    '@rnv/template-starter',
+    '@rnv/template-starter'
 ];
 
 export const upgradeProjectDependencies = (version: string) => {
@@ -82,7 +82,7 @@ export const updateProjectPlatforms = (platforms: Array<RnvPlatformKey>) => {
     const c = getContext();
 
     const {
-        project: { config },
+        project: { config }
     } = c.paths;
     const currentConfig = c.files.project.config;
     if (currentConfig) {
@@ -101,7 +101,7 @@ export const generatePlatformTemplatePaths = () => {
     if (!c.buildConfig.paths) {
         c.buildConfig.paths = {
             appConfigsDirs: [],
-            platformTemplatesDirs: {},
+            platformTemplatesDirs: {}
         };
     }
 
@@ -135,13 +135,13 @@ export const generatePlatformTemplatePaths = () => {
                         }
                     } else {
                         logWarning(
-                            `Platform ${chalk().red(platform)} not supported by any registered engine. SKIPPING...`
+                            `Platform ${chalk.red(platform)} not supported by any registered engine. SKIPPING...`
                         );
                     }
                 } else if (platform === c.platform && c.runtime.currentEngine) {
                     //NOTE: only log warning if there is already registered engine but cannot be found by platform
                     logWarning(
-                        `Could not find active engine for platform: ${chalk().red(
+                        `Could not find active engine for platform: ${chalk.red(
                             platform
                         )}. Available engine platforms: ${Object.keys(c.runtime.enginesByPlatform)}`
                     );
@@ -149,7 +149,7 @@ export const generatePlatformTemplatePaths = () => {
             }
         });
     } else {
-        logWarning(`Your renative.json is missing property: ${chalk().red('defaults.supportedPlatforms')} `);
+        logWarning(`Your renative.json is missing property: ${chalk.red('defaults.supportedPlatforms')} `);
     }
 
     c.paths.project.platformTemplatesDirs = result;

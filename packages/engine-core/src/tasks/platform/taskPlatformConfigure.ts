@@ -1,23 +1,23 @@
 import {
     chalk,
-    logTask,
-    logInfo,
+    cleanPlatformBuild,
+    configureRuntimeDefaults,
+    createPlatformBuild,
+    createTask,
+    executeTask,
     fsExistsSync,
     getAppFolder,
-    cleanPlatformBuild,
-    createPlatformBuild,
-    configureRuntimeDefaults,
-    executeTask,
-    createTask,
+    getConfigProp,
+    logInfo,
+    logTask,
+    logWarning,
     RnvTaskName,
     // installPackageDependencies,
     // overrideTemplatePlugins,
-    resolveEngineDependencies,
-    logWarning,
-    getConfigProp,
+    resolveEngineDependencies
 } from '@rnv/core';
-import { isBuildSchemeSupported } from '../../buildSchemes';
 import path from 'path';
+import { isBuildSchemeSupported } from '../../buildSchemes';
 import { checkAndInstallIfRequired } from '../../taskHelpers';
 // import { configureFonts } from '@rnv/sdk-utils';
 
@@ -35,9 +35,9 @@ export default createTask({
         if (!fsExistsSync(dest) && platform) {
             if (!entryFile) {
                 logWarning(
-                    `Missing ${chalk().red(entryFile)} key for ${chalk().bold.white(
+                    `Missing ${chalk.red(entryFile)} key for ${chalk.bold.white(
                         ctx.platform
-                    )} platform in your ${chalk().bold.white(ctx.paths.appConfig.config)}.`
+                    )} platform in your ${chalk.bold.white(ctx.paths.appConfig.config)}.`
                 );
             }
         }
@@ -46,7 +46,7 @@ export default createTask({
             taskName: RnvTaskName.sdkConfigure,
             parentTaskName: taskName,
             originTaskName,
-            isOptional: true,
+            isOptional: true
         });
 
         await configureRuntimeDefaults();
@@ -57,7 +57,7 @@ export default createTask({
 
         if ((program.opts().reset || program.opts().resetHard) && !ctx.runtime.disableReset) {
             logInfo(
-                `You passed ${chalk().bold.white(program.opts().reset ? '-r' : '-R')} argument. "${chalk().bold.white(
+                `You passed ${chalk.bold.white(program.opts().reset ? '-r' : '-R')} argument. "${chalk.bold.white(
                     getAppFolder()
                 )}" CLEANING...DONE`
             );
@@ -88,5 +88,5 @@ export default createTask({
         // await _runCopyPlatforms(c);
         return true;
     },
-    task: RnvTaskName.platformConfigure,
+    task: RnvTaskName.platformConfigure
 });

@@ -1,9 +1,11 @@
-import path from 'path';
+import type fs from 'node:fs';
+import type path from 'node:path';
+import type { ChalkInstance } from 'chalk';
+import type { Options, Ora } from 'ora';
 import type { RnvContext } from '../context/types';
 import type { ConfigFileBuildConfig, ConfigProp, ConfigPropKey } from '../schema/types';
 import type { DoResolveFn } from '../system/types';
 import type { RnvPlatform } from '../types';
-import fs from 'fs';
 
 export type RnvApi = {
     isDefault: boolean;
@@ -19,12 +21,7 @@ export type RnvApi = {
     getConfigProp: GetConfigPropFn;
 };
 
-export type RnvApiSpinner = (msg: string | { text: string }) => {
-    start: RnvApiSpinner;
-    fail: RnvApiSpinner;
-    succeed: RnvApiSpinner;
-    text: string;
-};
+export type RnvApiSpinner = (options?: string | Options | undefined) => Ora;
 
 export type RnvApiPrompt = {
     inquirerPrompt: (options: PromptParams) => Promise<any>;
@@ -43,23 +40,6 @@ export type RnvContextAnalytics = {
     teardown: () => Promise<void>;
 };
 
-export type RnvApiChalk = {
-    white: RnvApiChalkFn;
-    green: RnvApiChalkFn;
-    red: RnvApiChalkFn;
-    yellow: RnvApiChalkFn;
-    // default: RnvApiChalkFn;
-    gray: RnvApiChalkFn;
-    grey: RnvApiChalkFn;
-    blue: RnvApiChalkFn;
-    cyan: RnvApiChalkFn;
-    magenta: RnvApiChalkFn;
-    rgb: (red: number, green: number, blue: number) => any;
-    bold: RnvApiChalkFn;
-};
-
-export type RnvApiChalkFn = ((v: any) => any) & RnvApiChalk;
-
 export type RnvApiLogger = {
     logWelcome: () => void;
     logAndSave: (msg: string, skipLog?: boolean) => void;
@@ -77,14 +57,14 @@ export type RnvApiLogger = {
     logDebug: (...args: Array<any>) => void;
     isInfoEnabled: () => boolean;
     logSuccess: (msg: string) => void;
-    logError: (e: Error | string | unknown, opts?: { skipAnalytics: boolean }) => void;
+    logError: (e: Error | string | unknown) => void;
     logInitialize: () => void;
     logAppInfo: (c: RnvContext) => void;
     printIntoBox: (str: string) => string;
     printArrIntoBox: (arr: Array<string>, prefix?: string) => string;
     printBoxStart: (str: string, str2?: string) => string;
     printBoxEnd: () => string;
-    chalk: () => RnvApiChalk;
+    chalk: ChalkInstance;
 };
 
 export type PromptOptions = {

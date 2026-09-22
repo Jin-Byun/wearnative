@@ -1,7 +1,7 @@
-import { writeFileSync, readObjectSync } from '../system/fs';
+import type { NpmPackageFile } from '../configs/types';
+import type { RnvContext } from '../context/types';
 import { chalk, logWarning } from '../logger';
-import { RnvContext } from '../context/types';
-import { NpmPackageFile } from '../configs/types';
+import { readObjectSync, writeFileSync } from '../system/fs';
 
 const PACKAGE_JSON_FILEDS = [
     'name',
@@ -32,7 +32,7 @@ const PACKAGE_JSON_FILEDS = [
     'os',
     'cpu',
     'private',
-    'publishConfig',
+    'publishConfig'
 ];
 
 const getSortedObject = (obj: unknown) => {
@@ -60,7 +60,7 @@ const checkForDuplicates = (arr: Array<any>) => {
         if (v) {
             Object.keys(v).forEach((k) => {
                 if (dupCheck[k]) {
-                    logWarning(`Key ${chalk().bold.white(k)} is duplicated in your package.json`);
+                    logWarning(`Key ${chalk.bold.white(k)} is duplicated in your package.json`);
                 }
                 dupCheck[k] = true;
             });
@@ -104,5 +104,5 @@ const fixPackageObject = (pp: Record<string, unknown>) => {
 export { fixPackageJson, fixPackageObject };
 export default {
     fixPackageJson,
-    fixPackageObject,
+    fixPackageObject
 };

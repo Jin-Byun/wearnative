@@ -154,10 +154,10 @@ export const configureConfigOverrides = async (data: NewProjectData) => {
 export const generateProjectOverview = (data: NewProjectData) => {
     const { inputs } = data;
 
-    // const addon = inputs.template?.localPath ? ` ${chalk().gray(inputs.template?.localPath)}` : '';
+    // const addon = inputs.template?.localPath ? ` ${chalk.gray(inputs.template?.localPath)}` : '';
     const tempString = inputs.template?.localPath || `${inputs.template?.packageName}@${inputs.template?.version}`;
 
-    const highlight = chalk().bold;
+    const highlight = chalk.bold;
 
     const installAddon = !inputs.confirmProjectInstall ? `\n  ${isYarnInstalled() ? 'yarn' : 'npm install'}` : '';
 
@@ -173,8 +173,8 @@ export const generateProjectOverview = (data: NewProjectData) => {
   Git Enabled (--gitEnabled): ${highlight(inputs.confirmEnableGit)}
   Enabled Platforms: ${highlight((inputs.supportedPlatforms || []).join(', '))}
   -------------------------
-  ${chalk().green('✔ Your project is ready!')} Run it with:
-${chalk().bold.white(`
+  ${chalk.green('✔ Your project is ready!')} Run it with:
+${chalk.bold.white(`
   cd ${inputs.projectFolderName}${installAddon}
   npx rnv run`)}`;
 

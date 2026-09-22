@@ -14,25 +14,25 @@
         "lib",
         "types.d.ts"
     ],
-    "main": "lib/index.js",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "publishConfig": {
+        "access": "public",
+        "main": "./lib/index.js",
+        "types": "./lib/index.d.ts"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/flexn-io/renative.git"
     },
     "scripts": {
-        "bootstrap": "yarn && yarn build && npm link",
-        "build": "yarn clean && yarn compile",
+        "build": "tsc -b tsconfig.json",
         "compile": "tsc -b tsconfig.json",
-        "compile:prod": "tsc -b tsconfig.json",
-        "lint": "eslint . --ext .ts",
         "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
         "babel-plugin-module-resolver": "^5.0.0"
     },
     "peerDependencies": {},
-    "private": false,
-    "publishConfig": {
-        "access": "public"
-    }
+    "private": false
 }

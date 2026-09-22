@@ -1,15 +1,7 @@
+import { getContext, type PromptOptions, type PromptParams, type PromptRenderFn } from '@rnv/core';
 import inquirer from 'inquirer';
 import inquirerAutocompletePrompt from 'inquirer-autocomplete-prompt';
-import {
-    chalk,
-    logWarning,
-    logTask,
-    logDebug,
-    PromptParams,
-    PromptOptions,
-    PromptRenderFn,
-    getContext,
-} from '@rnv/core';
+import { chalk, logDebug, logTask, logWarning } from './logger';
 
 inquirer.registerPrompt('autocomplete', inquirerAutocompletePrompt);
 
@@ -18,14 +10,12 @@ export const inquirerPrompt = async (params: PromptParams): Promise<Record<strin
 
     if (c.program?.opts()?.yes) {
         const key = params.name || params.type;
-
         if (params.type === 'confirm') {
             return { [key]: true };
         }
-
         if (params.default) {
             return {
-                [key]: typeof params.default === 'function' ? params.default() : params.default,
+                [key]: typeof params.default === 'function' ? params.default() : params.default
             };
         }
     }
@@ -43,14 +33,16 @@ export const inquirerPrompt = async (params: PromptParams): Promise<Record<strin
         }
         return Promise.reject(`--ci option does not allow prompts. question: ${msg}.`);
     }
-    if (msg && params.logMessage) logTask(msg, chalk().grey);
-    if (msg && params.warningMessage) logWarning(msg);
+    if (msg) {
+        if (params.logMessage) logTask(msg, chalk.grey);
+        if (params.warningMessage) logWarning(msg);
+    }
 
     // allow passing in just { type: 'prompt', ... } instead of { type: 'prompt', name: 'prompt', ... }
     const { type, name } = params;
     if (type === 'confirm' && !name) params.name = 'confirm';
 
-    const resp = inquirer.prompt(params);
+    const resp = inquirer.prompt(params as any);
     if (params.initialValue) resp.ui.rl.input.push(params.initialValue);
     return resp;
 };
@@ -64,68 +56,57 @@ export const generateOptions = (
     isMultiChoice = false,
     mapping?: any,
     renderMethod?: PromptRenderFn
-) => {
-    logDebug('generateOptions', isMultiChoice);
-    let asString = '';
-    const valuesAsObject: Record<string, any> = {};
-    const valuesAsArray: Array<any> = [];
-    const keysAsObject: Record<string, any> = {};
-    const keysAsArray: Array<any> = [];
-    const optionsAsArray: Array<any> = [];
-    const isArray = Array.isArray(inputData);
+): PromptOptions => {
+    logDebug('generateOptions', String(isMultiChoice));
 
-    const output: PromptOptions = {
-        keysAsArray: [],
-        valuesAsArray: [],
-        keysAsObject: {},
-        valuesAsObject: {},
-        asString: '',
-        optionsAsArray: [],
-    };
+    const isArray = Array.isArray(inputData);
+    const n = isArray ? inputData.length : Object.keys(inputData).length;
+    const valuesAsArray: Array<any> = new Array(n);
+    const optionsAsArray: Array<any> = new Array(n);
+    const keysAsArray: Array<any> = !isArray || !mapping ? new Array(n) : [];
+    const valuesAsObject: Record<string, any> = {};
+    const keysAsObject: Record<string, any> = {};
+
     const renderer = renderMethod || _generateOptionString;
     if (isArray) {
         inputData.forEach((v, i) => {
             const rn = renderer(i, v, mapping, v);
-            asString += rn;
-            optionsAsArray.push(rn);
-            valuesAsArray.push(v);
-            if (!mapping) keysAsArray.push(v);
-            if (!mapping) valuesAsObject[v] = v;
+            optionsAsArray[i] = rn;
+            valuesAsArray[i] = v;
+            if (!mapping) {
+                keysAsArray[i] = v;
+                valuesAsObject[v] = v;
+            }
         });
     } else {
-        let i = 0;
-        Object.keys(inputData).forEach((k) => {
-            const v = inputData[k];
+        Object.entries(inputData).forEach(([k, v], i) => {
             const rn = renderer(i, v, mapping, k);
-            asString += rn;
-            optionsAsArray.push(rn);
-            keysAsArray.push(k);
+            optionsAsArray[i] = rn;
+            valuesAsArray[i] = v;
+            keysAsArray[i] = k;
             keysAsObject[k] = true;
             valuesAsObject[k] = v;
-            valuesAsArray.push(v);
-            i++;
         });
     }
-    output.keysAsArray = keysAsArray.sort(_sort);
-    output.valuesAsArray = valuesAsArray.sort(_sort);
-    output.keysAsObject = keysAsObject;
-    output.valuesAsObject = valuesAsObject;
-    output.asString = asString;
-    output.optionsAsArray = optionsAsArray;
-    return output;
+    return {
+        keysAsArray: keysAsArray.sort(_sort),
+        valuesAsArray: valuesAsArray.sort(_sort),
+        keysAsObject,
+        valuesAsObject,
+        asString: optionsAsArray.join(''),
+        optionsAsArray
+    };
 };
 
 const _sort = (a: any, b: any) => {
     let aStr = '';
     let bStr = '';
     if (typeof a === 'string') {
-        // TODO: temp fix for weird issue when a/b are marked as string
-        // but toLowerCase() is undefined. need to investigate
-        aStr = a.toLowerCase ? a.toLowerCase() : a;
-        bStr = b.toLowerCase ? b.toLowerCase() : b;
+        aStr = a.toLowerCase();
+        bStr = b.toLowerCase();
     } else {
-        if (a && a.name) aStr = a.name.toLowerCase();
-        if (b && b.name) bStr = b.name.toLowerCase();
+        if (a?.name) aStr = a.name.toLowerCase();
+        if (b?.name) bStr = b.name.toLowerCase();
     }
 
     let com = 0;
@@ -138,10 +119,10 @@ const _sort = (a: any, b: any) => {
 };
 
 const _generateOptionString = (i: number, _obj: any, mapping: any, defaultVal: string) =>
-    ` [${chalk().bold.grey(i + 1)}]> ${chalk().bold.grey(mapping ? '' : defaultVal)} \n`;
+    ` [${chalk.bold.grey(i + 1)}]> ${chalk.bold.grey(mapping ? '' : defaultVal)} \n`;
 
 export default {
     inquirerPrompt,
     generateOptions,
-    inquirerSeparator,
+    inquirerSeparator
 };

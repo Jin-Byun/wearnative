@@ -1,9 +1,9 @@
-import { RnvContext } from '../context/types';
-import { RnvEngineTemplate, RnvEngineTemplateMap } from '../engines/types';
-import { logWarning } from '../logger';
-import { RnvPlatform } from '../types';
 import { getConfigProp } from '../context/contextProps';
 import { getContext } from '../context/provider';
+import type { RnvContext } from '../context/types';
+import type { RnvEngineTemplate, RnvEngineTemplateMap } from '../engines/types';
+import { logWarning } from '../logger';
+import type { RnvPlatform } from '../types';
 
 const _getMergedEngineConfigs = (c: RnvContext) => {
     const engines = c.buildConfig?.engines;
@@ -13,7 +13,7 @@ const _getMergedEngineConfigs = (c: RnvContext) => {
         const engTemplate = engineTemplates[packageName];
         mergedEngineConfigs[packageName] = {
             packageName,
-            ...engTemplate,
+            ...engTemplate
         };
     });
 
@@ -34,8 +34,7 @@ const _getMergedEngineConfigs = (c: RnvContext) => {
     return mergedEngineConfigs;
 };
 
-export const getEngineTemplateByPlatform = (platform: RnvPlatform): RnvEngineTemplate | null => {
-    const c = getContext();
+export const getEngineTemplateByPlatform = (c: RnvContext, platform: RnvPlatform): RnvEngineTemplate | null => {
     const mergedEngineConfigs = _getMergedEngineConfigs(c);
     if (!platform) return null;
     const engineId =
