@@ -4,7 +4,7 @@
     "id": "app",
     "common": {
         "runtime": {
-            "welcomeMessage": "Hello ReNative!"
+            "welcomeMessage": "Hello wearNative!"
         }
     }
 }

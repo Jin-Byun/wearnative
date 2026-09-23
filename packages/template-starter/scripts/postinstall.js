@@ -41,40 +41,29 @@ const RNV_HOME_DIR = path.join(__dirname, '..');
 })();
 
 const resetOverrides = async () => {
-    const rnvFolder = path.join(process.cwd(), '.rnv');
-    if (!fsExistsSync(rnvFolder)) {
-        fsMkdirSync(rnvFolder);
-    }
-    const overrideDir = path.join(rnvFolder, 'overrides');
+    const rnvDir = path.join(process.cwd(), '.rnv');
+    fsMkdirSync(rnvDir, { recursive: true });
 
+    const nodeModuleDir = path.join(process.cwd(), 'node_modules');
+    const overrideDir = path.join(rnvDir, 'overrides');
     const appliedOverrideFilePath = path.join(overrideDir, RnvFileName.appliedOverride);
-
-    if (fsExistsSync(appliedOverrideFilePath)) {
+    try {
         const appliedOverrides = JSON.parse(fsReadFileSync(appliedOverrideFilePath).toString());
+        for (const [moduleName, { version: appliedVersion, ...packageOverrides }] of Object.entries(appliedOverrides)) {
+            const packageJsonPath = path.join(nodeModuleDir, moduleName, RnvFileName.package);
 
-        Object.keys(appliedOverrides).forEach((moduleName) => {
-            const appliedVersion = appliedOverrides[moduleName].version;
-            const packageJsonPath = path.join(process.cwd(), 'node_modules', moduleName, RnvFileName.package);
+            if (!fsExistsSync(packageJsonPath)) continue;
+            const { version: currentVersion } = JSON.parse(fsReadFileSync(packageJsonPath).toString());
+            if (currentVersion !== appliedVersion) continue;
 
-            if (fsExistsSync(packageJsonPath)) {
-                const packageContent = JSON.parse(fsReadFileSync(packageJsonPath).toString());
-                const currentVersion = packageContent.version;
-
-                if (currentVersion === appliedVersion) {
-                    const packageOverrides = appliedOverrides[moduleName];
-                    Object.keys(packageOverrides).forEach((filePath) => {
-                        if (filePath !== 'version') {
-                            const backupPath = path.join(overrideDir, moduleName, filePath);
-                            const destinationPath = path.join(process.cwd(), 'node_modules', moduleName, filePath);
-
-                            revertOverrideToOriginal(destinationPath, backupPath);
-                        }
-                    });
-                }
+            for (const filePath of Object.keys(packageOverrides)) {
+                const backupPath = path.join(overrideDir, moduleName, filePath);
+                const destinationPath = path.join(nodeModuleDir, moduleName, filePath);
+                revertOverrideToOriginal(destinationPath, backupPath);
             }
-        });
+        }
         removeDirSync(overrideDir);
         return true;
-    }
+    } catch {}
     return false;
 };

@@ -1,7 +1,7 @@
 {
     "name": "@rnv/adapter",
     "version": "1.10.0-rc.1",
-    "description": "ReNative Adapters for babel, metro, next and other build configs",
+    "description": "weaRNative Adapters for babel, metro, next and other build configs",
     "keywords": [],
     "homepage": "https://github.com/flexn-io/renative#readme",
     "bugs": {
@@ -33,6 +33,8 @@
     "dependencies": {
         "babel-plugin-module-resolver": "^5.0.0"
     },
-    "peerDependencies": {},
+    "devDependencies": {
+        "@types/node": "^26.6.2"
+    },
     "private": false
 }

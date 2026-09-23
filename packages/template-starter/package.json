@@ -1,7 +1,7 @@
 {
     "name": "@rnv/template-starter",
     "version": "1.10.0-rc.1",
-    "description": "🚧 Starter Template for wearNative `Android Wear`",
+    "description": "🚧 Starter Template for weaRNative",
     "keywords": [
         "android wear",
         "watch"
@@ -43,7 +43,6 @@
     },
     "scripts": {
         "build:android-test": "npx rnv build -p android -s test -c template --packageManager pnpm --ci -r",
-        "e2e:android": "APPIUM_HOME=./ PLATFORM=android JAVA_HOME=$(/usr/libexec/java_home) wdio wdio.conf.js",
         "report": "pnpm report:generate && pnpm report:open",
         "report:generate": "npx allure generate --clean reporting/allure-results -o reporting/allure-report",
         "report:open": "npx allure open reporting/allure-report",
@@ -60,18 +59,10 @@
         "@rnv/renative": "workspace:*",
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",
-        "@types/react-native": "catalog:",
         "babel-loader": "catalog:",
-        "detox": "catalog:",
-        "next": "catalog:",
-        "raf": "catalog:",
         "react": "catalog:",
-        "react-art": "catalog:",
         "react-dom": "catalog:",
-        "react-native": "catalog:",
-        "react-native-gesture-handler": "catalog:",
-        "react-native-tvos": "catalog:",
-        "react-native-web": "catalog:"
+        "react-native": "catalog:"
     },
     "private": "false",
     "publishConfig": {

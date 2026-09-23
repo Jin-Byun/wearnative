@@ -1,15 +1,11 @@
-import { sanitizeDynamicProps, mergeObjects, fsExistsSync, writeFileSync } from '../system/fs';
 import { getConfigProp } from '../context/contextProps';
-import { logDefault } from '../logger';
 import { getContext } from '../context/provider';
+import { logDefault } from '../logger';
+import { fsExistsSync, mergeObjects, sanitizeDynamicProps, writeFileSync } from '../system/fs';
 
 export const generatePlatformAssetsRuntimeConfig = async () => {
     logDefault('generateRuntimeConfig');
     const c = getContext();
-    // c.assetConfig = {
-    //     common: c.buildConfig.common,
-    //     runtime: c.buildConfig.runtime
-    // };
     c.assetConfig = mergeObjects(c, c.assetConfig, c.buildConfig.runtime || {});
     c.assetConfig = mergeObjects(c, c.assetConfig, c.buildConfig.common?.runtime || {});
     c.assetConfig = mergeObjects(
@@ -24,8 +20,8 @@ export const generatePlatformAssetsRuntimeConfig = async () => {
             files: c.files,
             runtimeProps: c.runtime,
             props: {},
-            configProps: c.injectableConfigProps,
-        });
+            configProps: c.injectableConfigProps
+        }) as Record<string, unknown>;
         writeFileSync(c.paths.project.assets.config, sanitizedConfig);
         c.files.project.assets.config = sanitizedConfig;
     }

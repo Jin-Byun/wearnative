@@ -1037,7 +1037,7 @@ export const overrideTemplatePlugins = async () => {
     const rnvPluginsDirs = c.paths.scopedConfigTemplates.pluginTemplatesDirs;
     const appPluginDirs = c.paths.appConfig.pluginDirs;
 
-    parsePlugins((plugin, pluginPlat, key) => {
+    parsePlugins((plugin, _pluginPlat, key) => {
         if (!plugin.disablePluginTemplateOverrides) {
             if (plugin?._scopes?.length) {
                 plugin._scopes.forEach((pluginScope) => {

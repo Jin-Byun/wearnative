@@ -201,8 +201,8 @@ export const loadDefaultConfigTemplates = () => {
     //This comes from project dependency
     const pkgName = '@rnv/config-templates';
 
-    let configTemplatesPath = doResolve('@rnv/config-templates');
-
+    let configTemplatesPath = doResolve(pkgName);
+    if (!configTemplatesPath) throw new Error(`@rnv/config-templates missing`);
     if (!fsExistsSync(configTemplatesPath)) {
         const pathLookups = generateLookupPaths(pkgName);
         configTemplatesPath = pathLookups.find((v) => fsExistsSync(v));
@@ -216,12 +216,12 @@ export const loadDefaultConfigTemplates = () => {
         }
     }
 
-    if (!configTemplatesPath) throw new Error(`@rnv/config-templates missing`);
+    const configPath = path.join(configTemplatesPath, 'renative.templates.json');
+    const pluginTemplatePath = path.join(configTemplatesPath, 'pluginTemplates');
+    ctx.paths.rnvConfigTemplates.pluginTemplatesDir = pluginTemplatePath;
+    ctx.paths.rnvConfigTemplates.config = configPath;
 
-    ctx.paths.rnvConfigTemplates.pluginTemplatesDir = path.join(configTemplatesPath, 'pluginTemplates');
-    ctx.paths.rnvConfigTemplates.config = path.join(configTemplatesPath, 'renative.templates.json');
-
-    const rnvConfigTemplates = readObjectSync<ConfigFileTemplates>(ctx.paths.rnvConfigTemplates.config);
+    const rnvConfigTemplates = readObjectSync<ConfigFileTemplates>(configPath);
 
     if (rnvConfigTemplates) {
         ctx.files.rnvConfigTemplates.config = rnvConfigTemplates;
@@ -232,10 +232,10 @@ export const loadDefaultConfigTemplates = () => {
 
     ctx.paths.scopedConfigTemplates = {
         configs: {
-            rnv: ctx.paths.rnvConfigTemplates.config
+            rnv: configPath
         },
         pluginTemplatesDirs: {
-            rnv: ctx.paths.rnvConfigTemplates.pluginTemplatesDir
+            rnv: pluginTemplatePath
         }
     };
 };

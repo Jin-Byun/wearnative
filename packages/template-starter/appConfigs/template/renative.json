@@ -39,7 +39,7 @@
             }
         },
         "runtime": {
-            "welcomeMessage": "Hello ReNative!"
+            "welcomeMessage": "Hello wearNative!"
         }
     },
     "platforms": {

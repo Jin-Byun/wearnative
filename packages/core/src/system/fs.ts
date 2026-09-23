@@ -60,7 +60,12 @@ export const fsRenameSync = (arg1: PathLike | undefined, arg2: PathLike) => {
 
 export const fsStatSync = (arg1: PathLike | undefined) => fs.statSync(arg1 as PathLike);
 
-export const fsMkdirSync = (arg1: PathLike | undefined) => fs.mkdirSync(arg1 as PathLike);
+export const fsMkdirSync = (
+    arg1: PathLike | undefined,
+    opt?: {
+        recursive?: false | undefined;
+    }
+) => fs.mkdirSync(arg1 as PathLike, opt);
 
 export const fsUnlinkSync = (arg1: PathLike | undefined) => fs.unlinkSync(arg1 as PathLike);
 

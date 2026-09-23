@@ -1,5 +1,3 @@
 import { z } from 'zod';
 
-export const zodConfigFileRuntime = z.object({
-    // extend: z.optional(z.string()),
-});
+export const zodConfigFileRuntime = z.record(z.string(), z.unknown());

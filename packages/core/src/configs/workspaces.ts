@@ -99,15 +99,11 @@ export const loadWorkspacesConfigSync = () => {
         logDebug(`${c.paths.dotRnv.configWorkspaces} file exists!`);
 
         const cnf = readObjectSync<ConfigFileWorkspaces>(c.paths.dotRnv.configWorkspaces);
-
         if (!cnf) return;
 
         c.files.dotRnv.configWorkspaces = cnf;
 
-        if (!cnf.workspaces) {
-            cnf.workspaces = {};
-        }
-        if (Object.keys(cnf.workspaces).length === 0) {
+        if (!cnf.workspaces || Object.keys(cnf.workspaces).length === 0) {
             logWarning(`No workspace found in ${c.paths.dotRnv.configWorkspaces}. Creating default rnv one for you`);
             cnf.workspaces = {
                 rnv: {

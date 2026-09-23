@@ -46,20 +46,22 @@
         "lib",
         "renative.plugin.json"
     ],
-    "main": "lib/index",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "publishConfig": {
+        "access": "public",
+        "main": "./lib/index.js",
+        "types": "./lib/index.d.ts"
+    },
     "repository": {
         "type": "git",
         "url": "git://github.com/flexn-io/renative.git"
     },
     "scripts": {
-      "build": "tsc -b tsconfig.json",
-      "compile": "tsc -b tsconfig.json",
-      "watch": "tsc --watch --preserveWatchOutput"
+        "build": "tsc -b tsconfig.json",
+        "compile": "tsc -b tsconfig.json",
+        "watch": "tsc --watch --preserveWatchOutput"
     },
     "private": false,
-    "publishConfig": {
-        "access": "public"
-    },
-    "types": "lib/index",
     "gitHead": "48ef244c6ec2e206cbfd72fe8770d8dc03387591"
 }

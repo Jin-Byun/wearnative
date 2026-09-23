@@ -1,8 +1,8 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Text, Image, View, PixelRatio, TouchableOpacity, StatusBar, ScrollView, findNodeHandle } from 'react-native';
-import { Api, isFactorTv, isWebBased } from '@rnv/renative';
-import { ICON_LOGO, CONFIG, ThemeProvider, ThemeContext, testProps } from '../config';
+import { Api } from '@rnv/renative';
+import { type ElementRef, use, useRef } from 'react';
+import { Image, ScrollView, StatusBar, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import packageJson from '../../package.json';
+import { CONFIG, ICON_LOGO, ThemeContext, ThemeProvider, testProps } from '../config';
 
 const App = () => (
     <ThemeProvider>
@@ -11,21 +11,10 @@ const App = () => (
 );
 
 const AppThemed = () => {
-    const buttonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
-    const { theme, toggle, dark } = useContext(ThemeContext);
-    const [pixelRatio, setPixelRatio] = useState(1);
-    const [fontScale, setFontScale] = useState(1);
-    const [isClient, setIsClient] = useState(false);
-    const [isFocused, setIsFocused] = useState(false);
-
-    useEffect(() => {
-        setPixelRatio(PixelRatio.get());
-        setFontScale(PixelRatio.getFontScale());
-        setIsClient(true);
-        if (isWebBased && isFactorTv && buttonRef?.current) {
-            buttonRef?.current.focus();
-        }
-    }, []);
+    const buttonRef = useRef<ElementRef<typeof TouchableOpacity>>(null);
+    const { theme, toggle, dark } = use(ThemeContext);
+    const { scale: pixelRatio, fontScale } = useWindowDimensions();
+    const isClient = true;
 
     return (
         <View style={theme.styles.wrapper}>
@@ -57,13 +46,7 @@ const AppThemed = () => {
                 <TouchableOpacity
                     ref={buttonRef}
                     onPress={toggle}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    style={[theme.styles.button, isFocused && { ...theme.styles.focusedButton, outline: 'none' }]}
-                    // Set the initial AndroidTV and tvOS focus to be on the button
-                    hasTVPreferredFocus
-                    // On AndroidTV going up can appear as lost focus, so block focus up
-                    nextFocusUp={findNodeHandle(buttonRef.current) || undefined}
+                    style={theme.styles.button}
                     {...testProps('template-starter-home-screen-try-my-button')}
                 >
                     <Text style={theme.styles.buttonText}>Try me!</Text>

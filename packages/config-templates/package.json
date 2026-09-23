@@ -1,7 +1,7 @@
 {
     "name": "@rnv/config-templates",
     "version": "1.10.0-rc.1",
-    "description": "ReNative configuration templates for plugins, platforms, engines and project template endpoints",
+    "description": "weaRNative configuration templates for plugins, platforms, engines and project template endpoints",
     "author": "Pavel Jacko <pavel.jacko@gmail.com> (https://github.com/pavjacko)",
     "keywords": [],
     "homepage": "https://github.com/flexn-io/renative#readme",
