@@ -111,7 +111,7 @@ export const runReactNativeAndroid = async (device: { udid?: string } | undefine
     } catch (error) {
         const packageId = getConfigProp('id');
         if (packageId) {
-            const { confirm } = await inquirerPrompt({
+            const confirm: boolean = await inquirerPrompt({
                 name: 'confirm',
                 type: 'confirm',
                 message: `Failed to build the app. Try to uninstall and retry?`
