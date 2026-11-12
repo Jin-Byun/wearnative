@@ -1,29 +1,29 @@
+import path from 'node:path';
 import {
-    RnvPlatformKey,
-    RnvFileName,
     chalk,
-    getApi,
     getContext,
     inquirerPrompt,
     isYarnInstalled,
-    logDebug,
     populateContextPaths,
+    populateContextPkgFiles,
+    RnvFileName,
+    type RnvPlatformKey,
     updateRenativeConfigs,
-    writeFileSync,
+    writeFileSync
 } from '@rnv/core';
-import path from 'path';
-import { NewProjectData } from './types';
+import type { NewProjectData } from './types';
 
 export const processChdirToProject = async () => {
     const c = getContext();
     // In order to execute rnv from new origin (sub folder we need to reset paths to new cwd())
     process.chdir(c.paths.project.dir);
     populateContextPaths(c, c.paths.rnv.dir);
+    populateContextPkgFiles(c);
     return true;
 };
 
-export const checkInputValue = (value: string | boolean): boolean => {
-    return value && typeof value === 'string' && value !== '' ? true : false;
+export const checkInputValue = (value: string | boolean): value is string => {
+    return !!value && typeof value === 'string';
 };
 
 export const validateAndAssign = async (
@@ -33,7 +33,7 @@ export const validateAndAssign = async (
         name,
         defaultVal,
         message,
-        warning,
+        warning
     }: {
         value: string;
         validFn: (value: string) => true | string;
@@ -49,22 +49,22 @@ export const validateAndAssign = async (
         return value;
     } else {
         const warningMessage = typeof isValid === 'string';
-        const answer = await inquirerPrompt({
+        const answer = (await inquirerPrompt({
             name,
             type: 'input',
             default: defaultVal,
             validate: validFn,
             message,
-            warningMessage: ci && warningMessage ? warning : undefined,
-        });
-        return answer[name];
+            warningMessage: ci && warningMessage ? warning : undefined
+        })) as string;
+        return answer;
     }
 };
 
-export const saveProgressIntoProjectConfig = async (data: NewProjectData) => {
+export const saveProgressIntoProjectConfig = async ({ files }: NewProjectData) => {
     const c = getContext();
-    writeFileSync(c.paths.project.config, data.files.project.renativeConfig);
-    writeFileSync(c.paths.project.package, data.files.project.packageJson);
+    writeFileSync(c.paths.project.config, files.project.renativeConfig);
+    writeFileSync(c.paths.project.package, files.project.packageJson);
 };
 
 export const initNewProject = async () => {
@@ -73,88 +73,54 @@ export const initNewProject = async () => {
     c.paths.project.package = path.join(c.paths.project.dir, RnvFileName.package);
     c.paths.project.config = path.join(c.paths.project.dir, RnvFileName.renative);
 
+    // todo: change rnv to weaRNative
     const data: NewProjectData = {
         defaults: {
             appVersion: '0.1.0',
             templateName: '@rnv/template-starter',
-            projectName: 'My Renative Project',
-            appTitle: 'My Renative App',
-            workspaceID: 'rnv',
+            projectName: 'My wearNative Project',
+            appTitle: 'My wearNative App',
+            workspaceID: 'rnv'
         },
         inputs: {},
         files: {
             project: {
                 renativeConfig: {},
-                packageJson: {},
+                packageJson: {}
             },
             configTemplates: {},
             template: {
                 renativeTemplateConfig: {},
-                renativeConfig: {},
-            },
-        },
+                renativeConfig: {}
+            }
+        }
     };
     // TODO: This enforces to generate initial runtime configs. find more reliable way to do this
     await updateRenativeConfigs();
     return data;
 };
 
-export const configureConfigOverrides = async (data: NewProjectData) => {
-    const { inputs, files } = data;
+export const configureConfigOverrides = async ({ inputs, files }: NewProjectData) => {
     const { renativeConfig } = files.project;
-
-    // const c = getContext();
-
     const supPlats = inputs.supportedPlatforms || [];
 
     // In case of copied config instead of extended we want to cleanup unused platforms
     if (renativeConfig.platforms) {
-        Object.keys(renativeConfig.platforms).forEach((k) => {
-            const key = k as RnvPlatformKey;
+        for (const key of Object.keys(renativeConfig.platforms) as RnvPlatformKey[]) {
             if (!supPlats.includes(key) && renativeConfig.platforms) {
                 delete renativeConfig.platforms[key];
             }
-        });
+        }
     }
 
     // This is project config override only
     renativeConfig.defaults = renativeConfig.defaults || {};
     renativeConfig.defaults.supportedPlatforms = supPlats;
-    // renativeConfig.engines = renativeConfig.engines || {};
-
-    // This is merged config result
-    // const loadedConf = c.files.project.config;
-
-    // Configure only required engines based on supportedPlatforms
-    const engines = renativeConfig?.engines;
-    if (engines) {
-        // Remove unused engines based on selected platforms
-        // TODO: old logic, this need to be reworked.
-        // supPlats.forEach((k) => {
-        //     const selectedEngineId =
-        //         loadedConf?.platforms?.[k]?.engine || c.files.rnvConfigTemplates.config?.platformTemplates?.[k]?.engine;
-        //     if (selectedEngineId) {
-        //         const selectedEngine = findEngineKeyById(selectedEngineId);
-        //         if (selectedEngine?.key) {
-        //             engines[selectedEngine.key] = engines[selectedEngine.key];
-        //         }
-        //     }
-        // });
-        // Object.keys(engines).forEach((engKey) => {
-        //     const engVersion = files.configTemplates.config?.engineTemplates?.[engKey]?.version;
-        //     if (engVersion) {
-        //         if (files.project.packageJson.devDependencies) {
-        //             files.project.packageJson.devDependencies[engKey] = engVersion;
-        //         }
-        //     }
-        // });
-    }
 };
 
 export const generateProjectOverview = (data: NewProjectData) => {
     const { inputs } = data;
 
-    // const addon = inputs.template?.localPath ? ` ${chalk.gray(inputs.template?.localPath)}` : '';
     const tempString = inputs.template?.localPath || `${inputs.template?.packageName}@${inputs.template?.version}`;
 
     const highlight = chalk.bold;
@@ -180,20 +146,3 @@ ${chalk.bold.white(`
 
     return str;
 };
-
-// const findEngineKeyById = (id: string) => {
-//     const c = getContext();
-//     const engineTemplates = c.files.rnvConfigTemplates.config?.engineTemplates;
-//     if (engineTemplates) {
-//         const etk = Object.keys(engineTemplates);
-//         for (let i = 0; i < etk.length; i++) {
-//             const engine = engineTemplates[etk[i]];
-//             if (engine) {
-//                 if (engine.id === id) {
-//                     engine.key = etk[i];
-//                     return engine;
-//                 }
-//             }
-//         }
-//     }
-// };

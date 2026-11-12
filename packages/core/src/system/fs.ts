@@ -1,11 +1,9 @@
-import type { PathLike } from 'node:fs';
-import fs from 'node:fs';
+import fs, { type PathLike } from 'node:fs';
+import { cp } from 'node:fs/promises';
 import path from 'node:path';
 import merge from 'deepmerge';
 import lGet from 'lodash/get';
-import ncp from 'ncp';
 import { rimraf, rimrafSync } from 'rimraf';
-import shelljs from 'shelljs';
 import { getApi } from '../api/provider';
 import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
@@ -14,7 +12,7 @@ import type { ConfigPropKey } from '../schema/types';
 import { matchRegEx } from './regEx';
 import type { FileUtilsPropConfig, OverridesOptions, TimestampPathsConfig } from './types';
 
-const objIsString = (obj: string | object): obj is string => typeof obj === 'string';
+const objIsString = (obj: string | object | unknown): obj is string => typeof obj === 'string';
 
 export const fsWriteFileSync = (dest: string | undefined, data: string, options?: fs.WriteFileOptions) => {
     if (!dest) return;
@@ -52,7 +50,7 @@ export const fsRenameSync = (arg1: PathLike | undefined, arg2: PathLike) => {
     // will cause a permitions error
     if (fs.lstatSync(arg1).isDirectory()) {
         fs.cpSync(arg1 as string, arg2 as string, { recursive: true });
-        fs.rmdirSync(arg1, { recursive: true });
+        fs.rmSync(arg1, { recursive: true, force: true });
         return;
     }
     return fs.renameSync(arg1, arg2);
@@ -63,7 +61,7 @@ export const fsStatSync = (arg1: PathLike | undefined) => fs.statSync(arg1 as Pa
 export const fsMkdirSync = (
     arg1: PathLike | undefined,
     opt?: {
-        recursive?: false | undefined;
+        recursive?: boolean | undefined;
     }
 ) => fs.mkdirSync(arg1 as PathLike, opt);
 
@@ -94,47 +92,34 @@ const _getSanitizedPath = (origPath: string, timestampPathsConfig?: TimestampPat
     return newPath;
 };
 
-export const copyFileSync = (
-    source: string | undefined,
-    target: string | undefined,
-    skipOverride?: boolean,
-    timestampPathsConfig?: TimestampPathsConfig
-) => {
-    if (!target) return;
-    if (!source) return;
+export const copyFileSync = (source: string | undefined, target: string | undefined, skipOverride?: boolean) => {
+    if (!target || !source) return;
+    if (source.indexOf('.DS_Store') !== -1) return;
+
     logDebug('copyFileSync', source);
     let targetFile = target;
     // if target is a directory a new file with the same name will be created
-    if (source.indexOf('.DS_Store') !== -1) return;
-
-    if (fs.existsSync(target)) {
-        if (fs.lstatSync(target).isDirectory()) {
+    try {
+        if (fsLstatSync(target).isDirectory()) {
             targetFile = path.join(target, path.basename(source));
         }
-    }
-    if (fs.existsSync(targetFile)) {
+    } catch {}
+    try {
+        const dst = fsReadFileSync(targetFile);
         if (skipOverride) return;
-        const src = fs.readFileSync(source);
-        const dst = fs.readFileSync(targetFile);
-
+        const src = fsReadFileSync(source);
         if (Buffer.compare(src, dst) === 0) return;
-    }
+    } catch {}
     logDebug('copyFileSync', source, targetFile, 'executed');
     try {
-        fsCopyFileSync(source, _getSanitizedPath(targetFile, timestampPathsConfig));
+        fsCopyFileSync(source, _getSanitizedPath(targetFile));
     } catch (e) {
         logDebug('copyFileSync', e);
     }
 };
 
 const SKIP_INJECT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.svg', '.jar', '.zip', '.ico'];
-export const writeCleanFile = (
-    source: string,
-    destination: string,
-    overrides?: OverridesOptions,
-    timestampPathsConfig?: TimestampPathsConfig,
-    c?: RnvContext
-) => {
+export const writeCleanFile = (source: string, destination: string, overrides?: OverridesOptions, c?: RnvContext) => {
     if (!fs.existsSync(source)) {
         logError(`Cannot write file. source path doesn't exist: ${source}`);
         return;
@@ -145,13 +130,13 @@ export const writeCleanFile = (
     const api = getApi();
     const ext = path.extname(source);
     if (SKIP_INJECT_EXTENSIONS.includes(ext)) {
-        fsCopyFileSync(source, _getSanitizedPath(destination, timestampPathsConfig));
+        fsCopyFileSync(source, _getSanitizedPath(destination));
         return;
     }
     let pFile = fs.readFileSync(source, 'utf8');
     if (/\ufffd/.test(pFile) === true) {
         // Handle uncaught binary files
-        fsCopyFileSync(source, _getSanitizedPath(destination, timestampPathsConfig));
+        fsCopyFileSync(source, _getSanitizedPath(destination));
         return;
     }
     for (const { override, pattern } of overrides ?? []) {
@@ -163,12 +148,10 @@ export const writeCleanFile = (
         const reConfigProp = /{{configProps\.([\s\S]*?)}}/g;
         pFile = pFile.replace(reConfigProp, (_, key: ConfigPropKey) => api.getConfigProp(key) || '');
     }
-    fsWriteFileSync(_getSanitizedPath(destination, timestampPathsConfig), pFile, 'utf8');
+    fsWriteFileSync(_getSanitizedPath(destination), pFile, 'utf8');
 };
 
 export const readCleanFile = (source: string, overrides?: OverridesOptions) => {
-    // logDefault(`writeCleanFile`)
-    // console.log('readCleanFile', source);
     if (!fs.existsSync(source)) {
         logError(`Cannot read file. source path doesn't exist: ${source}`);
         return;
@@ -197,7 +180,6 @@ export const copyFileWithInjectSync = (
     target: string,
     skipOverride?: boolean,
     injectObject?: OverridesOptions,
-    timestampPathsConfig?: TimestampPathsConfig,
     c?: RnvContext
 ) => {
     logDebug('copyFileWithInjectSync', source);
@@ -221,20 +203,11 @@ export const copyFileWithInjectSync = (
     logDebug('copyFileSync', source, targetFile, 'executed');
 
     try {
-        writeCleanFile(source, targetFile, injectObject, timestampPathsConfig, c);
+        writeCleanFile(source, targetFile, injectObject, c);
     } catch (e) {
         logDebug('copyFileSync', e);
     }
 };
-
-// export const invalidatePodsChecksum = () => {
-//     const c = getContext();
-//     const appFolder = path.join(c.paths.project.builds.dir, `${c.runtime.appId}_${c.platform}`);
-//     const podChecksumPath = path.join(appFolder, 'Podfile.checksum');
-//     if (fs.existsSync(podChecksumPath)) {
-//         fs.unlinkSync(podChecksumPath);
-//     }
-// };
 
 export const copyFolderRecursiveSync = (
     source: string,
@@ -242,49 +215,32 @@ export const copyFolderRecursiveSync = (
     convertSvg = true,
     skipOverride?: boolean,
     injectObject?: OverridesOptions,
-    timestampPathsConfig?: TimestampPathsConfig,
     c?: RnvContext,
     extFilter?: Array<string>
 ) => {
     logDebug('copyFolderRecursiveSync', source, target);
     if (!fs.existsSync(source)) return;
 
-    let files = [];
     // check if folder needs to be created or integrated
     const targetFolder = path.join(target, path.basename(source));
-    if (!fs.existsSync(targetFolder)) {
-        mkdirSync(targetFolder);
-    }
+    fsMkdirSync(targetFolder, { recursive: true });
     // copy
-    if (fs.lstatSync(source).isDirectory()) {
-        files = fs.readdirSync(source);
-        files.forEach((file) => {
-            const curSource = path.join(source, file);
-            if (fs.lstatSync(curSource).isDirectory()) {
-                copyFolderRecursiveSync(
-                    curSource,
-                    targetFolder,
-                    convertSvg,
-                    skipOverride,
-                    injectObject,
-                    timestampPathsConfig,
-                    c,
-                    extFilter
-                );
-            } else if (path.extname(curSource) === '.svg' && convertSvg === true) {
-                const jsDest = path.join(targetFolder, `${path.basename(curSource)}.js`);
-                logDebug(`file ${curSource} is svg and convertSvg is set to true. converting to ${jsDest}`);
-                saveAsJs(curSource, jsDest);
-            } else if (injectObject !== null) {
-                copyFileWithInjectSync(curSource, targetFolder, skipOverride, injectObject, timestampPathsConfig, c);
-            } else if (extFilter && extFilter?.length > 0) {
-                if (extFilter.includes(path.extname(curSource)) || extFilter.includes(path.basename(curSource))) {
-                    copyFileSync(curSource, targetFolder, skipOverride, timestampPathsConfig);
-                }
-            } else {
-                copyFileSync(curSource, targetFolder, skipOverride, timestampPathsConfig);
-            }
-        });
+    if (!fsLstatSync(source).isDirectory()) return;
+    for (const file of fsReaddirSync(source)) {
+        const curSource = path.join(source, file);
+        if (fsLstatSync(curSource).isDirectory()) {
+            copyFolderRecursiveSync(curSource, targetFolder, convertSvg, skipOverride, injectObject, c, extFilter);
+        } else if (path.extname(curSource) === '.svg' && convertSvg === true) {
+            const jsDest = path.join(targetFolder, `${path.basename(curSource)}.js`);
+            logDebug(`file ${curSource} is svg and convertSvg is set to true. converting to ${jsDest}`);
+            saveAsJs(curSource, jsDest);
+        } else if (injectObject !== null) {
+            copyFileWithInjectSync(curSource, targetFolder, skipOverride, injectObject, c);
+        } else {
+            const filterAgainst = [path.extname(curSource), path.basename(curSource)];
+            if (extFilter && !extFilter.some((ext) => filterAgainst.includes(ext))) continue;
+            copyFileSync(curSource, targetFolder, skipOverride);
+        }
     }
 };
 
@@ -295,7 +251,6 @@ export const copyFolderContentsRecursiveSync = (
     skipPaths?: Array<string>,
     skipOverride = false,
     injectObject?: OverridesOptions,
-    timestampPathsConfig?: TimestampPathsConfig,
     c?: RnvContext,
     extFilter?: Array<string>
 ) => {
@@ -303,9 +258,7 @@ export const copyFolderContentsRecursiveSync = (
     if (!source || !target || !fs.existsSync(source)) return;
 
     const targetFolder = path.join(target);
-    if (!fs.existsSync(targetFolder)) {
-        mkdirSync(targetFolder);
-    }
+    fsMkdirSync(targetFolder, { recursive: true });
     if (!fs.lstatSync(source).isDirectory()) return;
 
     const files = fs.readdirSync(source);
@@ -314,19 +267,10 @@ export const copyFolderContentsRecursiveSync = (
         if (skipPaths?.includes(curSource)) continue;
         switch (true) {
             case fs.lstatSync(curSource).isDirectory():
-                copyFolderRecursiveSync(
-                    curSource,
-                    targetFolder,
-                    convertSvg,
-                    skipOverride,
-                    injectObject,
-                    timestampPathsConfig,
-                    c,
-                    extFilter
-                );
+                copyFolderRecursiveSync(curSource, targetFolder, convertSvg, skipOverride, injectObject, c, extFilter);
                 break;
             case injectObject !== null:
-                copyFileWithInjectSync(curSource, targetFolder, skipOverride, injectObject, timestampPathsConfig, c);
+                copyFileWithInjectSync(curSource, targetFolder, skipOverride, injectObject, c);
                 break;
             case path.extname(curSource) === '.svg' && convertSvg: {
                 const jsDest = path.join(targetFolder, `${path.basename(curSource)}.js`);
@@ -338,26 +282,23 @@ export const copyFolderContentsRecursiveSync = (
             case !!extFilter?.length:
                 if (!extFilter.some((v) => v === path.extname(curSource) || v === path.basename(curSource))) break;
             default:
-                copyFileSync(curSource, targetFolder, skipOverride, timestampPathsConfig);
+                copyFileSync(curSource, targetFolder, skipOverride);
         }
     }
 };
 
-export const copyFolderContentsRecursive = (source: string, target: string, convertSvg = true, skipPaths?: boolean) =>
-    new Promise<void>((resolve, reject) => {
-        logDebug('copyFolderContentsRecursive', source, target, skipPaths, convertSvg);
-        if (!fs.existsSync(source)) return;
-        const targetFolder = path.resolve(target);
-        if (!fs.existsSync(targetFolder)) {
-            mkdirSync(targetFolder);
-        }
-        ncp(source, targetFolder, (err) => {
-            if (err) {
-                return reject(err);
-            }
-            return resolve();
-        });
-    });
+export const copyFolderContentsRecursive = async (
+    source: string,
+    target: string,
+    convertSvg = true,
+    skipPaths?: boolean
+) => {
+    logDebug('copyFolderContentsRecursive', source, target, skipPaths, convertSvg);
+    if (!fs.existsSync(source)) return;
+    const targetFolder = path.resolve(target);
+    fsMkdirSync(targetFolder, { recursive: true });
+    await cp(source, targetFolder, { recursive: true });
+};
 
 export const saveAsJs = (source: string, dest: string) => {
     const svgData = fsReadFileSync(source);
@@ -365,22 +306,12 @@ export const saveAsJs = (source: string, dest: string) => {
     writeFileSync(dest, dataString);
 };
 
-export const mkdirSync = (dir: string) => {
-    if (!dir) return;
-    if (fs.existsSync(dir)) return;
-    try {
-        shelljs.mkdir('-p', dir);
-    } catch (e) {
-        logWarning(`shelljs.mkdir failed for dir: ${dir} with error: ${e}`);
-    }
-};
-
 export const cleanFolder = async (d: string) => {
     logDebug('cleanFolder', d);
     try {
         await rimraf(d);
     } catch (_e) {}
-    mkdirSync(d);
+    fsMkdirSync(d);
 };
 
 export const removeFilesSync = (filePaths: Array<string>) => {
@@ -473,18 +404,18 @@ export const readObjectSync = <T = object>(filePath?: string, sanitize?: boolean
         logDebug('readObjectSync: filePath is undefined');
         return null;
     }
-    if (!fs.existsSync(filePath)) {
+    if (!fsExistsSync(filePath)) {
         logDebug(`readObjectSync: File at ${filePath} does not exist`);
         return null;
     }
+
     logDebug(`readObjectSync:${sanitize}:${filePath}`);
-    let obj: any;
     try {
-        obj = JSON.parse(fs.readFileSync(filePath).toString());
+        let obj = JSON.parse(fs.readFileSync(filePath).toString());
         if (sanitize) {
             logDebug(`readObjectSync: will sanitize file at: ${filePath}`);
             if (c) {
-                obj = sanitizeDynamicRefs<T>(c, obj);
+                obj = sanitizeDynamicRefs<T>(c, obj as T);
             }
             if (obj._refs) {
                 obj = sanitizeDynamicProps(obj, {
@@ -495,11 +426,11 @@ export const readObjectSync = <T = object>(filePath?: string, sanitize?: boolean
                 });
             }
         }
+        return obj as T;
     } catch (e) {
         logError(`readObjectSync: Parsing of ${chalk.bold.white(filePath)} failed with ${e}`);
         return null;
     }
-    return obj as T;
 };
 
 export const updateObjectSync = (filePath: string, updateObj: object) => {
@@ -606,6 +537,7 @@ export const resolvePackage = (text: string) => {
 export const sanitizeDynamicProps = <T = unknown>(obj: T, propConfig: FileUtilsPropConfig): T => {
     if (!obj) return obj;
     if (objIsString(obj)) return resolvePackage(obj) as T;
+    if (typeof obj !== 'object') return obj;
     if (Array.isArray(obj)) {
         obj.forEach((v, i) => {
             if (objIsString(v)) {
@@ -616,21 +548,18 @@ export const sanitizeDynamicProps = <T = unknown>(obj: T, propConfig: FileUtilsP
         });
         return obj;
     }
-    if (typeof obj === 'object') {
-        Object.keys(obj).forEach((key) => {
-            const val = obj[key as keyof T];
-            const newKey = resolvePackage(key) as keyof T;
-            delete obj[key as keyof T];
-            obj[newKey] = val;
-            if (val) {
-                if (typeof val === 'string') {
-                    _bindStringVals(obj, val, newKey, propConfig);
-                } else {
-                    sanitizeDynamicProps(val, propConfig);
-                }
+    Object.entries(obj).forEach(([key, val]) => {
+        const newKey = resolvePackage(key) as keyof T;
+        obj[newKey] = val;
+        delete obj[key as keyof T];
+        if (val) {
+            if (typeof val === 'string') {
+                _bindStringVals(obj, val, newKey, propConfig);
+            } else {
+                sanitizeDynamicProps(val, propConfig);
             }
-        });
-    }
+        }
+    });
     return obj;
 };
 
@@ -678,8 +607,7 @@ export const mergeObjects = <T1>(
     dynamicRefs = true,
     replaceArrays = false
 ) => {
-    if (!obj2) return obj1 as T1;
-    if (!obj1) return obj2 as T1;
+    if (!obj2 || !obj1) return (obj2 || obj1) as T1;
     const obj = merge(obj1, obj2, {
         arrayMerge: replaceArrays ? _arrayMergeOverride : arrayMerge
     });
@@ -716,22 +644,18 @@ export const loadFile = <T, K extends Extract<keyof T, string>>(
 ) => {
     const pKey = `${key}Exists` as K;
     const pth = pathObj[key];
-
-    if (typeof pth === 'string' && !fsExistsSync(pth)) {
+    pathObj[pKey] = true;
+    if (!objIsString(pth)) return fileObj[key];
+    if (!fsExistsSync(pth)) {
         pathObj[pKey] = false;
         logDebug(`WARNING: loadFile: Path ${pathObj[key]} does not exists!`);
         logDebug(`FILE_EXISTS: ${key}:false path:${pathObj[key]}`);
         return false;
     }
-    pathObj[pKey] = true;
     try {
-        if (typeof pth === 'string') {
-            const fileString = fsReadFileSync(pth).toString();
-            fileObj[key] = JSON.parse(fileString);
-            pathObj[pKey] = true;
-            logDebug(`FILE_EXISTS: ${key}:true size:${formatBytes(Buffer.byteLength(fileString, 'utf8'))}`);
-        }
-
+        const fileString = fsReadFileSync(pth).toString();
+        fileObj[key] = JSON.parse(fileString);
+        logDebug(`FILE_EXISTS: ${key}:true size:${formatBytes(Buffer.byteLength(fileString, 'utf8'))}`);
         return fileObj[key];
     } catch (e) {
         throw new Error(`loadFile: ${pathObj[key]} :: ${e}`); // crash if there's an error in the config file
@@ -742,7 +666,7 @@ export const formatBytes = (bytes: number, decimals = 2) => {
     if (bytes === 0) return '0 Bytes';
 
     const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
+    const dm = Math.max(0, decimals);
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -813,7 +737,6 @@ export default {
     removeDirsSync,
     removeFilesSync,
     saveAsJs,
-    mkdirSync,
     copyFolderContentsRecursive,
     copyFolderContentsRecursiveSync,
     cleanFolder,

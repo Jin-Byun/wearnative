@@ -33,8 +33,6 @@ export * from './env';
 export * from './env/types';
 export * from './formatter';
 export * from './logger';
-export * from './logger/defaults';
-export * from './migrator';
 export * from './modules';
 export * from './modules/creators';
 export * from './modules/creators';

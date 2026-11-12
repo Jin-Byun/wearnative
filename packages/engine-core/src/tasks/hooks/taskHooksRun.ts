@@ -1,12 +1,12 @@
 import {
     buildHooks,
+    createTask,
     executeTask,
     fsExistsSync,
     inquirerPrompt,
-    createTask,
-    RnvTaskName,
-    RnvTaskOptions,
     logDebug,
+    RnvTaskName,
+    RnvTaskOptions
 } from '@rnv/core';
 
 export default createTask({
@@ -22,32 +22,21 @@ export default createTask({
         await buildHooks();
 
         if (!ctx.buildHooks) {
-            return Promise.reject('Build hooks have not been compiled properly!');
+            throw new Error('Build hooks have not been compiled properly!');
         }
-
-        let hookName = ctx.program?.opts()?.exeMethod;
-        let showHookList = false;
-
-        if (!hookName || hookName === true) {
-            showHookList = true;
-        } else if (!ctx.buildHooks[hookName]) {
-            showHookList = true;
-        }
-
-        if (Object.keys(ctx.buildHooks).length === 0) {
+        const hooksList = Object.keys(ctx.buildHooks);
+        if (hooksList.length === 0) {
             return true;
         }
 
-        if (showHookList) {
-            const hooksList = Object.keys(ctx.buildHooks);
-
-            const { selectedHook } = await inquirerPrompt({
+        let hookName = ctx.program?.opts()?.exeMethod;
+        if (!hookName || hookName === true || !ctx.buildHooks[hookName]) {
+            hookName = (await inquirerPrompt({
                 name: 'selectedHook',
                 type: 'list',
                 message: 'Pick an available hook:',
-                choices: hooksList,
-            });
-            hookName = selectedHook;
+                choices: hooksList
+            })) as string;
         }
         await ctx.buildHooks[hookName](ctx);
 
@@ -56,5 +45,5 @@ export default createTask({
     task: RnvTaskName.hooksRun,
     options: [RnvTaskOptions.exeMethod],
     forceBuildHookRebuild: true,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

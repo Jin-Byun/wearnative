@@ -1,3 +1,5 @@
+import type { ChildProcess, SpawnOptions } from 'node:child_process';
+import path from 'node:path';
 import {
     chalk,
     createTask,
@@ -11,30 +13,42 @@ import {
     RnvTaskName,
     removeDirs
 } from '@rnv/core';
-import path from 'path';
 
-function clearWindowsCacheFiles() {
+async function clearWindowsCacheFiles() {
+    // TODO using executeAsync for these scripts returns an error, so this is just a temporary workaround
+    // This should resolve as it used internally by @react-native-community/cli
+    const { spawn } = await import('node:child_process');
     const opts = {
         detached: false,
         stdio: 'ignore'
-    };
-
-    // TODO using executeAsync for these scripts returns an error, so this is just a temporary workaround
-    // This should resolve as it used internally by @react-native-community/cli
-    // eslint-disable-next-line global-require
-    const child_process_1 = require('child_process');
-
-    // Temporary cache files located in C:/Users/<UserName>/AppData/Local/Temp
-    child_process_1.spawn('cmd.exe', ['/C', 'del /q/f/s %TEMP%\\*'], opts);
-
+    } as SpawnOptions;
     // NuGet cache
-    child_process_1.spawn('cmd.exe', ['/C', 'dotnet nuget locals all --clear'], opts);
-
+    const nuget = spawn('cmd.exe', ['/C', 'dotnet nuget locals all --clear'], opts);
     // Yarn/NPM cache
-    child_process_1.spawn('cmd.exe', ['/C', 'npm cache clean --force & yarn cache clean --all'], opts);
-
+    const npm = spawn('cmd.exe', ['/C', 'npm cache clean --force & yarn cache clean --all'], opts);
     // Watchman cache
-    child_process_1.spawn('cmd.exe', ['/C', 'watchman watch-del-all'], opts);
+    const watchman = spawn('cmd.exe', ['/C', 'watchman watch-del-all'], opts);
+
+    const childProcesses: ChildProcess[] = [nuget, npm, watchman];
+
+    const tempDir = process.env.TEMP;
+    if (tempDir) {
+        // Temporary cache files located in C:/Users/<UserName>/AppData/Local/Temp
+        const tmp = spawn('cmd.exe', ['/C', 'del /q/f/s %TEMP%\\*'], opts);
+        childProcesses.push(tmp);
+    }
+    await Promise.all(
+        childProcesses.map((cp) => {
+            return new Promise((res) => {
+                cp.on('close', () => {
+                    res('done');
+                });
+                cp.on('error', () => {
+                    res('script aborted');
+                });
+            });
+        })
+    );
 
     return true;
 }
@@ -119,77 +133,48 @@ export default createTask({
             locals: false
         };
 
-        if (pathsToRemove.length) {
-            if (!skipQuestion) {
-                const { confirm } = await inquirerPrompt({
+        if (skipQuestion) {
+            answers.modules = true;
+            answers.builds = true;
+            answers.cache = true;
+            answers.locals = true;
+        } else {
+            if (pathsToRemove.length) {
+                answers.modules = (await inquirerPrompt({
                     name: 'confirm',
                     type: 'confirm',
                     message: `Do you want to remove node_module related files/folders? \n${chalk.red(
                         pathsToRemove.join('\n')
                     )}`
-                });
-                answers.modules = confirm;
-                if (confirm) answers.nothingToClean = false;
-            } else {
-                answers.modules = true;
+                })) as boolean;
             }
-        }
-
-        if (buildDirs.length) {
-            if (!skipQuestion) {
-                const { confirmBuilds } = await inquirerPrompt({
+            if (buildDirs.length) {
+                answers.builds = (await inquirerPrompt({
                     name: 'confirmBuilds',
                     type: 'confirm',
                     message: `Do you want to clean your platformBuilds and platformAssets? \n${chalk.red(
                         buildDirs.join('\n')
                     )}`
-                });
-                answers.builds = confirmBuilds;
-                if (confirmBuilds) answers.nothingToClean = false;
-            } else {
-                answers.builds = true;
+                })) as boolean;
             }
-        }
 
-        if (localFiles.length) {
-            if (!skipQuestion) {
-                const { confirmLocals } = await inquirerPrompt({
+            if (localFiles.length) {
+                answers.locals = (await inquirerPrompt({
                     name: 'confirmLocals',
                     type: 'confirm',
                     message: `Do you want to clean local files? \n${chalk.red(localFiles.join('\n'))}`
-                });
-                answers.locals = confirmLocals;
-                if (confirmLocals) answers.nothingToClean = false;
-            } else {
-                answers.locals = true;
+                })) as boolean;
             }
-        }
 
-        if (!skipQuestion) {
-            const { confirmCache } = await inquirerPrompt({
+            answers.cache = (await inquirerPrompt({
                 name: 'confirmCache',
                 type: 'confirm',
-                message: 'Do you want to clean your npm/bundler cache?'
-            });
-            answers.cache = confirmCache;
-            if (confirmCache) answers.nothingToClean = false;
-        } else {
-            answers.cache = true;
+                message: 'Do you want to clean your platformBuilds and/or npm/bundler cache?'
+            })) as boolean;
+            answers.nothingToClean = !['cache', 'locals', 'builds', 'modules'].some(
+                (k) => answers[k as keyof typeof answers]
+            );
         }
-
-        if (!skipQuestion) {
-            const { confirmCache } = await inquirerPrompt({
-                name: 'confirmCache',
-                type: 'confirm',
-                message: 'Do you want to clean your platformBuilds'
-            });
-            answers.cache = confirmCache;
-            if (confirmCache) answers.nothingToClean = false;
-        } else {
-            answers.cache = true;
-        }
-
-        //git clean -f -d
 
         if (answers.nothingToClean) {
             logToSummary('Nothing to clean');
@@ -207,11 +192,11 @@ export default createTask({
         }
         if (answers.cache) {
             if (isSystemWin) {
-                clearWindowsCacheFiles();
+                await clearWindowsCacheFiles();
             } else {
                 try {
                     await executeAsync('watchman watch-del-all');
-                } catch (e) {
+                } catch {
                     logDebug('watchman not installed. skipping');
                 }
 

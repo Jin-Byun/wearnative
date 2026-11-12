@@ -1,35 +1,34 @@
-import path from 'path';
-import tar from 'tar';
-import { promisify } from 'util';
+import { statSync } from 'node:fs';
+import path from 'node:path';
+import { promisify } from 'node:util';
 import {
     chalk,
-    logWarning,
-    logSuccess,
-    logInfo,
-    getRealPath,
-    removeFilesSync,
-    mkdirSync,
-    writeFileSync,
-    fsWriteFileSync,
-    fsExistsSync,
-    fsReadFileSync,
-    fsReaddir,
-    inquirerPrompt,
     copyFileSync,
-    RnvTaskName,
     createTask,
+    fsExistsSync,
+    fsMkdirSync,
+    fsReaddir,
+    fsReadFileSync,
+    fsWriteFileSync,
+    getRealPath,
+    inquirerPrompt,
+    logInfo,
+    logSuccess,
+    logWarning,
+    RnvTaskName,
+    removeFilesSync,
+    writeFileSync
 } from '@rnv/core';
-import { statSync } from 'fs';
-import { getEnvExportCmd, getEnvVar } from './common';
+import { createAdapter, EncryptionAlgorithm } from 'iocane';
+import * as tar from 'tar';
 import { getContext } from '../../getContext';
 import { TaskOptions } from '../../taskOptions';
-
-const iocane = require('iocane');
+import { getEnvExportCmd, getEnvVar } from './common';
 
 const readdirAsync = promisify(fsReaddir);
 
 const generateRandomKey = (length: number) =>
-    Array(length)
+    new Array<string>(length)
         .fill('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%^&*')
         .map((x) => x[Math.floor(Math.random() * x.length)])
         .join('');
@@ -37,84 +36,78 @@ const generateRandomKey = (length: number) =>
 const initializeCryptoDirectory = async (sourceFolder: string) => {
     const ctx = getContext();
     const targetFile = 'renative.private.json';
-    mkdirSync(sourceFolder);
+    fsMkdirSync(sourceFolder);
 
     if (ctx.paths.project.configPrivateExists) {
         const options = [
             'Move renative.private.json into encrypted folder (Recommended)',
             'Copy renative.private.json into encrypted folder',
-            'Skip',
+            'Skip'
         ];
-        const { option } = await inquirerPrompt({
+        const option = (await inquirerPrompt({
             name: 'option',
             type: 'list',
             choices: options,
             message: `Found existing private config in your project ${chalk.grey(
                 ctx.paths.project.configPrivate
-            )}. What to do next?`,
-        });
-        if (option === options[0]) {
-            copyFileSync(ctx.paths.project.configPrivate, path.join(sourceFolder, targetFile));
-            removeFilesSync([ctx.paths.project.configPrivate]);
-        } else if (option === options[1]) {
+            )}. What to do next?`
+        })) as string;
+        if (option !== options[2]) {
             copyFileSync(ctx.paths.project.configPrivate, path.join(sourceFolder, targetFile));
         }
+        if (option === options[0]) {
+            removeFilesSync([ctx.paths.project.configPrivate]);
+        }
     }
+    if (!fsExistsSync(ctx.paths.project.appConfigsDir)) return;
 
-    if (fsExistsSync(ctx.paths.project.appConfigsDir)) {
-        const configDir = path.join(sourceFolder, 'appConfigs');
-        mkdirSync(configDir);
-        const appConfigsDirs = await readdirAsync(ctx.paths.project.appConfigsDir);
-        appConfigsDirs.forEach(async (item: string) => {
-            if (item == targetFile) {
-                copyFileSync(path.join(ctx.paths.project.appConfigsDir, item), path.join(configDir, targetFile));
-            }
-            const appConfigDir = path.join(configDir, item);
-            const itemPath = path.join(ctx.paths.project.appConfigsDir, item);
+    const configDir = path.join(sourceFolder, 'appConfigs');
+    fsMkdirSync(configDir);
+    const appConfigsDirs = await readdirAsync(ctx.paths.project.appConfigsDir);
+    for (const item of appConfigsDirs) {
+        if (item === targetFile) {
+            copyFileSync(path.join(ctx.paths.project.appConfigsDir, item), path.join(configDir, targetFile));
+        }
+        const itemPath = path.join(ctx.paths.project.appConfigsDir, item);
+        const stat = statSync(itemPath);
+        if (!stat?.isDirectory()) continue;
 
-            const stat = statSync(itemPath);
-            if (stat && stat.isDirectory()) {
-                const existingFiles: string[] = await readdirAsync(itemPath);
+        const appConfigDir = path.join(configDir, item);
+        const existingFiles: string[] = await readdirAsync(itemPath);
+        for (const file of existingFiles) {
+            if (file !== targetFile) continue;
+            fsMkdirSync(path.join(appConfigDir, 'certs'), { recursive: true });
 
-                existingFiles.map((file) => {
-                    if (file === targetFile) {
-                        mkdirSync(appConfigDir);
-                        mkdirSync(path.join(appConfigDir, 'certs'));
-
-                        copyFileSync(
-                            path.join(ctx.paths.project.appConfigsDir, item, targetFile),
-                            path.join(appConfigDir, targetFile)
-                        );
-                    }
-                });
-            }
-        });
+            copyFileSync(
+                path.join(ctx.paths.project.appConfigsDir, item, targetFile),
+                path.join(appConfigDir, targetFile)
+            );
+        }
     }
 };
 
 const _checkAndConfigureCrypto = async () => {
     const ctx = getContext();
+    const cnf = ctx.files.project.config_original;
+    if (!cnf) return;
     // handle missing config
     const source = `./${ctx.files.project.config?.projectName}`;
 
-    const cnf = ctx.files.project.config_original;
-    if (!cnf) return;
     const envVar = getEnvVar();
     if (!envVar) return;
 
     if (ctx.files.project.config && !ctx.files.project.config.crypto) {
-        const { location } = await inquirerPrompt({
+        const location = (await inquirerPrompt({
             type: 'input',
             name: 'location',
             message:
                 'Where would you like your secrets to be residing? (path relative to renative project root, without leading or trailing slash. Ex. `myPrivateConfig/encrypt`)',
-            default: 'secrets',
-        });
+            default: 'secrets'
+        })) as string;
         cnf.crypto = {
-            path: `./${location}/privateConfigs.enc`,
+            path: `./${location}/privateConfigs.enc`
         };
         ctx.files.project.config.crypto = cnf.crypto;
-
         writeFileSync(ctx.paths.project.config, cnf);
     }
 
@@ -129,29 +122,26 @@ const _checkAndConfigureCrypto = async () => {
 RNV will create it for you, make sure you add whatever you want encrypted in it and then run the command again`
         );
         await initializeCryptoDirectory(sourceFolder);
-        // writeFileSync(path.join(sourceFolder), ctx.files.project.config);
         await inquirerPrompt({
             type: 'confirm',
-            message: 'Once ready, Continue?',
+            message: 'Continue once ready.'
         });
-
-        // if (confirm) return true;
     }
 
     let key = ctx.program.opts().key || ctx.process.env[envVar];
     let keyGenerated = false;
     if (!key) {
-        const { confirm } = await inquirerPrompt({
+        const confirm = (await inquirerPrompt({
             type: 'confirm',
             message: `You haven't passed a key with --key or set an env variable named ${chalk.yellow(
                 envVar
-            )} for the encryption key. Would you like to generate one?`,
-        });
+            )} for the encryption key. Would you like to generate one?`
+        })) as boolean;
         if (confirm) {
             key = generateRandomKey(20);
             keyGenerated = true;
         } else {
-            return Promise.reject(`encrypt: You must pass ${chalk.bold.white('--key')} or have env var defined:
+            throw new Error(`encrypt: You must pass ${chalk.bold.white('--key')} or have env var defined:
 
 ${getEnvExportCmd(envVar, 'REPLACE_WITH_ENV_VARIABLE')}
 
@@ -164,7 +154,7 @@ Make sure you take into account special characters that might need to be escaped
                 key
             )}. Make sure you keep it safe! Pass it with --key on decryption or set it as following env variable:
 
-${getEnvExportCmd(envVar, key)} 
+${getEnvExportCmd(envVar, key)}
 
 Make sure you take into account special characters that might need to be escaped
 
@@ -200,33 +190,26 @@ export default createTask({
         if (destRaw) {
             const dest = `${getRealPath(destRaw, 'crypto.path')}`;
             const destTemp = `${path.join(ctx.paths.workspace.dir, projectName.replace('/', '-'))}.tgz`;
-            const timestamp = new Date().getTime();
+            const timestamp = Date.now();
 
             // check if dest folder actually exists
             const destFolder = dest.slice(0, dest.lastIndexOf('/'));
-
-            !fsExistsSync(destFolder) && mkdirSync(destFolder);
+            fsMkdirSync(destFolder, { recursive: true });
 
             await tar.c(
                 {
                     gzip: true,
                     file: destTemp,
-                    cwd: ctx.paths.workspace.dir,
+                    cwd: ctx.paths.workspace.dir
                 },
                 [source]
             );
 
-            const data = await iocane.createSession().use('cbc').encrypt(fsReadFileSync(destTemp), key);
+            const data = await createAdapter()
+                .setAlgorithm(EncryptionAlgorithm.CBC)
+                .encrypt(fsReadFileSync(destTemp), key);
 
-            fsWriteFileSync(dest, data);
-
-            // await executeAsync(
-            //     c,
-            //     `${_getOpenSllPath(
-            //         c
-            //     )} enc -aes-256-cbc -md md5 -salt -in ${destTemp} -out ${dest} -k ${key}`,
-            //     { privateParams: [key] }
-            // );
+            fsWriteFileSync(dest, data as string);
             removeFilesSync([destTemp]);
             fsWriteFileSync(`${dest}.timestamp`, `${timestamp}`);
             fsWriteFileSync(`${tsWorkspacePath}`, `${timestamp}`);
@@ -236,5 +219,5 @@ export default createTask({
         }
     },
     options: [TaskOptions.key],
-    task: RnvTaskName.cryptoEncrypt,
+    task: RnvTaskName.cryptoEncrypt
 });

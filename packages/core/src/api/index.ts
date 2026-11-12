@@ -1,32 +1,12 @@
-import type { DoResolveFn } from '../system/types';
 import { generateApiDefaults } from './defaults';
 import { getApi } from './provider';
-import type { GetConfigPropFn, RnvApi, RnvApiLogger, RnvApiPrompt, RnvApiSpinner } from './types';
+import type { RnvApi, RnvApiLogger, RnvApiPrompt, RnvApiSpinner } from './types';
 
-export const createRnvApi = (_api?: {
-    spinner: RnvApiSpinner;
-    prompt: RnvApiPrompt;
-    logger: RnvApiLogger;
-    getConfigProp: GetConfigPropFn;
-    doResolve: DoResolveFn;
-}) => {
-    if (!_api && !global.RNV_API) {
-        global.RNV_API = generateApiDefaults();
-        return;
-    }
-
-    if (!global.RNV_API?.isDefault) return;
+export const createRnvApi = (_api: { spinner: RnvApiSpinner; prompt: RnvApiPrompt; logger: RnvApiLogger }) => {
+    if (global.RNV_API?.isInitialized) return;
     const api: RnvApi = generateApiDefaults();
-
-    api.spinner = _api?.spinner || api.spinner;
-    api.prompt = _api?.prompt || api.prompt;
-    api.logger = _api?.logger || api.logger;
-    api.isDefault = false;
-
-    global.RNV_API = api;
+    global.RNV_API = Object.assign(api, _api);
 };
-
-createRnvApi();
 
 export const inquirerPrompt: RnvApiPrompt['inquirerPrompt'] = (opts) => {
     return getApi().prompt.inquirerPrompt(opts);

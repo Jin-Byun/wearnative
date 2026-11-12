@@ -1,39 +1,39 @@
 import {
-    RnvTaskName,
-    updateRenativeConfigs,
-    logToSummary,
     applyTemplate,
     configureTemplateFiles,
-    generateLocalJsonSchemas,
     createTask,
+    generateLocalJsonSchemas,
+    logToSummary,
+    RnvTaskName,
+    updateRenativeConfigs
 } from '@rnv/core';
-import inquiryProjectFolder from './questions/projectFolder';
-import inquiryBootstrapQuestions from './questions/bootstrapQuestions';
-import inquiryGit from './questions/confirmGit';
-import inquiryIsRenativeProject from './questions/isRenativeProject';
-import inquiryHasNodeModules from './questions/hasNodeModules';
-import inquiryProjectName from './questions/projectName';
-import inquiryWorkspace from './questions/workspace';
-import inquirySupportedPlatforms from './questions/supportedPlatforms';
-import inquiryAppTitle from './questions/appTitle';
-import inquiryAppID from './questions/appID';
-import inquiryAppVersion from './questions/appVersion';
-import inquiryInstallTemplate from './questions/installTemplate';
-import inquiryApplyTemplate from './questions/applyTemplate';
-import inquiryBookmarkTemplate from './questions/bookmarkTemplate';
-import inquiryAppConfigs from './questions/appConfigs';
-import inquiryConfigTemplates from './questions/configTemplates';
-import inquiryProjectInstall from './questions/installProject';
-import inquiryHandlePeerDepsNpm from './questions/resolvePeerDepsNPM';
-import inquiryInstallEngines from './questions/installEngines';
+import { TaskOptions } from '../../taskOptions';
 import {
     configureConfigOverrides,
     generateProjectOverview,
     initNewProject,
-    saveProgressIntoProjectConfig,
     processChdirToProject,
+    saveProgressIntoProjectConfig
 } from './questionHelpers';
-import { TaskOptions } from '../../taskOptions';
+import inquiryAppConfigs from './questions/appConfigs';
+import inquiryAppID from './questions/appID';
+import inquiryApplyTemplate from './questions/applyTemplate';
+import inquiryAppTitle from './questions/appTitle';
+import inquiryAppVersion from './questions/appVersion';
+import inquiryBookmarkTemplate from './questions/bookmarkTemplate';
+import inquiryBootstrapQuestions from './questions/bootstrapQuestions';
+import inquiryConfigTemplates from './questions/configTemplates';
+import inquiryGit from './questions/confirmGit';
+import inquiryHasNodeModules from './questions/hasNodeModules';
+import inquiryInstallEngines from './questions/installEngines';
+import inquiryProjectInstall from './questions/installProject';
+import inquiryInstallTemplate from './questions/installTemplate';
+import inquiryIsRenativeProject from './questions/isRenativeProject';
+import inquiryProjectFolder from './questions/projectFolder';
+import inquiryProjectName from './questions/projectName';
+import inquiryHandlePeerDepsNpm from './questions/resolvePeerDepsNPM';
+import inquirySupportedPlatforms from './questions/supportedPlatforms';
+import inquiryWorkspace from './questions/workspace';
 
 export default createTask({
     description: 'Create new ReNative project',
@@ -95,8 +95,8 @@ export default createTask({
         TaskOptions.localTemplatePath,
         TaskOptions.title,
         TaskOptions.appVersion,
-        TaskOptions.id,
+        TaskOptions.id
     ],
     isGlobalScope: true,
-    isPriorityOrder: true,
+    isPriorityOrder: true
 });

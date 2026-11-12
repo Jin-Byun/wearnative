@@ -138,7 +138,7 @@ export type ConfigFileApp = ConfigRootAppBaseFragment & {
 
 // BuildConfig -----------------------
 //
-type RootPluginsMerged = {
+export type RootPluginsMerged = {
     scopedPluginTemplates: Record<string, ConfigFileTemplates['pluginTemplates']>;
 };
 

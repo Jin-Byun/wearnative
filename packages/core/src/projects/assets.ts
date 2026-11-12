@@ -1,9 +1,9 @@
-import path from 'path';
-import { getConfigProp, getPlatformProjectDir, getTimestampPathsConfig } from '../context/contextProps';
+import path from 'node:path';
+import { getConfigProp, getPlatformProjectDir } from '../context/contextProps';
 import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
 import { chalk, logDebug, logDefault, logInfo, logWarning } from '../logger';
-import { cleanFolder, copyFolderContentsRecursiveSync, fsExistsSync, mkdirSync } from '../system/fs';
+import { cleanFolder, copyFolderContentsRecursiveSync, fsExistsSync, fsMkdirSync } from '../system/fs';
 import type { RnvPlatform } from '../types';
 import { resolveRelativePackage } from './utils';
 
@@ -47,7 +47,6 @@ export const copyAssetsFolder = (destPath?: string, customFn?: (c: RnvContext, p
 
     const c = getContext();
     const { platform } = c;
-    const tsPathsConfig = getTimestampPathsConfig();
     const assetSources: string[] = getConfigProp('assetSources') || [];
     const assetFolderPlatform = getConfigProp('assetFolderPlatform') || platform;
 
@@ -82,16 +81,7 @@ export const copyAssetsFolder = (destPath?: string, customFn?: (c: RnvContext, p
             `Found custom assetSources at ${chalk.gray(validAssetSources.join('/n'))}. Will be used to generate assets.`
         );
         validAssetSources.forEach((sourcePath) => {
-            copyFolderContentsRecursiveSync(
-                sourcePath,
-                destinationPath,
-                true,
-                undefined,
-                false,
-                undefined,
-                tsPathsConfig,
-                c
-            );
+            copyFolderContentsRecursiveSync(sourcePath, destinationPath, true, undefined, false, undefined, c);
         });
     }
 
@@ -118,29 +108,11 @@ export const copyAssetsFolder = (destPath?: string, customFn?: (c: RnvContext, p
     if (c.paths.appConfig.dirs) {
         c.paths.appConfig.dirs.forEach((v) => {
             const sourcePath = path.join(v, `assets/${assetFolderPlatform}`);
-            copyFolderContentsRecursiveSync(
-                sourcePath,
-                destinationPath,
-                true,
-                undefined,
-                false,
-                undefined,
-                tsPathsConfig,
-                c
-            );
+            copyFolderContentsRecursiveSync(sourcePath, destinationPath, true, undefined, false, undefined, c);
         });
     } else {
         const sourcePath = path.join(c.paths.appConfig.dir, `assets/${assetFolderPlatform}`);
-        copyFolderContentsRecursiveSync(
-            sourcePath,
-            destinationPath,
-            true,
-            undefined,
-            false,
-            undefined,
-            tsPathsConfig,
-            c
-        );
+        copyFolderContentsRecursiveSync(sourcePath, destinationPath, true, undefined, false, undefined, c);
     }
 };
 
@@ -149,6 +121,6 @@ export const cleanPlaformAssets = async () => {
     logDefault('cleanPlaformAssets');
 
     await cleanFolder(c.paths.project.assets.dir);
-    mkdirSync(c.paths.project.assets.runtimeDir);
+    fsMkdirSync(c.paths.project.assets.runtimeDir);
     return true;
 };

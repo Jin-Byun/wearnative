@@ -1,4 +1,4 @@
-import { AnyZodObject, z } from 'zod';
+import { z } from 'zod';
 import { zodExt } from '../shared';
 import { zodRootProjectCommonSchema, zodRootProjectPlatformsSchema, zodRootProjectPluginsSchema } from './project';
 
@@ -18,14 +18,11 @@ export const zodRootAppBaseFragment = z
             .describe(
                 'You can extend another renative.json file of currently applied template by providing relative or full package name path. Exampe: `@rnv/template-starter/renative.json`'
             ), // TODO: rename to "extendsConfig"
-        extend: z.string().describe('extend another appConfig by id'), // TODO: rename to "extendsAppConfigID"
+        extend: z.string().describe('extend another appConfig by id') // TODO: rename to "extendsAppConfigID"
     })
     .partial();
 
-// NOTE: Need to explictly type this to generic zod object to avoid TS error:
-// The inferred type of this node exceeds the maximum length the compiler will serialize...
-// This is ok we only use this full schema for runtime validations. actual types
-export const zodConfigFileApp: AnyZodObject = zodRootAppBaseFragment
-    .merge(zodRootProjectCommonSchema)
-    .merge(zodRootProjectPlatformsSchema)
-    .merge(zodRootProjectPluginsSchema);
+export const zodConfigFileApp = zodRootAppBaseFragment
+    .extend(zodRootProjectCommonSchema.shape)
+    .extend(zodRootProjectPlatformsSchema.shape)
+    .extend(zodRootProjectPluginsSchema.shape);

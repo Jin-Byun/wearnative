@@ -6,4 +6,5 @@
     "resolveJsonModule": false,
   },
   "exclude": ["./src/**/*.test.ts", "./lib/**/*", "./templateFiles/**/*"],
+  "references": [{ "path": "../core" }],
 }

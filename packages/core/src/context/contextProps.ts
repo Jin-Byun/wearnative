@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import { chalk, logError, logWarning } from '../logger';
 import type {
     BuildConfigKey,
@@ -6,14 +6,15 @@ import type {
     CommonPropKey,
     ConfigCommonBuildSchemeSchema,
     ConfigFileBuildConfig,
+    ConfigPlatformSchema,
     ConfigPropKeyMerged,
     ConfigPropRootKeyMerged,
+    ConfigPropRootMerged,
     GetConfigPropVal,
     GetConfigRootPropVal,
     PlatformBuildSchemeKey
 } from '../schema/types';
 import { fsExistsSync } from '../system/fs';
-import type { TimestampPathsConfig } from '../system/types';
 import { getContext } from './provider';
 
 const _getValueOrMergedObject = (
@@ -34,7 +35,7 @@ export const getConfigRootProp = <T, K extends ConfigPropRootKeyMerged<T>>(key: 
         logError('getConfigProp: c.buildConfig is undefined!');
         return;
     }
-    return c.buildConfig[key];
+    return (c.buildConfig as ConfigPropRootMerged<T>)[key];
 };
 
 export const getConfigProp = <T, K extends ConfigPropKeyMerged<T>>(
@@ -56,7 +57,7 @@ export const getConfigProp = <T, K extends ConfigPropKeyMerged<T>>(
     let resultScheme: object | undefined;
     if (platformObj && ps) {
         resultScheme = platformObj.buildSchemes?.[ps]?.[key as PlatformBuildSchemeKey];
-        resultPlatforms = getFlavouredProp(platformObj, key);
+        resultPlatforms = getFlavouredProp(platformObj, key as keyof ConfigPlatformSchema);
     }
 
     const resultCommonRoot = getFlavouredProp(sourceObj.common || {}, key as CommonPropKey);
@@ -77,21 +78,6 @@ export const getFlavouredProp = <T, K extends keyof T>(obj: T, key: K): T[K] | u
     const keyScoped = `${key}@${c.runtime.scheme}` as K;
     return obj[keyScoped] || obj[key];
 };
-
-export const getTimestampPathsConfig = (): TimestampPathsConfig | undefined => {
-    const c = getContext();
-    const { platform } = c;
-    let timestampBuildFiles: Array<string> = [];
-    const pPath = path.join(c.paths.project.builds.dir, `${c.runtime.appId}_${platform}`);
-    if (platform === 'web') {
-        timestampBuildFiles = (getConfigProp('timestampBuildFiles') || []).map((v) => path.join(pPath, v));
-    }
-    if (timestampBuildFiles?.length && c.runtime.timestamp) {
-        return { paths: timestampBuildFiles, timestamp: c.runtime.timestamp };
-    }
-    return undefined;
-};
-
 //TODO: rename to getPlatformBuildAppDir ???
 export const getAppFolder = (isRelativePath?: boolean) => {
     const c = getContext();

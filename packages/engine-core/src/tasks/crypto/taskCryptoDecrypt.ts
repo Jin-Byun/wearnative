@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
     chalk,
     cleanFolder,
@@ -14,12 +15,10 @@ import {
     RnvTaskName,
     removeFilesSync
 } from '@rnv/core';
-import path from 'path';
-import tar from 'tar';
+import { createAdapter, EncryptionAlgorithm } from 'iocane';
+import * as tar from 'tar';
 import { TaskOptions } from '../../taskOptions';
 import { getEnvExportCmd, getEnvVar } from './common';
-
-const iocane = require('iocane');
 
 const _unzipAndCopy = async (
     ctx: RnvContext,
@@ -45,159 +44,88 @@ const _unzipAndCopy = async (
     logSuccess(`Files successfully extracted into ${destFolder}`);
 };
 
+const NO_KEY_ERR_MSG = (envVar: string) => `encrypt: You must pass ${chalk.bold.white('--key')} or have env var defined:
+
+${getEnvExportCmd(envVar, 'REPLACE_WITH_ENV_VARIABLE')}
+
+Make sure you take into account special characters that might need to be escaped.
+`;
+
 export default createTask({
     description: 'Decrypt encrypted project files into local `~/<wokspace>/<project>/..`',
     dependsOn: [RnvTaskName.configureSoft],
     fn: async ({ ctx }) => {
         const crypto = ctx.files.project.config?.crypto;
         const sourceRaw = crypto?.path;
-        const projectName = ctx.files.project.config?.projectName;
 
-        if (!crypto?.isOptional && sourceRaw) {
-            const envVar = getEnvVar();
-            if (!projectName || !envVar) return;
-
-            const source = `${getRealPath(sourceRaw, 'crypto.path')}`;
-            const ts = `${source}.timestamp`;
-            const destFolder = path.join(ctx.paths.workspace.dir, projectName);
-            const destTemp = `${path.join(ctx.paths.workspace.dir, projectName.replace('/', '-'))}.tgz`;
-
-            let shouldCleanFolder = false;
-            const wsPath = path.join(ctx.paths.workspace.dir, projectName);
-            const isCryptoReset = ctx.command === 'crypto' && ctx.program.opts().reset === true;
-
-            if (ctx.program.opts().ci !== true && !isCryptoReset && fsExistsSync(destFolder)) {
-                const options = ['Yes - override (recommended)', 'Yes - merge', 'Skip'];
-                const { option } = await inquirerPrompt({
-                    name: 'option',
-                    type: 'list',
-                    choices: options,
-                    message: `How to decrypt to ${chalk.bold.white(destFolder)} ?`
-                });
-                if (option === options[0]) {
-                    shouldCleanFolder = true;
-                } else if (option === options[2]) {
-                    return true;
-                }
-            } else {
-                shouldCleanFolder = true;
-            }
-
-            if (fsExistsSync(destTemp)) {
-                const { confirm } = await inquirerPrompt({
-                    type: 'confirm',
-                    message: `Found existing decrypted file at ${chalk.bold.white(
-                        destTemp
-                    )}. want to use it and skip decrypt ?`
-                });
-                if (confirm) {
-                    await _unzipAndCopy(ctx, shouldCleanFolder, destTemp, wsPath, ts, destFolder);
-                    return true;
-                }
-            }
-
-            const key = ctx.program.opts().key || ctx.process.env[envVar];
-            if (!key) {
-                return Promise.reject(`encrypt: You must pass ${chalk.bold.white('--key')} or have env var defined:
-
-${getEnvExportCmd(envVar, 'REPLACE_WITH_ENV_VARIABLE')}
-
-Make sure you take into account special characters that might need to be escaped.
-`);
-            }
-            if (!fsExistsSync(source)) {
-                return Promise.reject(`Can't decrypt. ${chalk.bold.white(source)} is missing!`);
-            }
-
-            let data;
-            try {
-                data = await iocane.createSession().use('cbc').decrypt(fsReadFileSync(source), key);
-            } catch (e) {
-                if (e instanceof Error) {
-                    if (e?.message?.includes) {
-                        if (e.message.includes('Signature mismatch')) {
-                            const err = `You're trying to decode crypto file encoded with previous version of crypto.
-this change was introduced in "rnv@0.29.0"
-
-${e}
-
-      ${chalk.green('SUGGESTION:')}
-
-      ${chalk.yellow('STEP 1:')}
-      run: ${chalk.bold.white('rnv crypto encrypt')} locally at least once and commit the result back to your repository
-
-      ${chalk.yellow('STEP 2:')}
-      you should be able to use: ${chalk.bold.white('rnv crypto decrypt')} properly now
-
-      ${chalk.yellow('IF ALL HOPE IS LOST:')}
-      Raise new issue and copy this SUMMARY box output at:
-      ${chalk.bold.white('https://github.com/flexn-io/renative/issues')}
-      and we will try to help!
-
-      `;
-
-                            return Promise.reject(err);
-                        }
-                        if (e.message.includes('Authentication failed')) {
-                            return Promise.reject(`It seems like you provided invalid decryption key.
-
-${e.stack}
-
-${chalk.green('SUGGESTION:')}
-
-${chalk.yellow('STEP 1:')}
-check if your ENV VAR is correct: ${getEnvExportCmd(envVar, '***********')}
-Make sure you take into account special characters that might need to be escaped
-or if someone did not encrypt ${chalk.bold.white(source)} with a different key
-
-${chalk.yellow('STEP 2:')}
-run crypto decrypt again
-
-${chalk.yellow('IF ALL HOPE IS LOST:')}
-Raise new issue and copy this SUMMARY box output at:
-${chalk.bold.white('https://github.com/flexn-io/renative/issues')}
-and we will try to help!
-
-`);
-                        }
-                    }
-                }
-
-                return Promise.reject(e);
-            }
-
-            fsWriteFileSync(destTemp, data);
-
-            //         try {
-            //             await executeAsync(
-            //                 c,
-            //                 `${_getOpenSllPath(
-            //                     c
-            //                 )} enc -aes-256-cbc -md md5 -d -in ${source} -out ${destTemp} -k ${key}`,
-            //                 { privateParams: [key] }
-            //             );
-            //         } catch (e) {
-            //             const cmd1 = chalk.bold(
-            //                 `openssl enc -aes-256-cbc -md md5 -d -in ${source} -out ${destTemp} -k $${envVar}`
-            //             );
-            //             return Promise.reject(`${e}
-
-            // ${chalk.green('SUGGESTION:')}
-
-            // ${chalk.yellow('STEP 1:')}
-            // ${cmd1}
-
-            // ${chalk.yellow('STEP 2:')}
-            // ${chalk.bold(
-            //         'run your previous command again and choose to skip openssl once asked'
-            //     )}`);
-            //         }
-
-            await _unzipAndCopy(ctx, shouldCleanFolder, destTemp, wsPath, ts, destFolder);
-        } else {
+        if (crypto?.isOptional && !sourceRaw) {
             logWarning(`You don't have {{ crypto.path }} specificed in ${chalk.bold.white(ctx.paths.appConfigBase)}`);
-            return true;
+            return;
         }
+
+        const projectName = ctx.files.project.config?.projectName;
+        const envVar = getEnvVar();
+        if (!projectName || !envVar) return;
+
+        const { ci, reset, key: optKey } = ctx.program.opts();
+
+        const isCryptoReset = ctx.command === 'crypto' && reset === true;
+        const destFolder = path.join(ctx.paths.workspace.dir, projectName);
+
+        let shouldCleanFolder = true;
+        if (ci !== true && !isCryptoReset && fsExistsSync(destFolder)) {
+            const options = ['Yes - override (recommended)', 'Yes - merge', 'Skip'];
+            const option = (await inquirerPrompt({
+                name: 'option',
+                type: 'list',
+                choices: options,
+                message: `How to decrypt to ${chalk.bold.white(destFolder)} ?`
+            })) as string;
+            if (option === options[2]) return true;
+            shouldCleanFolder = option === options[0];
+        }
+
+        const source = `${getRealPath(sourceRaw, 'crypto.path')}`;
+        const ts = `${source}.timestamp`;
+        const wsPath = destFolder;
+        const destTemp = `${path.join(ctx.paths.workspace.dir, projectName.replace('/', '-'))}.tgz`;
+        if (fsExistsSync(destTemp)) {
+            const confirm = (await inquirerPrompt({
+                type: 'confirm',
+                message: `Found existing decrypted file at ${chalk.bold.white(
+                    destTemp
+                )}. want to use it and skip decrypt ?`
+            })) as boolean;
+            if (confirm) {
+                await _unzipAndCopy(ctx, shouldCleanFolder, destTemp, wsPath, ts, destFolder);
+                return true;
+            }
+        }
+
+        const key = optKey || ctx.process.env[envVar];
+        if (!key) {
+            throw new Error(NO_KEY_ERR_MSG(envVar));
+        }
+
+        if (!fsExistsSync(source)) {
+            throw new Error(`Can't decrypt. ${chalk.bold.white(source)} is missing!`);
+        }
+
+        let data: string;
+        try {
+            data = (await createAdapter()
+                .setAlgorithm(EncryptionAlgorithm.CBC)
+                .decrypt(fsReadFileSync(source), key)) as string;
+        } catch (e) {
+            if (e instanceof Error) {
+                throw e as Error;
+            }
+            throw new Error(e as string);
+        }
+
+        fsWriteFileSync(destTemp, data);
+
+        await _unzipAndCopy(ctx, shouldCleanFolder, destTemp, wsPath, ts, destFolder);
     },
     options: [TaskOptions.key],
     task: RnvTaskName.cryptoDecrypt

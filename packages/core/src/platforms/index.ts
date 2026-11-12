@@ -1,5 +1,5 @@
-import path from 'path';
-import { getAppFolder, getTimestampPathsConfig } from '../context/contextProps';
+import path from 'node:path';
+import { getAppFolder } from '../context/contextProps';
 import { getContext } from '../context/provider';
 import { chalk, logDebug, logDefault, logError, logWarning } from '../logger';
 import { cleanFolder, copyFolderContentsRecursiveSync } from '../system/fs';
@@ -72,7 +72,6 @@ export const createPlatformBuild = (platform: RnvPlatform) =>
                         }) || ''
                 }
             ],
-            getTimestampPathsConfig(),
             c
         );
 

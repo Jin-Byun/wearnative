@@ -1,4 +1,4 @@
-import type { ExecaChildProcess } from 'execa';
+import type { Subprocess } from 'execa';
 import type { CamelCasedProperties } from 'type-fest';
 import type { NpmPackageFile } from '../configs/types';
 import type { RnvEngine, RnvEnginePlatform } from '../engines/types';
@@ -28,15 +28,15 @@ import type { RnvPlatform, RnvPlatformKey } from '../types';
 export type CreateContextOptions = {
     program: RnvContextProgram<ProgramOptionsKey>;
     process: NodeJS.Process;
-    cmd?: string;
-    subCmd?: string;
+    command?: string;
+    subCommand?: string;
     RNV_HOME_DIR?: string;
 };
 
-export type RnvContextProgram<OKey = ProgramOptionsKey> = {
+export type RnvContextProgram<OKey extends string = ProgramOptionsKey> = {
     args?: string[];
     rawArgs?: string[];
-    opts: <T = TaskOptionValue>() => CamelCasedProperties<ParamKeys<OKey, T>>;
+    opts: <T = TaskOptionValue>() => CamelCasedProperties<ParamKeys<ProgramOptionsKey<OKey>, T>>;
     option?: (cmd: string, desc: string) => void;
     parse?: (arg: string[]) => void;
     allowUnknownOption: (p: boolean) => void;
@@ -44,8 +44,8 @@ export type RnvContextProgram<OKey = ProgramOptionsKey> = {
     outputHelp: () => void;
     isHelpInvoked?: boolean;
 };
-export type RnvContext<Payload = any, OKey = ProgramOptionsKey> = {
-    program: RnvContextProgram<OKey>;
+export type RnvContext<Payload = any, OKey extends string = ProgramOptionsKey> = {
+    program: RnvContextProgram<ProgramOptionsKey<OKey>>;
     /**
      * Extra payload object used by 3rd party (ie @rnv/sdk-apple) to decorate context with extra typed information
      */
@@ -69,7 +69,7 @@ export type RnvContext<Payload = any, OKey = ProgramOptionsKey> = {
     assetConfig: object;
     platform: RnvPlatform;
     process: NodeJS.Process;
-    runningProcesses: ExecaChildProcess[];
+    runningProcesses: Subprocess[];
     rnvVersion: string;
     isSystemWin: boolean;
     isSystemLinux: boolean;
@@ -96,7 +96,7 @@ export type RnvContext<Payload = any, OKey = ProgramOptionsKey> = {
     };
     timeStart: Date;
     timeEnd: Date;
-    isDefault: boolean;
+    isInitialized: boolean;
 };
 
 export type RnvContextBuildConfig = Partial<ConfigFileBuildConfig> & {
@@ -180,10 +180,6 @@ export type RnvContextFiles = {
         project: RnvContextFileObj<ConfigFileProject>;
         appConfig: RnvContextFileObj<ConfigFileApp>;
     };
-    // defaultWorkspace: RnvContextFileObj<ConfigFileWorkspace> & {
-    //     project: RnvContextFileObj<ConfigFileProject>;
-    //     appConfig: RnvContextFileObj<ConfigFileApp>;
-    // };
     project: RnvContextFileObj<ConfigFileProject> & {
         builds: Record<string, ConfigFileBuildConfig>;
         assets: {

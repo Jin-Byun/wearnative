@@ -1,31 +1,26 @@
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
 import {
     chalk,
     copyFileSync,
     createTask,
     fsExistsSync,
+    fsMkdirSync,
     fsReadFileSync,
     fsWriteFileSync,
     logDebug,
     logInfo,
     logWarning,
-    mkdirSync,
     RnvFileName,
     RnvTaskName
 } from '@rnv/core';
-import { writeFileSync } from 'fs';
-import path from 'path';
 
 export default createTask({
     description: 'Preconfigures your current workspace defined via "workspaceID" prop in renative config file',
     fn: async ({ ctx }) => {
         const { paths, files } = ctx;
-        // Check globalConfig Dir
-        if (fsExistsSync(paths.workspace.dir)) {
-            logDebug(`${paths.workspace.dir} folder exists!`);
-        } else {
-            logInfo(`${paths.workspace.dir} folder missing! Creating one for you...`);
-            mkdirSync(paths.workspace.dir);
-        }
+        // Create globalConfig Dir
+        fsMkdirSync(paths.workspace.dir, { recursive: true });
 
         // Check globalConfig
         if (fsExistsSync(paths.workspace.config)) {
@@ -51,40 +46,38 @@ export default createTask({
             }
         }
 
-        if (fsExistsSync(paths.workspace.config)) {
-            files.workspace.config = JSON.parse(fsReadFileSync(paths.workspace.config).toString());
+        files.workspace.config = JSON.parse(fsReadFileSync(paths.workspace.config).toString());
 
-            if (files.workspace.config?.appConfigsPath) {
-                if (!fsExistsSync(files.workspace.config.appConfigsPath)) {
-                    logWarning(
-                        `Your custom global appConfig is pointing to ${chalk.bold.white(
-                            files.workspace.config.appConfigsPath
-                        )} which doesn't exist! Make sure you create one in that location`
-                    );
-                } else {
-                    logInfo(
-                        `Found custom appConfing location pointing to ${chalk.bold.white(
-                            files.workspace.config.appConfigsPath
-                        )}. ReNativewill now swith to that location!`
-                    );
-                    paths.project.appConfigsDir = files.workspace.config.appConfigsPath;
-                }
-            }
-
-            // Check config sanity
-            if (files.workspace.config?.defaultTargets === undefined) {
+        if (files.workspace.config?.appConfigsPath) {
+            if (!fsExistsSync(files.workspace.config.appConfigsPath)) {
                 logWarning(
-                    `You're missing defaultTargets in your config ${chalk.bold.white(
-                        paths.workspace.config
-                    )}. Let's add them!`
+                    `Your custom global appConfig is pointing to ${chalk.bold.white(
+                        files.workspace.config.appConfigsPath
+                    )} which doesn't exist! Make sure you create one in that location`
                 );
-
-                const newConfig = {
-                    ...files.workspace.config,
-                    defaultTargets: {}
-                };
-                fsWriteFileSync(paths.workspace.config, JSON.stringify(newConfig, null, 2));
+            } else {
+                logInfo(
+                    `Found custom appConfing location pointing to ${chalk.bold.white(
+                        files.workspace.config.appConfigsPath
+                    )}. ReNative will now swith to that location!`
+                );
+                paths.project.appConfigsDir = files.workspace.config.appConfigsPath;
             }
+        }
+
+        // Check config sanity
+        if (files.workspace.config?.defaultTargets === undefined) {
+            logWarning(
+                `You're missing defaultTargets in your config ${chalk.bold.white(
+                    paths.workspace.config
+                )}. Let's add them!`
+            );
+
+            const newConfig = {
+                ...files.workspace.config,
+                defaultTargets: {}
+            };
+            fsWriteFileSync(paths.workspace.config, JSON.stringify(newConfig, null, 2));
         }
 
         return true;

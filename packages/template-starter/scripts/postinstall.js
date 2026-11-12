@@ -6,8 +6,6 @@ const {
     updateRenativeConfigs,
     overrideTemplatePlugins,
     createRnvApi,
-    getConfigProp,
-    doResolve,
     logError,
     RnvFileName,
     fsExistsSync,
@@ -23,9 +21,7 @@ const RNV_HOME_DIR = path.join(__dirname, '..');
 (async () => {
     try {
         createRnvApi({
-            logger: Logger,
-            getConfigProp,
-            doResolve
+            logger: Logger
         });
         createRnvContext({ RNV_HOME_DIR });
 

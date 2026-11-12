@@ -1,6 +1,6 @@
 {
     "name": "@rnv/cli",
-    "version": "1.10.0-rc.1",
+    "version": "0.0.1",
     "description": "weaRNative CLI",
     "keywords": [],
     "homepage": "https://github.com/flexn-io/renative#readme",
@@ -35,17 +35,13 @@
         "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
+        "@inquirer/prompts": "^8.7.5",
         "@rnv/engine-core": "workspace:*",
         "chalk": "6.0.0",
         "commander": "12.1.0",
-        "inquirer": "^14.2.1",
-        "inquirer-autocomplete-prompt": "^3.0.1",
         "ora": "^9.4.1"
     },
     "peerDependencies": {
         "@rnv/core": "workspace:*"
-    },
-    "devDependencies": {
-        "@types/inquirer-autocomplete-prompt": "^3.0.3"
     }
 }

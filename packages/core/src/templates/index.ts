@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
 import { RnvFileName } from '../enums/fileName';
@@ -25,34 +25,24 @@ export const configureTemplateFiles = async () => {
 
     const mergedObj = _getProjectTemplateMergedConfig(templateConfig);
     const includedPaths = mergedObj?.templateConfig?.includedPaths;
+    if (!includedPaths || !c.paths.template.dir) return;
+    for (const pth of includedPaths) {
+        if (typeof pth === 'string') {
+            _copyIncludedPaths(c, pth);
+            continue;
+        }
 
-    if (includedPaths) {
-        includedPaths.forEach((pth) => {
-            if (c.paths.template.dir) {
-                if (typeof pth === 'string') {
-                    _copyIncludedPaths(c, pth);
-                } else {
-                    let matched: boolean = true;
-                    const suPlats = c.buildConfig?.defaults?.supportedPlatforms || [];
-                    if (pth.platforms && suPlats?.length) {
-                        const match = pth.platforms.some((v) => suPlats.includes(v));
-                        if (!match) {
-                            matched = false;
-                        }
-                    } else if (pth.engines?.length) {
-                        const engId = c.runtime.engine?.id;
-                        if (engId && !pth.engines?.includes?.(engId)) {
-                            matched = false;
-                        }
-                    }
-                    if (matched) {
-                        pth.paths.forEach((pth) => {
-                            _copyIncludedPaths(c, pth);
-                        });
-                    }
-                }
-            }
-        });
+        const suPlats = c.buildConfig?.defaults?.supportedPlatforms || [];
+        if (pth.platforms && suPlats.length) {
+            const match = pth.platforms.some((v) => suPlats.includes(v));
+            if (!match) continue;
+        } else if (pth.engines?.length) {
+            const engId = c.runtime.engine?.id;
+            if (engId && !pth.engines.includes(engId)) continue;
+        }
+        for (const p of pth.paths) {
+            _copyIncludedPaths(c, p);
+        }
     }
 };
 
@@ -71,7 +61,6 @@ export const applyTemplate = async () => {
         return false;
     }
     if (!isTemplateInstalled()) {
-        // We Need template to be installed before other dependency resolutions (due to scoping)
         await checkIfProjectAndNodeModulesExists();
     }
     await _applyTemplate(c);
@@ -90,13 +79,11 @@ const _applyTemplate = async (c: RnvContext) => {
         logError(`Template ${tplName} not found. Make sure it's installed`);
         return;
     }
+
     c.paths.template.dir = tpPath;
+    c.paths.template.config = path.join(tpPath, RnvFileName.renative);
+    c.paths.template.configTemplate = path.join(tpPath, RnvFileName.renativeTemplate);
 
-    if (c.paths.template.dir) {
-        c.paths.template.configTemplate = path.join(c.paths.template.dir, RnvFileName.renativeTemplate);
-
-        c.paths.template.config = path.join(c.paths.template.dir, RnvFileName.renative);
-    }
     if (!fsExistsSync(c.paths.template.configTemplate)) {
         logWarning(
             `Template file ${chalk.bold.white(
@@ -105,11 +92,11 @@ const _applyTemplate = async (c: RnvContext) => {
         );
         return true;
     }
+
     logDebug(`_applyTemplate:${c.paths.template.dir}`);
-    if (c.paths.template.dir) {
-        c.paths.template.appConfigsDir = path.join(c.paths.template.dir, 'appConfigs');
-    }
-    c.paths.template.appConfigBase.dir = path.join(c.paths.template.appConfigsDir, 'base');
+
+    c.paths.template.appConfigsDir = path.join(tpPath, 'appConfigs');
+    c.paths.template.appConfigBase.dir = path.join(tpPath, 'appConfigs', 'base');
     c.runtime.currentTemplate = tplName;
 
     return true;
@@ -131,22 +118,19 @@ const _getProjectTemplateMergedConfig = (templateConfig: ConfigFileTemplate | nu
 };
 
 const _copyIncludedPaths = (c: RnvContext, name: string) => {
-    const sourcePathOriginal = path.join(c.paths.template.dir, name);
-    const sourceOverridePath = path.join(c.paths.template.dir, RnvFolderName.templateOverrides, name);
     const destPath = path.join(c.paths.project.dir, name);
     // If override exists use it, otherwise use original and continue with rest of the logic
+    const sourcePathOriginal = path.join(c.paths.template.dir, name);
+    const sourceOverridePath = path.join(c.paths.template.dir, RnvFolderName.templateOverrides, name);
     const sourcePath = fsExistsSync(sourceOverridePath) ? sourceOverridePath : sourcePathOriginal;
-    if (!fsExistsSync(destPath) && fsExistsSync(sourcePath)) {
-        try {
-            if (fsLstatSync(sourcePath).isDirectory()) {
-                logInfo(`Missing directory ${chalk.bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
-                copyFolderContentsRecursiveSync(sourcePath, destPath);
-            } else {
-                logInfo(`Missing file ${chalk.bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
-                copyFileSync(sourcePath, destPath);
-            }
-        } catch (e) {
-            // Get some beer and order hookers
+    if (fsExistsSync(destPath) || !fsExistsSync(sourcePath)) return;
+    try {
+        if (fsLstatSync(sourcePath).isDirectory()) {
+            logInfo(`Missing directory ${chalk.bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
+            copyFolderContentsRecursiveSync(sourcePath, destPath);
+        } else {
+            logInfo(`Missing file ${chalk.bold.white(`${destPath}`)}. COPYING from TEMPLATE...DONE`);
+            copyFileSync(sourcePath, destPath);
         }
-    }
+    } catch {}
 };

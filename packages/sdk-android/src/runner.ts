@@ -9,6 +9,7 @@ import {
     execCLI,
     executeAsync,
     fsExistsSync,
+    fsMkdirSync,
     fsWriteFileSync,
     getAppFolder,
     getConfigProp,
@@ -23,7 +24,6 @@ import {
     logRaw,
     logSuccess,
     logWarning,
-    mkdirSync,
     parseFonts,
     parsePlugins,
     type RnvPlatform,
@@ -39,6 +39,7 @@ import {
     checkForActiveEmulator,
     composeDevicesArray,
     connectToWifiDevice,
+    type DeviceInfo,
     getAndroidTargets,
     launchAndroidSimulator,
     resetAdb
@@ -111,7 +112,7 @@ export const getAndroidDeviceToRunOn = async () => {
         }
         const choices = composeDevicesArray(devicesAndEmulators);
 
-        const { chosenTarget } = await inquirerPrompt({
+        const chosenTarget: DeviceInfo = await inquirerPrompt({
             name: 'chosenTarget',
             type: 'list',
             message: 'What target would you like to use?',
@@ -120,13 +121,13 @@ export const getAndroidDeviceToRunOn = async () => {
         if (chosenTarget) {
             // update defaultTarget
             if (!target) {
-                await updateDefaultTargets(c, chosenTarget);
+                await updateDefaultTargets(c, chosenTarget.name);
             }
-            const chosenDevice = activeDevices.find((d) => d.name === chosenTarget);
+            const chosenDevice = activeDevices.find((d) => d.name === chosenTarget.name);
             if (chosenDevice) return chosenDevice;
 
             await launchAndroidSimulator(chosenTarget, true);
-            return await checkForActiveEmulator(chosenTarget);
+            return await checkForActiveEmulator(chosenTarget.name);
         }
     };
     if (target) {
@@ -206,7 +207,7 @@ const _checkSigningCerts = async (c: Context) => {
     if (c.program.opts().ci === true) return Promise.reject(msg);
 
     logWarning(msg);
-    const { confirm } = await inquirerPrompt({
+    const confirm: boolean = await inquirerPrompt({
         type: 'confirm',
         name: 'confirm',
         message: 'Do you want to configure it now?'
@@ -216,7 +217,7 @@ const _checkSigningCerts = async (c: Context) => {
 
     let confirmCopy = false;
     let platCandidate: RnvPlatform = null;
-    const { confirmNewKeystore } = await inquirerPrompt({
+    const confirmNewKeystore: boolean = await inquirerPrompt({
         type: 'confirm',
         name: 'confirmNewKeystore',
         message: 'Do you want to generate new keystore as well?'
@@ -229,12 +230,11 @@ const _checkSigningCerts = async (c: Context) => {
         for (const p of platCandidates) {
             if (!platforms[p]) continue;
             platCandidate = p;
-            const resultCopy = await inquirerPrompt({
+            confirmCopy = (await inquirerPrompt({
                 type: 'confirm',
                 name: 'confirmCopy',
                 message: `Found existing keystore configuration for ${platCandidate}. do you want to reuse it?`
-            });
-            confirmCopy = resultCopy?.confirmCopy;
+            })) as boolean;
         }
     }
 
@@ -244,32 +244,31 @@ const _checkSigningCerts = async (c: Context) => {
         let storeFile: string | undefined;
 
         if (!confirmNewKeystore) {
-            const result = await inquirerPrompt({
+            storeFile = (await inquirerPrompt({
                 type: 'input',
                 name: 'storeFile',
                 default: './release.keystore',
                 message: `Paste relative path to ${chalk.bold.white(
                     c.paths.workspace.appConfig.dir
                 )} of your existing ${chalk.bold.white('release.keystore')} file`
-            });
-            storeFile = result?.storeFile;
+            })) as string;
         }
-        const { storePassword } = await inquirerPrompt({
+        const storePassword: string = await inquirerPrompt({
             type: 'password',
             name: 'storePassword',
             message: 'storePassword'
         });
-        const { keyAlias } = await inquirerPrompt({
+        const keyAlias: string = await inquirerPrompt({
             type: 'input',
             name: 'keyAlias',
             message: 'keyAlias'
         });
-        const { keyPassword } = await inquirerPrompt({
+        const keyPassword: string = await inquirerPrompt({
             type: 'password',
             name: 'keyPassword',
             message: 'keyPassword'
         });
-        mkdirSync(dir);
+        fsMkdirSync(dir);
         if (confirmNewKeystore) {
             const keystorePath = path.join(dir, 'release.keystore');
             const keytoolCmd = `keytool -genkey -v -keystore ${keystorePath} -alias ${keyAlias} -keypass ${keyPassword} -storepass ${storePassword} -keyalg RSA -keysize 2048 -validity 10000`;
@@ -346,7 +345,7 @@ export const configureProject = async () => {
     const appFolder = getAppFolder();
     const outputFile = getEntryFile();
 
-    mkdirSync(path.join(appFolder, 'app/src/main/assets'));
+    fsMkdirSync(path.join(appFolder, 'app/src/main/assets'));
     fsWriteFileSync(path.join(appFolder, `app/src/main/assets/${outputFile}.bundle`), '{}');
 
     // PLUGINS
@@ -374,7 +373,7 @@ export const configureProject = async () => {
                 return;
             }
             const fontFolder = path.join(appFolder, 'app/src/main/assets/fonts');
-            mkdirSync(fontFolder);
+            fsMkdirSync(fontFolder);
             const fontNormalised = font.replaceAll('__', ' ');
             const fontDest = path.join(fontFolder, fontNormalised);
             copyFileSync(fontSource, fontDest);

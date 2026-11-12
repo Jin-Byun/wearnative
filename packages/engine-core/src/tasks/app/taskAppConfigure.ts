@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
     chalk,
     checkAndInstallPackageDependenciesIfRequired,
@@ -21,7 +22,6 @@ import {
     updateRenativeConfigs,
     writeFileSync
 } from '@rnv/core';
-import path from 'path';
 
 const _loadAppConfigIDfromDir = (dirName: string, appConfigsDir: string) => {
     logDebug(`_loadAppConfigIDfromDir:${dirName}:${appConfigsDir}`, chalk.grey);
@@ -45,15 +45,11 @@ const _askUserAboutConfigs = async (ctx: RnvContext, dir: string, id: string, ba
     if (ctx.program.opts().ci === true) {
         throw new Error('You cannot continue if you set --ci flag. please fix above error first');
     }
-    const { choice } = await inquirerPrompt({
+    const choice = (await inquirerPrompt({
         type: 'list',
         name: 'choice',
         message: 'You must choose what you want to keep',
         choices: [
-            // {
-            //     name: `Keep ID from renative.json (${id}) and rename the folder (${dir} -> ${id})`,
-            //     value: 'keepID'
-            // },
             {
                 name: `Keep folder name (${dir}) and rename the ID from renative.json (${id} -> ${dir})`,
                 value: 'keepFolder'
@@ -64,7 +60,7 @@ const _askUserAboutConfigs = async (ctx: RnvContext, dir: string, id: string, ba
                 value: 'manually'
             }
         ]
-    });
+    })) as string;
 
     if (choice === 'manually') {
         throw new Error('Please do the changes and rerun the command');
@@ -121,14 +117,14 @@ const _findAndSwitchAppConfigDir = async (ctx: RnvContext) => {
             return true;
         }
 
-        const { conf } = await inquirerPrompt({
+        const conf = (await inquirerPrompt({
             name: 'conf',
             type: 'list',
             message: 'Which one would you like to pick?',
             choices: appConfigsDirNames,
             pageSize: 50,
             logMessage: 'ReNative found multiple existing appConfigs'
-        });
+        })) as string;
 
         if (conf) {
             _setAppId(ctx, conf);

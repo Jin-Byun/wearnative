@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
 import { logInfo } from '../logger';

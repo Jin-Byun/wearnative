@@ -17,16 +17,14 @@ export default createTask({
     fn: async ({ ctx }) => {
         const configOriginal = ctx.files.project.config_original;
 
-        if (!configOriginal) {
-            return;
-        }
+        if (!configOriginal) return;
 
         let selectedPlatforms: Array<RnvPlatformKey>;
         if (ctx.platform) {
             selectedPlatforms = [ctx.platform];
         } else {
             logInfo(`Preparing to eject engine platforms to local ${chalk.bold.white('./platformTemplates')}`);
-            const { ejectedPlatforms } = await inquirerPrompt({
+            selectedPlatforms = (await inquirerPrompt({
                 name: 'ejectedPlatforms',
                 message: 'Select platforms you would like to eject (use SPACE key)',
                 type: 'checkbox',
@@ -34,34 +32,29 @@ export default createTask({
                     ...choice,
                     disabled: !choice.isConnected
                 }))
-            });
-            selectedPlatforms = ejectedPlatforms;
+            })) as Array<RnvPlatformKey>;
         }
 
-        if (selectedPlatforms.length) {
-            selectedPlatforms.forEach((platform) => {
-                // const engine = getEngineRunnerByPlatform(c, platform);
-                // const destDir = path.join(c.paths.project.dir, 'platformTemplates', platform);
-
-                // engine.ejectPlatform(c, platform, destDir);
-                ejectPlatform(platform);
-
-                configOriginal.paths = configOriginal.paths || {};
-
-                configOriginal.paths.platformTemplatesDirs = configOriginal.paths.platformTemplatesDirs || {};
-                configOriginal.paths.platformTemplatesDirs[platform] = `./${'platformTemplates'}`;
-                writeFileSync(ctx.paths.project.config, configOriginal);
-            });
-
-            logSuccess(
-                `${chalk.bold.white(selectedPlatforms.join(','))} platform templates are located in ${chalk.bold.white(
-                    ctx.files.project.config?.paths?.platformTemplatesDirs?.[selectedPlatforms[0]]
-                )} now. You can edit them directly!`
-            );
-        } else {
+        if (!selectedPlatforms.length) {
             logError(`You haven't selected any platform to eject.
 TIP: You can select options with ${chalk.bold.white('SPACE')} key before pressing ENTER!`);
+            return;
         }
+        selectedPlatforms.forEach((platform) => {
+            ejectPlatform(platform);
+
+            configOriginal.paths = configOriginal.paths || {};
+
+            configOriginal.paths.platformTemplatesDirs = configOriginal.paths.platformTemplatesDirs || {};
+            configOriginal.paths.platformTemplatesDirs[platform] = `./${'platformTemplates'}`;
+            writeFileSync(ctx.paths.project.config, configOriginal);
+        });
+
+        logSuccess(
+            `${chalk.bold.white(selectedPlatforms.join(','))} platform templates are located in ${chalk.bold.white(
+                ctx.files.project.config?.paths?.platformTemplatesDirs?.[selectedPlatforms[0]]
+            )} now. You can edit them directly!`
+        );
     },
     task: RnvTaskName.platformEject
 });

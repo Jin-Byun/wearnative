@@ -1,10 +1,10 @@
-import { executeTask, configureRuntimeDefaults, createTask, RnvTaskName } from '@rnv/core';
+import { configureRuntimeDefaults, createTask, executeTask, RnvTaskName } from '@rnv/core';
 import { isBuildSchemeSupported } from '../../buildSchemes';
 
 export default createTask({
     description: 'Configure system and project without recreating files (used for --only)',
     fn: async ({ taskName, originTaskName }) => {
-        await configureRuntimeDefaults();
+        configureRuntimeDefaults();
         await executeTask({ taskName: RnvTaskName.appConfigure, parentTaskName: taskName, originTaskName });
         await isBuildSchemeSupported();
 
@@ -12,12 +12,12 @@ export default createTask({
             taskName: RnvTaskName.sdkConfigure,
             parentTaskName: taskName,
             originTaskName,
-            isOptional: true,
+            isOptional: true
         });
 
-        await configureRuntimeDefaults();
+        configureRuntimeDefaults();
         return true;
     },
     task: RnvTaskName.configureSoft,
-    isPrivate: true,
+    isPrivate: true
 });

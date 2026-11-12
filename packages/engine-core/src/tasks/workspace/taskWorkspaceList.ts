@@ -8,7 +8,7 @@ export default createTask({
             ctx.files.dotRnv.configWorkspaces?.workspaces,
             true,
             null,
-            (i, obj, mapping, defaultVal) => {
+            (i, _obj, _mapping, defaultVal) => {
                 const isConnected = '';
                 return ` [${chalk.grey(i + 1)}]> ${chalk.bold.white(defaultVal)}${isConnected} \n`;
             }

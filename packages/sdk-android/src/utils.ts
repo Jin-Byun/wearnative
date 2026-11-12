@@ -42,7 +42,7 @@ export const writeParsedFiles = (srcPath: string, injects: OverridesOptions, c: 
     const buildFilePath = getBuildFilePath(srcPath, tmpPath);
     const appFolder = getAppFolder();
     const filePath = path.join(appFolder, srcPath);
-    writeCleanFile(buildFilePath, filePath, injects, undefined, c);
+    writeCleanFile(buildFilePath, filePath, injects, c);
 };
 
 export const createOverridesOption = (

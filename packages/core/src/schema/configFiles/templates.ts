@@ -1,8 +1,8 @@
-import { AnyZodObject, z } from 'zod';
-import { zodPlatformsKeys, zodProjectTemplates } from '../shared';
+import { z } from 'zod';
 import { zodPluginsSchema } from '../plugins';
+import { zodPlatformsKeys, zodProjectTemplates } from '../shared';
 
-export const zodConfigFileTemplates: AnyZodObject = z
+export const zodConfigFileTemplates = z
     .object({
         projectTemplates: zodProjectTemplates,
         engineTemplates: z.record(
@@ -10,19 +10,19 @@ export const zodConfigFileTemplates: AnyZodObject = z
             z.object({
                 version: z.string(),
                 id: z.string(),
-                key: z.string(),
+                key: z.string()
             })
         ),
         integrationTemplates: z.record(
             z.string(),
             z.object({
-                version: z.string(),
+                version: z.string()
             })
         ),
         platformTemplates: z.record(
             zodPlatformsKeys,
             z.object({
-                engine: z.string(),
+                engine: z.string()
             })
         ),
         pluginTemplates: zodPluginsSchema,
@@ -30,6 +30,6 @@ export const zodConfigFileTemplates: AnyZodObject = z
             .boolean()
             .describe(
                 'Disables default rnv scope plugin overrides and merges. Useful if you want to test entirely clean plugin template list'
-            ),
+            )
     })
     .partial();

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { getContext, RnvFolderName } from '..';
 import type { DoResolveFn, ResolveOptions } from './types';
 /**
  * An attempt at drying out filesystem references to [external packages](https://tinyurl.com/mao2dy6).
@@ -20,6 +21,25 @@ import type { DoResolveFn, ResolveOptions } from './types';
 export const doResolve: DoResolveFn = (aPath, mandatory = true, options = {}) => {
     if (!aPath) return undefined;
     options.basedir = options.basedir ?? process.cwd();
+    try {
+        if (aPath.startsWith('file:')) {
+            return _withPathFix(_doResolveFSPath(aPath, options), options?.forceForwardPaths);
+        }
+        const pth = _doResolveExternalPackage(aPath, options);
+
+        if (pth) {
+            return _withPathFix(pth, options?.forceForwardPaths);
+        }
+        return undefined;
+    } catch (err) {
+        // perhaps do some warning logging here..
+        if (mandatory) throw err;
+    }
+};
+
+export const doResolveDefault: DoResolveFn = (aPath, mandatory = true, options = {}) => {
+    if (!aPath) return undefined;
+    options.basedir = options.basedir ?? path.join(getContext().paths.rnv.dir, RnvFolderName.nodeModules);
     try {
         if (aPath.startsWith('file:')) {
             return _withPathFix(_doResolveFSPath(aPath, options), options?.forceForwardPaths);
@@ -74,7 +94,7 @@ export const doResolvePath = (aPath: string, mandatory = true, options: ResolveO
     return '';
 };
 
-export const isScopedPackagePath = (aPath: string) => {
+export const isScopedPackagePath = (aPath: string): boolean => {
     if (aPath.startsWith('@')) {
         if (!aPath.includes('/')) {
             throw new Error(
@@ -83,6 +103,7 @@ export const isScopedPackagePath = (aPath: string) => {
         }
         return true;
     }
+    return false;
 };
 
 const _getPackagePathParts = (aPath: string) => {

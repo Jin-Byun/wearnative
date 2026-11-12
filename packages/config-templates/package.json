@@ -1,6 +1,6 @@
 {
     "name": "@rnv/config-templates",
-    "version": "1.10.0-rc.1",
+    "version": "0.0.1",
     "description": "weaRNative configuration templates for plugins, platforms, engines and project template endpoints",
     "author": "Pavel Jacko <pavel.jacko@gmail.com> (https://github.com/pavjacko)",
     "keywords": [],

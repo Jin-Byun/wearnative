@@ -2,180 +2,152 @@ import path from 'node:path';
 import { generateContextPaths } from '../context';
 import { generateRnvConfigPathObj } from '../context/defaults';
 import { getContext } from '../context/provider';
-import type { RnvContextFileKey, RnvContextFileObj, RnvContextPathObj } from '../context/types';
+import type { RnvContextFileObj, RnvContextPathObj } from '../context/types';
 import { RnvFileName } from '../enums/fileName';
 import { RnvFolderName } from '../enums/folderName';
 import { chalk, logDebug, logDefault, logWarning } from '../logger';
 import type { ConfigFileTemplates } from '../schema/types';
 import { fsExistsSync, fsReaddirSync, getRealPath, loadFile, mergeObjects, readObjectSync } from '../system/fs';
-import { doResolve } from '../system/resolve';
+import { doResolve, doResolveDefault } from '../system/resolve';
 import { generateBuildConfig } from './buildConfig';
 import { generateLocalConfig } from './configLocal';
 import { generatePlatformTemplatePaths } from './configProject';
 import { getWorkspaceDirPath } from './workspaces';
 
-export const loadFileExtended = (fileObj: Record<string, any>, pathObj: RnvContextPathObj, key: RnvContextFileKey) => {
+export const loadExtendedConfigFile = (fileObj: Record<string, any>, pathObj: RnvContextPathObj) => {
     const c = getContext();
+    const key = 'config';
     const result = loadFile(fileObj, pathObj, key);
-    if (fileObj[key]) {
-        fileObj[`${key}_original`] = { ...fileObj[key] };
-    }
-    const extendsTemplate = fileObj[key]?.extendsTemplate;
-    if (key === 'config' && extendsTemplate) {
-        // extendsTemplate only applies to standard 'config'
-        let currTemplate = c.files.project[key]?.templateConfig?.name || fileObj[key].templateConfig?.name;
-        if (!currTemplate) {
-            if (extendsTemplate.startsWith('@')) {
-                currTemplate = extendsTemplate.split('/').slice(0, 2).join('/');
-            } else {
-                currTemplate = extendsTemplate.split('/').slice(0, 1);
-            }
-        }
-        if (currTemplate) {
-            const currTemplateRes = doResolve(currTemplate);
-            if (currTemplateRes) {
-                let extendsPath;
-                if (extendsTemplate.startsWith(currTemplate)) {
-                    extendsPath = path.join(currTemplateRes, extendsTemplate.replace(currTemplate, ''));
-                } else {
-                    extendsPath = path.join(currTemplateRes, extendsTemplate);
-                }
+    if (!result) return result;
 
-                if (fsExistsSync(extendsPath)) {
-                    const extendsFile = readObjectSync(extendsPath) || {};
+    fileObj[`${key}_original`] = { ...fileObj[key] };
+    const { extendsTemplate } = fileObj[key];
+    if (!extendsTemplate) return result;
 
-                    fileObj[key] = mergeObjects(c, extendsFile, fileObj[key], false, true);
-                    // CLEAN props which should not be inherited
-                    delete fileObj[key].isTemplate;
-                    delete fileObj[key].tasks;
-                } else {
-                    logWarning(`You are trying to extend config file with ${extendsPath} does not exists. SKIPPING.`);
-                }
-            } else {
-                logWarning(`Cannot resolve currentTemplate ${currTemplate} `);
-            }
-        }
+    // extendsTemplate only applies to standard 'config'
+    const currTemplate =
+        c.files.project.config?.templateConfig?.name ||
+        fileObj.config.templateConfig?.name ||
+        extendsTemplate.startsWith('@')
+            ? extendsTemplate.split('/').slice(0, 2).join('/')
+            : extendsTemplate.split('/').slice(0, 1);
+    if (!currTemplate) return result;
+
+    const currTemplateRes = doResolve(currTemplate);
+    if (!currTemplateRes) {
+        logWarning(`Cannot resolve currentTemplate ${currTemplate} `);
+        return result;
     }
+    const extendsPath = path.join(
+        currTemplateRes,
+        extendsTemplate.replace(currTemplate, extendsTemplate.startsWith(currTemplate) ? '' : currTemplate)
+    );
+    if (!fsExistsSync(extendsPath)) {
+        logWarning(`You are trying to extend config file with ${extendsPath} does not exists. SKIPPING.`);
+        return result;
+    }
+    const extendsFile = readObjectSync(extendsPath) || {};
+
+    fileObj[key] = mergeObjects(c, extendsFile, fileObj[key], false, true);
+    // CLEAN props which should not be inherited
+    delete fileObj[key].isTemplate;
+    delete fileObj[key].tasks;
     return result;
 };
 
+const createRnvContextFileObj = () => ({ configs: [], configsLocal: [], configsPrivate: [] });
+const createRnvContextConfigPaths = (pth: string) => ({
+    config: path.join(pth, RnvFileName.renative),
+    configLocal: path.join(pth, RnvFileName.renativeLocal),
+    configPrivate: path.join(pth, RnvFileName.renativePrivate)
+});
+const updateRnvContextPathObj = (target: RnvContextPathObj, pth: string, src?: RnvContextPathObj) => {
+    target.dirs.push(pth);
+    target.fontsDirs.push(path.join(pth, 'fonts'));
+    target.pluginDirs.push(path.join(pth, 'plugins'));
+    if (src) {
+        target.configs.push(src.config);
+        target.configsPrivate.push(src.configPrivate);
+        target.configsLocal.push(src.configLocal);
+    } else {
+        const { config, configLocal, configPrivate } = createRnvContextConfigPaths(pth);
+        target.configs.push(config);
+        target.configsPrivate.push(configPrivate);
+        target.configsLocal.push(configLocal);
+    }
+};
 const _loadConfigFiles = (
     fileObj: RnvContextFileObj<object>,
     pathObj: RnvContextPathObj,
     parseAppConfigs?: boolean
 ) => {
-    // let result = false;
     let extendAppId: string | undefined;
 
-    const extendedFileLoadResult = loadFileExtended(fileObj, pathObj, 'config');
-    const fileObjConfig = fileObj.config;
-    if (fileObjConfig && 'extend' in fileObjConfig && extendedFileLoadResult) {
+    const fileObjConfig = loadExtendedConfigFile(fileObj, pathObj);
+    if (fileObjConfig && Object.hasOwn(fileObjConfig, 'extend')) {
         extendAppId = (fileObjConfig.extend as string) || extendAppId;
-        // result = true;
     }
-
-    loadFileExtended(fileObj, pathObj, 'configLocal');
-    loadFileExtended(fileObj, pathObj, 'configPrivate');
-    //Do not Extend local configs
-    // if (loadFileExtended(c, fileObj, pathObj, 'configLocal')) {
-    //     extendAppId = fileObj.configLocal?.extend || extendAppId;
-    //     result = true;
-    // }
-
-    //Do not Extend private configs
-    // if (loadFileExtended(c, fileObj, pathObj, 'configPrivate')) {
-    //     extendAppId = fileObj?.configPrivate?.extend || extendAppId;
-    //     result = true;
-    // }
+    loadFile(fileObj, pathObj, 'configLocal');
+    loadFile(fileObj, pathObj, 'configPrivate');
 
     if (parseAppConfigs) {
+        Object.assign(pathObj, createRnvContextFileObj());
         pathObj.dirs = [];
         pathObj.fontsDirs = [];
         pathObj.pluginDirs = [];
-        pathObj.configs = [];
-        pathObj.configsLocal = [];
-        pathObj.configsPrivate = [];
-
-        fileObj.configs = [];
-        fileObj.configsLocal = [];
-        fileObj.configsPrivate = [];
-        const fileObj1: RnvContextFileObj<object> = {
-            configs: [],
-            configsLocal: [],
-            configsPrivate: []
-        };
 
         // PATH1: appConfigs/base
         const path1 = path.join(pathObj.appConfigsDir, 'base');
 
         const pathObj1: RnvContextPathObj = {
             ...generateRnvConfigPathObj(),
-            config: path.join(path1, RnvFileName.renative),
-            configLocal: path.join(path1, RnvFileName.renativeLocal),
-            configPrivate: path.join(path1, RnvFileName.renativePrivate)
+            ...createRnvContextConfigPaths(path1)
         };
-        pathObj.dirs.push(path1);
-        pathObj.fontsDirs.push(path.join(path1, 'fonts'));
-        pathObj.pluginDirs.push(path.join(path1, 'plugins'));
-        pathObj.configs.push(pathObj1.config);
-        pathObj.configsPrivate.push(pathObj1.configPrivate);
-        pathObj.configsLocal.push(pathObj1.configLocal);
-        // FILE1: appConfigs/base
-        loadFileExtended(fileObj1, pathObj1, 'config');
-        loadFileExtended(fileObj1, pathObj1, 'configPrivate');
-        loadFileExtended(fileObj1, pathObj1, 'configLocal');
-        if (fileObj1.config) fileObj.configs.push(fileObj1.config);
-        if (fileObj1.configPrivate) fileObj.configsPrivate.push(fileObj1.configPrivate);
-        if (fileObj1.configLocal) fileObj.configsLocal.push(fileObj1.configLocal);
+        updateRnvContextPathObj(pathObj, path1, pathObj1);
 
-        if (fsExistsSync(pathObj.appConfigsDir)) {
+        const configs: (RnvContextFileObj<object>['config'] | undefined)[] = [];
+        const configsPrivate: (RnvContextFileObj<object>['configPrivate'] | undefined)[] = [];
+        const configsLocal: (RnvContextFileObj<object>['configLocal'] | undefined)[] = [];
+
+        const _loadAndUpdateConfigArray = (pthObj: RnvContextPathObj, isOriginal = false) => {
+            const tmp: RnvContextFileObj<object> = isOriginal ? fileObj : createRnvContextFileObj();
+            loadExtendedConfigFile(tmp, pthObj);
+            loadFile(tmp, pthObj, 'configPrivate');
+            loadFile(tmp, pthObj, 'configLocal');
+            configs.push(tmp.config);
+            configsPrivate.push(tmp.configPrivate);
+            configsLocal.push(tmp.configLocal);
+        };
+        // FILE1: appConfigs/base
+        _loadAndUpdateConfigArray(pathObj1);
+
+        if (extendAppId && extendAppId !== 'base' && fsExistsSync(pathObj.appConfigsDir)) {
             const appConfigsDirNames = fsReaddirSync(pathObj.appConfigsDir);
-            if (parseAppConfigs && extendAppId && extendAppId !== 'base' && appConfigsDirNames.includes(extendAppId)) {
+            if (appConfigsDirNames.includes(extendAppId)) {
                 const path2 = path.join(pathObj.appConfigsDir, extendAppId);
                 const pathObj2: RnvContextPathObj = {
                     ...generateRnvConfigPathObj(),
-                    config: path.join(path2, RnvFileName.renative),
-                    configLocal: path.join(path2, RnvFileName.renativeLocal),
-                    configPrivate: path.join(path2, RnvFileName.renativePrivate)
-                };
-                const fileObj2: RnvContextFileObj<unknown> = {
-                    configs: [],
-                    configsLocal: [],
-                    configsPrivate: []
+                    ...createRnvContextConfigPaths(path2)
                 };
                 // PATH2: appConfigs/<extendConfig>
-                pathObj.dirs.push(path2);
-                pathObj.fontsDirs.push(path.join(path2, 'fonts'));
-                pathObj.pluginDirs.push(path.join(path2, 'plugins'));
-                pathObj.configs.push(pathObj2.config);
-                pathObj.configsLocal.push(pathObj2.configLocal);
-                pathObj.configsPrivate.push(pathObj2.configPrivate);
+                updateRnvContextPathObj(pathObj, path2, pathObj2);
                 // FILE2: appConfigs/<extendConfig>
-                loadFileExtended(fileObj2, pathObj2, 'config');
-                loadFileExtended(fileObj2, pathObj2, 'configPrivate');
-                loadFileExtended(fileObj2, pathObj2, 'configLocal');
-
-                if (fileObj2.config) fileObj.configs.push(fileObj2.config);
-                if (fileObj2.configLocal) fileObj.configsLocal.push(fileObj2.configLocal);
-                if (fileObj2.configPrivate) fileObj.configsPrivate.push(fileObj2.configPrivate);
+                _loadAndUpdateConfigArray(pathObj2);
             }
         }
 
         // PATH3: appConfigs/<appId>
         const path3 = pathObj.dir;
-        pathObj.dirs.push(path3);
-        pathObj.fontsDirs.push(path.join(path3, 'fonts'));
-        pathObj.pluginDirs.push(path.join(path3, 'plugins'));
-        pathObj.configs.push(path.join(path3, RnvFileName.renative));
-        pathObj.configsLocal.push(path.join(path3, RnvFileName.renativeLocal));
-        pathObj.configsPrivate.push(path.join(path3, RnvFileName.renativePrivate));
+        updateRnvContextPathObj(pathObj, path3);
+
         // FILE3: appConfigs/<appId>
-        loadFileExtended(fileObj, pathObj, 'config');
-        loadFileExtended(fileObj, pathObj, 'configPrivate');
-        loadFileExtended(fileObj, pathObj, 'configLocal');
-        if (fileObj.config) fileObj.configs.push(fileObj.config);
-        if (fileObj.configPrivate) fileObj.configsPrivate.push(fileObj.configPrivate);
-        if (fileObj.configLocal) fileObj.configsLocal.push(fileObj.configLocal);
+        _loadAndUpdateConfigArray(pathObj, true);
+
+        Object.assign(fileObj, {
+            configs: configs.filter(Boolean),
+            configsPrivate: configsPrivate.filter(Boolean),
+            configsLocal: configsLocal.filter(Boolean)
+        });
     }
 
     generateBuildConfig();
@@ -201,8 +173,9 @@ export const loadDefaultConfigTemplates = () => {
     //This comes from project dependency
     const pkgName = '@rnv/config-templates';
 
-    let configTemplatesPath = doResolve(pkgName);
+    let configTemplatesPath = doResolveDefault(pkgName);
     if (!configTemplatesPath) throw new Error(`@rnv/config-templates missing`);
+
     if (!fsExistsSync(configTemplatesPath)) {
         const pathLookups = generateLookupPaths(pkgName);
         configTemplatesPath = pathLookups.find((v) => fsExistsSync(v));
@@ -216,7 +189,7 @@ export const loadDefaultConfigTemplates = () => {
         }
     }
 
-    const configPath = path.join(configTemplatesPath, 'renative.templates.json');
+    const configPath = path.join(configTemplatesPath, RnvFileName.renativeTemplates);
     const pluginTemplatePath = path.join(configTemplatesPath, 'pluginTemplates');
     ctx.paths.rnvConfigTemplates.pluginTemplatesDir = pluginTemplatePath;
     ctx.paths.rnvConfigTemplates.config = configPath;
@@ -250,11 +223,10 @@ export const parseRenativeConfigs = async () => {
     // LOAD ./RENATIVE.*.JSON
     _loadConfigFiles(c.files.project, c.paths.project);
 
-    if (c.runtime.appId) {
-        c.paths.project.builds.config = path.join(c.paths.project.builds.dir, `${c.runtime.appId}_${c.platform}.json`);
-    } else {
-        c.paths.project.builds.config = path.join(c.paths.project.builds.dir, `<TBC>_${c.platform}.json`);
-    }
+    c.paths.project.builds.config = path.join(
+        c.paths.project.builds.dir,
+        `${c.runtime.appId || '<TBC>'}_${c.platform}.json`
+    );
 
     // LOAD ./platformBuilds/RENATIVE.BUILLD.JSON
     loadFile(c.files.project.builds, c.paths.project.builds, 'config');
@@ -273,7 +245,7 @@ export const parseRenativeConfigs = async () => {
 
     // LOAD WORKSPACE /[PROJECT_NAME]/RENATIVE.*.JSON
     if (!c.files.project.config.projectName) {
-        return Promise.reject('Your renative.json is missing required property: projectName ');
+        throw new Error('Your renative.json is missing required property: projectName ');
     }
     generateContextPaths(
         c.paths.workspace.project,
@@ -285,36 +257,36 @@ export const parseRenativeConfigs = async () => {
 
     generatePlatformTemplatePaths();
 
-    if (c.runtime.appId) {
-        if (c.runtime.appConfigDir) {
-            generateContextPaths(c.paths.appConfig, c.runtime.appConfigDir);
-            _loadConfigFiles(c.files.appConfig, c.paths.appConfig, true);
-        }
+    if (!c.runtime.appId) return;
 
-        const workspaceAppConfigsDir = getRealPath(c.buildConfig.workspaceAppConfigsDir);
-        c.paths.workspace.project.appConfigsDir =
-            workspaceAppConfigsDir || path.join(c.paths.workspace.project.dir, 'appConfigs');
-
-        generateContextPaths(
-            c.paths.workspace.appConfig,
-            path.join(c.paths.workspace.project.appConfigsDir, c.runtime.appId)
-        );
-
-        _loadConfigFiles(c.files.workspace.appConfig, c.paths.workspace.appConfig, true);
-
-        loadFile(c.files.project.assets, c.paths.project.assets, 'config');
-
-        // LOAD WORKSPACE /RENATIVE.*.JSON
-        const wsPath = await getWorkspaceDirPath(c);
-        if (wsPath) {
-            const wsPathReal = getRealPath(wsPath);
-            if (wsPathReal) {
-                generateContextPaths(c.paths.workspace, wsPathReal);
-                _loadConfigFiles(c.files.workspace, c.paths.workspace);
-            }
-        }
-
-        generateLocalConfig();
-        generateBuildConfig();
+    if (c.runtime.appConfigDir) {
+        generateContextPaths(c.paths.appConfig, c.runtime.appConfigDir);
+        _loadConfigFiles(c.files.appConfig, c.paths.appConfig, true);
     }
+
+    c.paths.workspace.project.appConfigsDir =
+        getRealPath(c.buildConfig.workspaceAppConfigsDir) || path.join(c.paths.workspace.project.dir, 'appConfigs');
+
+    generateContextPaths(
+        c.paths.workspace.appConfig,
+        path.join(c.paths.workspace.project.appConfigsDir, c.runtime.appId)
+    );
+
+    _loadConfigFiles(c.files.workspace.appConfig, c.paths.workspace.appConfig, true);
+
+    loadFile(c.files.project.assets, c.paths.project.assets, 'config');
+
+    // LOAD WORKSPACE /RENATIVE.*.JSON
+    const wsPath = await getWorkspaceDirPath(c); // possibly duplicate.
+    if (wsPath) {
+        const wsPathReal = getRealPath(wsPath);
+        // could replace with wsDir
+        if (wsPathReal) {
+            generateContextPaths(c.paths.workspace, wsPathReal);
+            _loadConfigFiles(c.files.workspace, c.paths.workspace);
+        }
+    }
+
+    generateLocalConfig();
+    generateBuildConfig();
 };

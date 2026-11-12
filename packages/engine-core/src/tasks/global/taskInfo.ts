@@ -1,4 +1,4 @@
-import { createTask, RnvTaskName, getContext, execCLI, logError, logDebug, logToSummary } from '@rnv/core';
+import { createTask, execCLI, getContext, logDebug, logError, logToSummary, RnvTaskName } from '@rnv/core';
 import envinfo from 'envinfo';
 import semver from 'semver';
 
@@ -6,19 +6,20 @@ export default createTask({
     description: 'Get relevant version info about OS, toolchain and libraries',
     fn: async () => {
         const parsedInfo = await _getEnvironmentInfo();
+        if (!parsedInfo) throw new Error("can't get environmentInfo");
         await _checkAndConfigureSdks();
         await _getCliVersions(parsedInfo);
         logToSummary(_formatObject(parsedInfo));
         return true;
     },
     task: RnvTaskName.info,
-    isGlobalScope: true,
+    isGlobalScope: true
 });
 
 const _checkAndConfigureSdks = async () => {
     const moduleConfigs = [
         { moduleName: 'sdk-tizen', configureFunction: 'checkAndConfigureTizenSdks' },
-        { moduleName: 'sdk-webos', configureFunction: 'checkAndConfigureWebosSdks' },
+        { moduleName: 'sdk-webos', configureFunction: 'checkAndConfigureWebosSdks' }
     ];
     for (const config of moduleConfigs) {
         const { moduleName, configureFunction } = config;
@@ -35,14 +36,14 @@ const _checkAndConfigureTargetSdk = async (moduleName: string, configureFunction
     }
 };
 
-const _getCliVersions = async (parsedInfo: any) => {
+const _getCliVersions = async (parsedInfo: Record<string, any>) => {
     const c = getContext();
     const cliVersions: { [key: string]: { version: string; path: string } } = {};
 
     const addCliVersion = async (cli: string, command: string, path: string, cliName: string) => {
         try {
             const cliVersionOutput = await execCLI(cli, command);
-            const cliVersionNumber = semver.coerce(cliVersionOutput)?.version;
+            const cliVersionNumber = semver.coerce(cliVersionOutput as any)?.version;
             if (cliVersionNumber) {
                 cliVersions[`${cliName.replace('-', ' ').toUpperCase()}`] = { version: cliVersionNumber, path };
             }
@@ -61,20 +62,24 @@ const _getCliVersions = async (parsedInfo: any) => {
         parsedInfo.CLI = cliVersions;
     }
 };
-const _formatObject = (obj: any, indent = 0) => {
+const _formatObject = (obj: Record<string, any>, indent = 0) => {
     let formattedString = '';
     if (indent === 0) formattedString += '\n';
-    for (const key in obj) {
-        if (obj[key] && typeof obj[key] === 'object' && obj[key].version) {
-            formattedString +=
-                ' '.repeat(indent) + `${key}: ${obj[key].version} ${obj[key].path ? `- ${obj[key].path}` : ''}\n`;
-        } else if (Array.isArray(obj[key])) {
-            formattedString += ' '.repeat(indent) + `${key}: ${obj[key].join(', ')}\n`;
-        } else if (typeof obj[key] === 'object') {
-            formattedString += ' '.repeat(indent) + `${key}:\n`;
-            formattedString += _formatObject(obj[key], indent + 2);
+    for (const [key, value] of Object.entries(obj)) {
+        formattedString += ' '.repeat(indent);
+        if (typeof value === 'object') {
+            switch (true) {
+                case !!obj[key].version:
+                    formattedString += `${key}: ${obj[key].version} ${obj[key].path ? `- ${obj[key].path}` : ''}\n`;
+                    break;
+                case Array.isArray(value):
+                    formattedString += `${key}: ${obj[key].join(', ')}\n`;
+                    break;
+                default:
+                    formattedString += `${key}:\n${_formatObject(obj[key], indent + 2)}`;
+            }
         } else {
-            formattedString += ' '.repeat(indent) + `${key}: ${obj[key]}\n`;
+            formattedString += `${key}: ${obj[key]}\n`;
         }
     }
     return formattedString;
@@ -91,11 +96,11 @@ const _getEnvironmentInfo = async () => {
                 IDEs: ['Xcode', 'Android Studio'],
                 SDKs: ['iOS SDK', 'Android SDK'],
                 npmPackages: ['react', 'react-native', '@react-native-community/cli', 'rnv'],
-                npmGlobalPackages: ['*react-native*', 'rnv', 'lerna'],
+                npmGlobalPackages: ['*react-native*', 'rnv', 'lerna']
             },
             { json: true, duplicates: false }
         );
-        return JSON.parse(output);
+        return JSON.parse(output) as Record<string, any>;
     } catch (e) {
         logError(e);
     }

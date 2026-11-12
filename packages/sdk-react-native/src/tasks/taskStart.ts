@@ -10,7 +10,7 @@ export default createTask({
     fn: async ({ ctx, parentTaskName }) => {
         const { hosted } = ctx.program.opts();
         if (hosted) {
-            return Promise.reject('This platform does not support hosted mode');
+            throw new Error('This platform does not support hosted mode');
         }
         // Disable reset for other commands (ie. cleaning platforms)
         ctx.runtime.disableReset = true;

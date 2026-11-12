@@ -1,6 +1,6 @@
 {
     "name": "@rnv/sdk-utils",
-    "version": "1.10.0-rc.1",
+    "version": "0.0.1",
     "description": "ReNative SDK Utils",
     "keywords": [],
     "homepage": "https://github.com/flexn-io/renative#readme",
@@ -39,5 +39,8 @@
     },
     "peerDependencies": {
         "@rnv/core": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "^26.6.6"
     }
 }

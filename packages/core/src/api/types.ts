@@ -8,7 +8,7 @@ import type { DoResolveFn } from '../system/types';
 import type { RnvPlatform } from '../types';
 
 export type RnvApi = {
-    isDefault: boolean;
+    isInitialized: boolean;
     spinner: RnvApiSpinner;
     prompt: RnvApiPrompt;
     logger: RnvApiLogger;
@@ -75,13 +75,28 @@ export type PromptOptions = {
     asString: string;
     optionsAsArray: Array<any>;
 };
+type Choice<Value> = {
+    value: Value;
+    name?: string;
+    description?: string;
+    short?: string;
+    disabled?: boolean | string;
+};
+
+type NamedValue = { name: string; value: any };
+
+export type PromptSource = (
+    term?: string
+) => Promise<ReadonlyArray<Choice<string | boolean | string[]> | NamedValue | string[]>>;
+
+export type PromptChoice = Array<NamedValue | string>;
 
 export type PromptParams = {
     name?: string;
     type: string;
-    message?: string;
-    choices?: Array<{ name: string; value: any } | string>;
-    source?: (answersSoFar: any, input: string | undefined) => Promise<any>;
+    message: string;
+    choices?: PromptChoice;
+    source?: PromptSource;
     validate?: (i: string) => string | boolean;
     logMessage?: string;
     warningMessage?: string;

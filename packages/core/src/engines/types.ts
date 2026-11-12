@@ -11,18 +11,6 @@ type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
 type ExtractModulePayload<T extends RnvModule> = T extends RnvModule<any, infer Payload> ? Payload : never;
 type ExtractModuleOKey<T extends RnvModule> = T extends RnvModule<infer OKey, any> ? OKey : never;
 
-// type ExtractKeyedModule<OKey> = OKey extends string ? RnvModule<OKey> : never;
-
-// export type KeyAwareModule<OKey> = OKey extends string
-//     ? [RnvModule<OKey>, ...RnvModule<OKey>[]]
-//     : [RnvModule<any>, ...RnvModule<any>[]];
-
-// export type KeyAwareModule<OKey> = [RnvModule<OKey>, ...RnvModule<OKey>[]];
-
-// export type KeyAwareModule<OKey> = ReadonlyArray<RnvModule<OKey>>;
-
-// export type KeyAwareModule<OKey> = [RnvModule<OKey>, ...RnvModule<OKey>[]];
-
 export type CreateRnvEngineOpts<
     OKey extends string,
     Modules extends [RnvModule, ...RnvModule[]],
@@ -43,7 +31,7 @@ export type CreateRnvEngineOpts<
 
 export type RnvEngine<
     OKey extends string = string,
-    Modules extends [RnvModule, ...RnvModule[]] = any,
+    Modules extends [RnvModule, ...RnvModule[]] = [RnvModule],
     OKeys extends string = OKey | ExtractModuleOKey<Modules[number]>
 > = {
     originalTemplatePlatformsDir?: string;
@@ -80,17 +68,3 @@ export type RnvEngineInstallConfig = {
     engineRootPath?: string;
     configPath?: string;
 };
-
-// export type GetContextType<T extends RnvEngine> = () => RnvContext<
-//     any,
-//     Extract<keyof Required<T['tasks'][string]>['options'], string>
-// >;
-
-// export type GetContextType<T extends RnvEngine> = () => RnvContext<
-//     any,
-//     Extract<keyof Readonly<Required<T['tasks'][string]>['options']>[number]['key'], string>
-// >;
-
-// Readonly < Required < Eng['tasks'][string] > ['options'] > [number]['key'];
-
-// type Booo<T extends RnvEngine> = Readonly<Required<T['tasks'][string]>['options']>[number]['key'];

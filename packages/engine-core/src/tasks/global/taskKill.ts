@@ -20,11 +20,11 @@ export default createTask({
         const results = [];
         let ports: Partial<Record<RnvPlatformKey, number>> = {};
 
-        await configureRuntimeDefaults();
+        configureRuntimeDefaults();
 
         if (ctx.paths.project.configExists) {
             await executeTask({ taskName: RnvTaskName.appConfigure, parentTaskName: taskName, originTaskName });
-            await configureRuntimeDefaults();
+            configureRuntimeDefaults();
             platArray = Object.values(ctx.runtime.supportedPlatforms);
             ports = ctx.buildConfig?.defaults?.ports || {};
         }
@@ -44,18 +44,15 @@ export default createTask({
         });
 
         if (usedPorts.length) {
-            const { confirm } = await inquirerPrompt({
+            const confirm = (await inquirerPrompt({
                 type: 'confirm',
                 message: 'Processes attached to the ports will be killed. Continue?',
                 warningMessage: `Found active ports:
 ${usedPorts.map((v) => chalk.bold.white(`> ${v.port} (${v.platform})`)).join('\n')}`
-            });
+            })) as boolean;
             if (confirm) {
-                const killPromise = [];
-                usedPorts.forEach((v) => {
-                    if (v.port) killPromise.push(killPort({ port: v.port }));
-                });
-                await Promise.all(usedPorts);
+                const killPromise = usedPorts.flatMap((v) => (v.port ? killPort({ port: v.port }) : []));
+                await Promise.all(killPromise);
                 logSuccess('Processes KILLED');
             }
         }

@@ -33,7 +33,7 @@ const ERROR_MSG = {
     UNKNOWN_AVD: 'Unknown AVD name'
 };
 const IS_TABLET_ABOVE_INCH = 6.5;
-type DeviceInfo = { key: string; name: string; value: string; icon: string };
+export type DeviceInfo = { key: string; name: string; value: string; icon: string };
 
 const getDeviceIcon = (device: AndroidDevice) => {
     const { udid, avdConfig, isWear } = device;
@@ -188,11 +188,11 @@ const getEmulatorName = async (words: Array<string>) => {
 };
 
 const _pairDevices = async (target: string) => {
-    const { ip_address } = await inquirerPrompt({
+    const ip_address = (await inquirerPrompt({
         name: 'ip_address',
         type: 'input',
         message: `Please go to Settings, enable debugging, and enter the IP address and Port required for pairing:`
-    });
+    })) as string;
 
     await execCLI(CLI_ANDROID_ADB, `pair ${ip_address}`, ExecOptionsPresets.INHERIT_OUTPUT_NO_SPINNER);
     await connectToWifiDevice(target);
@@ -371,17 +371,16 @@ export const launchAndroidSimulator = async (
         const { device } = c.program.opts();
         const list = await getAndroidTargets(false, device, device);
         const choices = composeDevicesArray(list);
-        const response = await inquirerPrompt({
+        newTarget = (await inquirerPrompt({
             name: 'chosenTarget',
             type: 'list',
             message: 'What target would you like to launch?',
             choices
-        });
-        newTarget = response.chosenTarget;
+        })) as DeviceInfo;
     } else {
         newTarget = target;
     }
-    if (!newTarget) return Promise.reject('No simulator -t target name specified!');
+    if (!newTarget) throw new Error('No simulator -t target name specified!');
 
     const actualTarget = typeof newTarget === 'string' ? newTarget : newTarget.name;
     const cliCommand = `${c.cli[CLI_ANDROID_EMULATOR]} -avd ${actualTarget}`;
@@ -496,20 +495,20 @@ export const askForNewEmulator = async () => {
     logDefault('askForNewEmulator');
 
     let emuName = c.files.workspace.config?.defaultTargets?.[platform];
-    const { confirm } = await inquirerPrompt({
+    const confirm = (await inquirerPrompt({
         name: 'confirm',
         type: 'confirm',
         message: `Do you want ReNative to create new Emulator (${chalk.bold.white(
             emuName
         )}) for you? Warning: created simulator can malfunction.`
-    });
+    })) as boolean;
 
     if (!confirm) {
-        const { openStudio } = await inquirerPrompt({
+        const openStudio = (await inquirerPrompt({
             name: 'openStudio',
             type: 'confirm',
             message: `Would you like to create simulator manually? (It will open Android Studio.)`
-        });
+        })) as boolean;
         if (openStudio) {
             try {
                 return executeAsync('open -a /Applications/Android\\ Studio.app');
@@ -519,35 +518,34 @@ export const askForNewEmulator = async () => {
         }
     }
     if (!emuName) {
-        const { newEmuName } = await inquirerPrompt({
+        emuName = (await inquirerPrompt({
             name: 'confirm',
             type: 'input',
             message: `Type name of the emulator to launch`
-        });
-        emuName = newEmuName;
+        })) as string;
     }
 
     const sdk = '34';
     const arch = os.arch() === 'arm64' ? 'arm64-v8a' : 'x86';
 
-    if (confirm && emuName !== undefined) {
-        const emuLaunch = {
-            name: emuName
-        };
-        switch (platform) {
-            case 'android':
-                return _createEmulator(sdk, 'google_apis', emuName, arch, 'pixel_3a').then(() =>
-                    launchAndroidSimulator(emuLaunch, true)
-                );
-            case 'androidwear':
-                return _createEmulator(sdk, 'android-wear', emuName, arch, 'wearos_small_round').then(() =>
-                    launchAndroidSimulator(emuLaunch, true)
-                );
-            default:
-                return Promise.reject('Cannot find any active or created emulators');
-        }
+    if (!confirm || emuName === undefined) {
+        throw new Error('Action canceled!');
     }
-    return Promise.reject('Action canceled!');
+    const emuLaunch = {
+        name: emuName
+    };
+    switch (platform) {
+        case 'android':
+            return _createEmulator(sdk, 'google_apis', emuName, arch, 'pixel_3a').then(() =>
+                launchAndroidSimulator(emuLaunch, true)
+            );
+        case 'androidwear':
+            return _createEmulator(sdk, 'android-wear', emuName, arch, 'wearos_small_round').then(() =>
+                launchAndroidSimulator(emuLaunch, true)
+            );
+        default:
+            throw new Error('Cannot find any active or created emulators');
+    }
 };
 
 export const checkForActiveEmulator = (emulatorName?: string) =>

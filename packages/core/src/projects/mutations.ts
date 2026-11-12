@@ -1,7 +1,7 @@
-import type { RnvContext } from '@context/types';
 import { inquirerPrompt } from '../api';
 import type { NpmPackageFile } from '../configs/types';
 import { getContext } from '../context/provider';
+import type { RnvContext } from '../context/types';
 import { chalk, logRaw, logWarning } from '../logger';
 import { updatePackage } from './package';
 import type { DependencyMutation } from './types';
@@ -42,13 +42,13 @@ export const handleMutations = async (ctx: RnvContext) => {
         'Update package and skip install',
         'Continue without update or install'
     ];
-    const { confirm } = await inquirerPrompt({
+    const confirm = (await inquirerPrompt({
         name: 'confirm',
         type: 'list',
         default: choices[0],
         choices,
         message: 'What to do?'
-    });
+    })) as string;
 
     ctx.mutations.pendingMutations = [];
 

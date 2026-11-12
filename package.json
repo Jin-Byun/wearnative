@@ -24,6 +24,7 @@
         "build": "pnpm -r build",
         "watch": "pnpm -r --parallel watch",
         "lint": "biome lint ./packages",
+        "lint-error": "biome lint ./packages --diagnostic-level=error",
         "generateSchema": "tsx scripts/generate-schema.ts",
         "sanity": "pnpm generateSchema && pnpm build && pnpm lint",
         "release": "pnpm changeset version && pnpm changeset publish",
@@ -31,16 +32,16 @@
         "clean-gitignore": "git clean -f -d -i -X",
         "report-ts-coverage": "typescript-coverage-report -p ./packages/core/tsconfig.json  -t 99"
     },
+    "dependencies": {
+        "tslib": "catalog:"
+    },
     "devDependencies": {
         "@biomejs/biome": "^2.5.10",
         "@changesets/cli": "^3.0.1",
         "@rnv/build-hooks-schema": "workspace:*",
         "@rnv/core": "workspace:*",
-        "@types/ncp": "2.0.5",
-        "@types/node": "^18.15.3",
+        "@types/node": "catalog:",
         "@types/shell-quote": "1.7.1",
-        "@types/shelljs": "0.8.12",
-        "@types/tar": "catalog:",
         "json-diff": "1.0.6",
         "tsx": "^4.23.12",
         "typescript": "catalog:",

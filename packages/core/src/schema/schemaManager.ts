@@ -1,24 +1,14 @@
-import path from 'path';
+import path from 'node:path';
 import { getContext } from '../context/provider';
-import { logDefault, logInfo } from '../logger';
-import { copyFolderContentsRecursiveSync, fsExistsSync, mkdirSync } from '../system/fs';
+import { logDefault } from '../logger';
+import { copyFolderContentsRecursiveSync, fsMkdirSync } from '../system/fs';
 
 export const generateLocalJsonSchemas = async () => {
     logDefault('generateLocalJsonSchemas');
     const ctx = getContext();
-
-    if (!fsExistsSync(ctx.paths.project.dotRnvDir)) {
-        logInfo(`.rnv folder missing. CREATING...DONE`);
-        mkdirSync(ctx.paths.project.dotRnvDir);
-    }
-
     const schemaDestDir = path.join(ctx.paths.project.dotRnvDir, 'schema');
-    if (!fsExistsSync(schemaDestDir)) {
-        logInfo(`.rnv/schemas folder missing. CREATING...DONE`);
-        mkdirSync(schemaDestDir);
-    }
+    fsMkdirSync(schemaDestDir, { recursive: true });
 
     const schemaSourceDir = path.join(__dirname, '../../jsonSchema');
     copyFolderContentsRecursiveSync(schemaSourceDir, schemaDestDir);
-    return true;
 };

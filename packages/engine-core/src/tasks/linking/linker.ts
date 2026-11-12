@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
     chalk,
     fsExistsSync,
@@ -9,7 +10,6 @@ import {
     RnvFileName,
     readObjectSync
 } from '@rnv/core';
-import path from 'path';
 import type { LinkablePackage, SourcePackage } from './types';
 
 const captureLinkablePackages = (
@@ -23,12 +23,7 @@ const captureLinkablePackages = (
         const nmPathExists = fsExistsSync(rnvDepPath);
         try {
             isSymLink = fsLstatSync(rnvDepPath).isSymbolicLink();
-            if (!nmPathExists) {
-                // Broken link
-            }
-        } catch (e) {
-            //Catch error
-        }
+        } catch {}
         const cacheDir = path.join(baseDir, '.rnv/unlinked_cache');
         const unlinkedPath = path.join(cacheDir, pkg.name);
         const unlinkedPathExists = fsExistsSync(unlinkedPath);

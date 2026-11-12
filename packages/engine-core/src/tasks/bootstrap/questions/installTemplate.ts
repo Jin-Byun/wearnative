@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import {
     type ConfigFileProject,
     type ConfigFileTemplate,
@@ -7,189 +9,200 @@ import {
     executeAsync,
     fsExistsSync,
     fsLstatSync,
+    fsMkdirSync,
     fsReaddirSync,
+    getPacManCommand,
     inquirerPrompt,
     inquirerSeparator,
     isYarnInstalled,
     listAndSelectNpmVersion,
     logInfo,
-    mkdirSync,
     type NpmPackageFile,
+    type RnvContext,
     RnvFileName,
     RnvFolderName,
     readObjectSync,
     writeFileSync
 } from '@rnv/core';
 import { merge } from 'lodash';
-import path from 'path';
 import { getContext } from '../../../getContext';
 import { checkInputValue, saveProgressIntoProjectConfig } from '../questionHelpers';
 import type { NewProjectData, TemplateOption } from '../types';
 
-const mergeIntoProjectConfig = (data: NewProjectData, updateObj: ConfigFileProject) => {
-    const { files } = data;
+const mergeIntoProjectConfig = ({ files }: NewProjectData, updateObj: ConfigFileProject) => {
     files.project.renativeConfig = merge(files.project.renativeConfig, updateObj);
 };
 
-const mergeIntoProjectPackage = (data: NewProjectData, updateObj: NpmPackageFile) => {
-    const { files } = data;
+const mergeIntoProjectPackage = ({ files }: NewProjectData, updateObj: NpmPackageFile) => {
     files.project.packageJson = merge(files.project.packageJson, updateObj);
 };
 
+const selectTemplate = async (
+    projectTemplateArray: [
+        string,
+        {
+            packageName?: string | undefined;
+            description?: string | undefined;
+            localPath?: string | undefined;
+        }
+    ][],
+    templateName: string
+): Promise<TemplateOption['value']> => {
+    const options: TemplateOption[] = projectTemplateArray.map(([k, v]) => {
+        return {
+            name: `${k} ${chalk.grey(`- ${v.localPath || v.description}`)}`,
+            value: { ...v, type: 'existing', packageName: v?.packageName || k }
+        };
+    });
+    const defaultOverride = options.findLast(({ value }) => !!value.localPath)?.value ?? templateName;
+    options.push(
+        inquirerSeparator('Advanced:----------------'),
+        { name: 'Custom Template (npm)...', value: { type: 'custom' } },
+        { name: 'Local Template...', value: { type: 'local' } },
+        { name: 'No Template (blank project)', value: { type: 'none' } }
+    );
+    return (await inquirerPrompt({
+        name: 'result',
+        type: 'list',
+        message: 'What template to use?',
+        default: defaultOverride,
+        loop: false,
+        choices: options
+    })) as TemplateOption['value'];
+};
+
+const extractIgnorePath = (c: RnvContext): Set<string> => {
+    const ignorePathSet = new Set<string>([
+        RnvFolderName.nodeModules,
+        'package-lock.json',
+        'yarn.lock',
+        RnvFolderName.platformBuilds,
+        'builds',
+        RnvFolderName.platformAssets,
+        RnvFolderName.secrets,
+        RnvFolderName.dotRnv
+    ]);
+    try {
+        const gitIgnorePathSet = execFileSync(
+            'git',
+            ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory'],
+            {
+                cwd: c.paths.project.dir,
+                encoding: 'utf8'
+            }
+        )
+            .split(/\r?\n/)
+            .filter(Boolean);
+        return ignorePathSet.union(new Set<string>(gitIgnorePathSet));
+    } catch {}
+    return ignorePathSet;
+};
+
 const Question = async (data: NewProjectData) => {
+    // initialization (data fetching)
     const { inputs, defaults, files } = data;
-    const customTemplate: TemplateOption = { name: 'Custom Template (npm)...', value: { type: 'custom' } };
-    const localTemplate: TemplateOption = { name: 'Local Template...', value: { type: 'local' } };
-    const noTemplate: TemplateOption = { name: 'No Template (blank project)', value: { type: 'none' } };
 
     const c = getContext();
     const { templateVersion, projectTemplate } = c.program.opts();
     let { localTemplatePath } = c.program.opts();
 
-    const projectTemplates = c.buildConfig.projectTemplates || {}; // c.files.rnvConfigTemplates.config?.projectTemplates || {};
-    const projectTemplateKeys = Object.keys(projectTemplates);
+    const projectTemplateArray = Object.entries(c.buildConfig.projectTemplates || {});
 
     inputs.template = {};
 
+    // check if template declared, if not, get template
     if (checkInputValue(projectTemplate)) {
         inputs.template.packageName = projectTemplate;
     } else if (!checkInputValue(localTemplatePath)) {
-        const options: TemplateOption[] = [];
-        let defaultOverride;
-        projectTemplateKeys.forEach((k) => {
-            const value = projectTemplates[k];
-
-            const option: TemplateOption = {
-                name: `${k} ${chalk.grey(`- ${value.localPath || value.description}`)}`,
-                value: { ...value, type: 'existing', packageName: value?.packageName || k }
-            };
-            options.push(option);
-            if (value.localPath) {
-                defaultOverride = option.value;
-            }
-        });
-
-        options.push(inquirerSeparator('Advanced:----------------'));
-        options.push(customTemplate);
-        options.push(localTemplate);
-        options.push(noTemplate);
-
-        const iRes = await inquirerPrompt({
-            name: 'inputTemplate',
-            type: 'list',
-            message: 'What template to use?',
-            default: defaultOverride || defaults.templateName,
-            loop: false,
-            choices: options
-        });
-        const result: TemplateOption['value'] = iRes.inputTemplate;
+        const result = await selectTemplate(projectTemplateArray, defaults.templateName);
         inputs.template.type = result.type;
 
-        if (result.type === 'custom') {
-            const { inputTemplateCustom } = await inquirerPrompt({
-                name: 'inputTemplateCustom',
-                type: 'input',
-                message: 'NPM package name:'
-            });
-            inputs.template.packageName = inputTemplateCustom;
-        } else if (result.type === 'local') {
-            const { inputTemplateLocal } = await inquirerPrompt({
-                name: 'inputTemplateLocal',
-                type: 'input',
-                message: 'Path (absolute):'
-            });
-            localTemplatePath = inputTemplateLocal;
-        } else if (result.type === 'none') {
-            // TODO: add support for no templates
-            return Promise.reject('No templates NOT SUPPORTED YET');
-        } else if (result.type === 'existing') {
-            if (result.localPath) {
-                localTemplatePath = result.localPath;
-            } else {
-                inputs.template.packageName = result.packageName;
+        switch (result.type) {
+            case 'none':
+                throw new Error('No templates Not Supported');
+            case 'existing':
+                if (result.localPath) {
+                    localTemplatePath = result.localPath;
+                } else {
+                    inputs.template.packageName = result.packageName;
+                }
+                break;
+            case 'custom': {
+                inputs.template.packageName = (await inquirerPrompt({
+                    name: 'inputTemplateCustom',
+                    type: 'input',
+                    message: 'NPM package name:'
+                })) as string;
+                break;
+            }
+            case 'local': {
+                localTemplatePath = (await inquirerPrompt({
+                    name: 'inputTemplateLocal',
+                    type: 'input',
+                    message: 'Path (absolute):'
+                })) as string;
             }
         }
     }
 
-    const npmCacheDir = path.join(c.paths.project.dir, RnvFolderName.dotRnv, RnvFolderName.npmCache);
-
+    // by this point, either the packageName or localTemplatePath should be set.
     if (checkInputValue(localTemplatePath)) {
-        if (!fsExistsSync(localTemplatePath)) {
-            return Promise.reject(`Local template path ${localTemplatePath} does not exist`);
-        }
-        const templateConfigPath = path.join(localTemplatePath, RnvFileName.renativeTemplate);
-        if (!fsExistsSync(templateConfigPath)) {
-            return Promise.reject(
-                `Renative template config path ${templateConfigPath} does not exist. Are you sure the path provided is a correct template folder?`
+        const localTemplatePackage = path.join(localTemplatePath, RnvFileName.package);
+        const checkLocalTplPath = [
+            localTemplatePath,
+            path.join(localTemplatePath, RnvFileName.renativeTemplate),
+            localTemplatePackage
+        ].some((pth) => !fsExistsSync(pth));
+        if (checkLocalTplPath) {
+            throw new Error(
+                `Local template path ${localTemplatePath} invalid. Please check for correctness and if path contains ${RnvFileName.renativeTemplate} and ${RnvFileName.package}`
             );
         }
-        const localTemplatePkgPath = path.join(localTemplatePath, RnvFileName.package);
-        if (!fsExistsSync(localTemplatePath)) {
-            return Promise.reject(`Local template package ${localTemplatePkgPath} does not exist`);
-        }
-        const pkg = readObjectSync<NpmPackageFile>(localTemplatePkgPath);
-
-        mkdirSync(npmCacheDir);
+        const pkg = readObjectSync<NpmPackageFile>(localTemplatePackage);
         if (!pkg?.name) {
-            return Promise.reject(`Invalid package ${localTemplatePkgPath} missing name field`);
+            throw new Error(`Invalid package ${localTemplatePackage} missing name field`);
         }
 
         inputs.template.packageName = pkg.name;
         inputs.template.version = pkg.version;
         inputs.template.localPath = localTemplatePath;
-        projectTemplateKeys.find((tpl) => {
-            const value = projectTemplates[tpl];
-            if (value.localPath === localTemplatePath && inputs.template) {
-                inputs.template.type = 'existing';
-            }
-        });
-
-        if (!inputs.template) return;
-
-        const nmTemplatePath = path.join(npmCacheDir, pkg?.name);
-
+        if (projectTemplateArray.some(([_, value]) => value.localPath === localTemplatePath)) {
+            inputs.template.type = 'existing';
+        }
         logInfo(`Found local template: ${pkg.name}@${pkg.version}`);
 
-        mkdirSync(nmTemplatePath);
+        const nmTemplatePath = path.join(c.paths.project.dir, RnvFolderName.dotRnv, RnvFolderName.npmCache, pkg.name);
+        fsMkdirSync(nmTemplatePath, { recursive: true });
 
-        // TODO: read .npmignore and .gitignore and apply those rules
-        const ignorePaths = [
-            RnvFolderName.nodeModules,
-            'package-lock.json',
-            'yarn.lock',
-            RnvFolderName.platformBuilds,
-            'builds',
-            RnvFolderName.platformAssets,
-            RnvFolderName.secrets,
-            RnvFolderName.dotRnv
-        ];
-        fsReaddirSync(localTemplatePath).forEach((file) => {
-            if (!ignorePaths.includes(file) && localTemplatePath) {
-                const sourcePath = path.join(localTemplatePath, file);
+        const ignorePathSet = extractIgnorePath(c);
+        for (const file of fsReaddirSync(localTemplatePath)) {
+            if (ignorePathSet.has(file)) continue;
+
+            const sourcePath = path.join(localTemplatePath, file);
+            if (fsLstatSync(sourcePath).isDirectory()) {
+                copyFolderRecursiveSync(sourcePath, nmTemplatePath);
+            } else {
                 const destPath = path.join(nmTemplatePath, file);
-                if (fsLstatSync(sourcePath).isDirectory()) {
-                    copyFolderRecursiveSync(sourcePath, nmTemplatePath);
-                } else {
-                    copyFileSync(sourcePath, destPath);
-                }
+                copyFileSync(sourcePath, destPath);
             }
-        });
+        }
 
-        const copiedlocalTemplatePath = `${RnvFolderName.dotRnv}/${RnvFolderName.npmCache}/${inputs.template.packageName}`;
+        const copiedlocalTemplatePath = path.join(
+            RnvFolderName.dotRnv,
+            RnvFolderName.npmCache,
+            inputs.template.packageName
+        );
 
         if (!isYarnInstalled()) {
-            const localPackageFilePath = path.join(`${copiedlocalTemplatePath}`, 'package.json');
+            // NOTE: this is a workaround for npm/yarn bug where manually added packages are overriden on next install
+            const localPackageFilePath = path.join(copiedlocalTemplatePath, RnvFileName.package);
             const localPackageFile = readObjectSync<NpmPackageFile>(localPackageFilePath);
             if (localPackageFile) {
                 delete localPackageFile.devDependencies;
                 writeFileSync(localPackageFilePath, localPackageFile);
             }
         }
-        // NOTE: this is a workaround for npm/yarn bug where manually added packages are overriden on next install
         const filePath = `file:${copiedlocalTemplatePath}`;
-        if (!inputs.template.packageName) {
-            return;
-        }
         mergeIntoProjectPackage(data, {
             devDependencies: {
                 [inputs.template?.packageName]: filePath
@@ -203,24 +216,20 @@ const Question = async (data: NewProjectData) => {
         });
         await saveProgressIntoProjectConfig(data);
 
-        await executeAsync(`${isYarnInstalled() ? 'yarn' : 'npm install'}`, {
+        await executeAsync(await getPacManCommand(c, 'init'), {
             cwd: c.paths.project.dir
         });
     } else {
-        if (checkInputValue(templateVersion)) {
-            inputs.template.version = templateVersion;
-        } else if (inputs.template.packageName) {
-            inputs.template.version = await listAndSelectNpmVersion(inputs.template.packageName);
-        } else {
-            return Promise.reject('Template package name is required');
+        if (!checkInputValue(templateVersion) && !inputs.template.packageName) {
+            throw new Error('Template package name is required');
         }
+        inputs.template.version = checkInputValue(templateVersion)
+            ? templateVersion
+            : await listAndSelectNpmVersion(inputs.template.packageName as string);
 
-        await executeAsync(
-            `${isYarnInstalled() ? 'yarn' : 'npm'} add ${inputs.template.packageName}@${inputs.template.version} --dev`,
-            {
-                cwd: c.paths.project.dir
-            }
-        );
+        const pkgInstallScript = `${await getPacManCommand(c)} ${inputs.template.packageName}@${inputs.template.version} --dev`;
+        await executeAsync(pkgInstallScript, { cwd: c.paths.project.dir });
+
         if (inputs.template.packageName && inputs.template.version) {
             // We update our in-memory package.json with the new template
             mergeIntoProjectPackage(data, {
@@ -237,27 +246,20 @@ const Question = async (data: NewProjectData) => {
         });
         await saveProgressIntoProjectConfig(data);
         // Check if node_modules folder exists
-        const nmDir = path.join(c.paths.project.dir, 'node_modules');
+        const nmDir = path.join(c.paths.project.dir, RnvFolderName.nodeModules);
         if (!fsExistsSync(nmDir)) {
-            return Promise.reject(
-                `${isYarnInstalled() ? 'yarn' : 'npm'} add ${inputs.template.packageName}@${
-                    inputs.template.version
-                } : FAILED. this could happen if you have package.json accidentally created somewhere in parent directory`
+            throw new Error(
+                `${pkgInstallScript} : FAILED. this could happen if you have package.json accidentally created somewhere in parent directory`
             );
         }
     }
+    if (!inputs.template.packageName) return;
 
-    if (!inputs.template.packageName) {
-        return;
-    }
-
-    const templateDir = path.join(c.paths.project.dir, 'node_modules', inputs.template.packageName);
+    const templateDir = path.join(c.paths.project.dir, RnvFolderName.nodeModules, inputs.template.packageName);
 
     const renativeTemplateConfig =
         readObjectSync<ConfigFileTemplate>(path.join(templateDir, RnvFileName.renativeTemplate)) || {};
-    if (renativeTemplateConfig) {
-        files.template.renativeTemplateConfig = renativeTemplateConfig;
-    }
+    files.template.renativeTemplateConfig = renativeTemplateConfig;
 
     const renativeConfig = readObjectSync<ConfigFileProject>(path.join(templateDir, RnvFileName.renative));
     if (renativeConfig) {

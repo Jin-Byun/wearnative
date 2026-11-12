@@ -4,7 +4,7 @@
     "outDir": "./lib",
     "rootDir": "./src",
     "resolveJsonModule": false,
-    "lib": ["ES2021.String"],
   },
   "include": ["./src/**/*", "./src/**/*.json", "./package.json"],
+  "references": [{ "path": "../core" }],
 }

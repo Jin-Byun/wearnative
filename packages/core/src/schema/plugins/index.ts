@@ -1,16 +1,16 @@
-import { AnyZodObject, z } from 'zod';
+import { z } from 'zod';
+import { zodPluginBaseFragment } from './fragments/base';
 import { zodPluginPlatformAndroidFragment } from './fragments/platformAndroid';
 import { zodPluginPlatformBaseFragment } from './fragments/platformBase';
-import { zodPluginBaseFragment } from './fragments/base';
 
-const zodAndroidSchema = zodPluginPlatformBaseFragment.merge(zodPluginPlatformAndroidFragment).nullable();
+const zodAndroidSchema = zodPluginPlatformBaseFragment.extend(zodPluginPlatformAndroidFragment.shape).nullable();
 
-export const zodPluginSchema: AnyZodObject = zodPluginBaseFragment.merge(
+export const zodPluginSchema = zodPluginBaseFragment.extend(
     z
         .object({
-            androidwear: zodAndroidSchema,
+            androidwear: zodAndroidSchema
         })
-        .partial()
+        .partial().shape
 );
 
 export const zodPluginsSchema = z

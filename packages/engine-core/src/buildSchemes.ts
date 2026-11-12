@@ -44,13 +44,13 @@ export const isBuildSchemeSupported = async () => {
             schemeVals[key] = k;
         });
 
-        const { selectedScheme } = await inquirerPrompt({
+        const selectedScheme = (await inquirerPrompt({
             name: 'selectedScheme',
             type: 'list',
             message: 'Pick one of available buildSchemes',
             choices: schemeOptions,
             logMessage: 'You need to specify scheme'
-        });
+        })) as string;
 
         c.program.opts().scheme = schemeVals[selectedScheme];
         c.runtime.scheme = c.program.opts().scheme;

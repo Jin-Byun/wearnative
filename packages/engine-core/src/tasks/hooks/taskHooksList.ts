@@ -1,4 +1,4 @@
-import { logToSummary, generateOptions, buildHooks, createTask, RnvTaskName } from '@rnv/core';
+import { buildHooks, createTask, generateOptions, logToSummary, RnvTaskName } from '@rnv/core';
 
 export default createTask({
     description: 'Get list of all available hooks',
@@ -20,5 +20,5 @@ export default createTask({
         return Promise.reject('Your buildHooks object is empty!');
     },
     task: RnvTaskName.hooksList,
-    forceBuildHookRebuild: true,
+    forceBuildHookRebuild: true
 });

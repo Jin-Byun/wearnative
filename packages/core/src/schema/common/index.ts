@@ -77,16 +77,18 @@ export const zodCommonSchemaFragment = z
     .partial();
 
 export const zodCommonSchema: ZodObject = zodCommonSchemaFragment
-    .merge(
+    .extend(
         z
             .object({
                 buildSchemes: z.optional(
                     z.record(
                         z.string(),
-                        zodCommonSchemaFragment.merge(zodBuildSchemeFragment.merge(zodPlatformBaseFragment))
+                        zodCommonSchemaFragment.extend(
+                            zodBuildSchemeFragment.extend(zodPlatformBaseFragment.shape).shape
+                        )
                     )
                 )
             })
-            .partial()
+            .partial().shape
     )
     .describe('Common config props used as default props for all available buildSchemes');

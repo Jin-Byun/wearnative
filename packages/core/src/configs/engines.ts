@@ -1,5 +1,4 @@
 import { getConfigProp } from '../context/contextProps';
-import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
 import type { RnvEngineTemplate, RnvEngineTemplateMap } from '../engines/types';
 import { logWarning } from '../logger';
@@ -26,9 +25,6 @@ const _getMergedEngineConfigs = (c: RnvContext) => {
                     logWarning(`Engine ${enginePackageName} not found in default engineTemplates`);
                 }
             }
-            // else {
-            //     mergedEngineConfigs[enginePackageName] = engineVal;
-            // }
         });
     }
     return mergedEngineConfigs;

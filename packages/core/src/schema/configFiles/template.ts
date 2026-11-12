@@ -1,4 +1,4 @@
-import { AnyZodObject, z } from 'zod';
+import { z } from 'zod';
 import { zodNpmDep, zodSupportedPlatforms, zodTemplateConfigFragment } from '../shared';
 
 const zodBootstrapQuestionsSchema = z
@@ -8,14 +8,14 @@ const zodBootstrapQuestionsSchema = z
                 .array(
                     z.object({
                         title: z.string(),
-                        value: z.union([z.record(z.string(), z.any()), z.string(), z.number(), z.boolean()]),
+                        value: z.union([z.record(z.string(), z.any()), z.string(), z.number(), z.boolean()])
                     })
                 )
                 .optional(),
             configProp: z
                 .object({
                     prop: z.string(),
-                    key: z.string(),
+                    key: z.string()
                 })
                 .optional(),
             type: z.string(),
@@ -25,10 +25,10 @@ const zodBootstrapQuestionsSchema = z
                     z.object({
                         action: z.string(),
                         prop: z.string().optional(),
-                        path: z.string(),
+                        path: z.string()
                     })
                 )
-                .optional(),
+                .optional()
         })
     )
     .describe('Defines list of custom bootstrap questions');
@@ -46,42 +46,17 @@ export const zodConfigTemplateBootstrapConfig = z
                 z.object({
                     name: z.string(),
                     supportedPlatforms: zodSupportedPlatforms,
-                    nullifyIfFalse: z.boolean().optional(),
+                    nullifyIfFalse: z.boolean().optional()
                 })
-            ),
+            )
         }),
-        defaultSelectedPlatforms: zodSupportedPlatforms,
+        defaultSelectedPlatforms: zodSupportedPlatforms
     })
     .partial();
 
-export const zodConfigFileTemplate: AnyZodObject = z
+export const zodConfigFileTemplate = z
     .object({
-        // defaults: z.optional(DefaultsSchema),
-        // engines: z.optional(EnginesSchema),
         templateConfig: zodTemplateConfigFragment,
-        bootstrapConfig: zodConfigTemplateBootstrapConfig,
+        bootstrapConfig: zodConfigTemplateBootstrapConfig
     })
     .partial();
-
-// {
-//     title: 'Which service to use?',
-//     type: 'list',
-//     configProp: {
-//         key: 'runtime.myServiceConfig',
-//         file: 'renative.json',
-//     },
-//     options: [
-//         {
-//             title: 'Service 1',
-//             value: {
-//                 id: 'xxx1',
-//             },
-//         },
-//         {
-//             title: 'Service 2',
-//             value: {
-//                 id: 'xxx2',
-//             },
-//         },
-//     ],
-// },

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
     chalk,
     createTask,
@@ -10,16 +11,13 @@ import {
     removeDirs,
     writeFileSync
 } from '@rnv/core';
-import path from 'path';
 
 export default createTask({
     description: 'Connect platform template back to rnv',
     dependsOn: [RnvTaskName.projectConfigure],
     fn: async ({ ctx }) => {
         const configOriginal = ctx.files.project.config_original;
-        if (!configOriginal) {
-            return;
-        }
+        if (!configOriginal) return;
 
         if (!ctx.files.project.config?.paths?.platformTemplatesDirs) {
             logToSummary('All supported platforms are connected. nothing to do.');
@@ -30,7 +28,7 @@ export default createTask({
         if (ctx.platform) {
             selectedPlatforms = [ctx.platform];
         } else {
-            const { connectedPlatforms } = await inquirerPrompt({
+            selectedPlatforms = (await inquirerPrompt({
                 name: 'connectedPlatforms',
                 message:
                     'This will point platformTemplates folders from your local project to ReNative managed one. Select platforms you would like to connect',
@@ -39,38 +37,33 @@ export default createTask({
                     ...choice,
                     disabled: choice.isConnected
                 }))
-            });
-            selectedPlatforms = connectedPlatforms;
+            })) as Array<RnvPlatformKey>;
         }
 
         if (selectedPlatforms.length) {
-            selectedPlatforms.forEach((platform) => {
-                if (configOriginal.paths?.platformTemplatesDirs?.[platform]) {
+            for (const platform of selectedPlatforms) {
+                if (!configOriginal.paths?.platformTemplatesDirs) break;
+                if (Object.hasOwn(configOriginal.paths.platformTemplatesDirs, platform)) {
                     delete configOriginal.paths.platformTemplatesDirs[platform];
                 }
-
-                if (!Object.keys(configOriginal.paths?.platformTemplatesDirs || {}).length) {
-                    delete configOriginal.paths?.platformTemplatesDirs; // also cleanup the empty object
+                if (!Object.keys(configOriginal.paths.platformTemplatesDirs || {}).length) {
+                    delete configOriginal.paths.platformTemplatesDirs; // also cleanup the empty object
                 }
-
                 writeFileSync(ctx.paths.project.config, configOriginal);
-            });
+            }
         }
-
-        const { deletePlatformFolder } = await inquirerPrompt({
+        const deletePlatformFolder = (await inquirerPrompt({
             name: 'deletePlatformFolder',
             type: 'confirm',
             message: 'Would you also like to delete the previously used platform folder?'
-        });
+        })) as boolean;
 
         if (deletePlatformFolder) {
-            const pathsToRemove: Array<string> = [];
-            selectedPlatforms.forEach((platform) => {
-                pathsToRemove.push(path.join(ctx.paths.project.platformTemplatesDirs[platform], platform));
-            });
+            const pathsToRemove: Array<string> = selectedPlatforms.map((platform) =>
+                path.join(ctx.paths.project.platformTemplatesDirs[platform], platform)
+            );
 
             // TODO: Remove shared folders as well
-
             await removeDirs(pathsToRemove);
         }
 

@@ -14,10 +14,10 @@ import { confirmActiveBundler, getEntryFile } from '@rnv/sdk-utils';
 import { isBundlerActive } from './common';
 import { EnvVars } from './env';
 
-const BUNDLER_PLATFORMS: Partial<Record<RnvPlatformKey, RnvPlatformKey>> = {};
-
-BUNDLER_PLATFORMS.android = 'android';
-BUNDLER_PLATFORMS.androidwear = 'android';
+const BUNDLER_PLATFORMS: Record<RnvPlatformKey, RnvPlatformKey> = {
+    android: 'android',
+    androidwear: 'android'
+};
 
 type StartOption = {
     waitForBundler?: boolean;

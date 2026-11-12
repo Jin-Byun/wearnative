@@ -1,17 +1,15 @@
-import { getContext } from '@context/provider';
-import { configureRuntimeDefaults } from '@context/runtime';
-import { checkAndUpdateProjectIfRequired } from '@projects/update';
-import { initializeTask } from '@tasks/taskExecutors';
-import { findSuitableTask } from '@tasks/taskFinder';
-import { getTaskNameFromCommand, selectPlatformIfRequired } from '@tasks/taskHelpers';
-import type { RnvTask } from '@tasks/types';
-import { runInteractiveWizard } from '@tasks/wizard';
 import { loadDefaultConfigTemplates } from './configs';
+import { getContext } from './context/provider';
+import { configureRuntimeDefaults } from './context/runtime';
 import { installEngines, registerMissingPlatformEngines } from './engines';
 import { logInfo } from './logger';
-import { checkAndMigrateProject } from './migrator';
 import { loadRnvModulesFromProject } from './modules';
 import { updateRenativeConfigs } from './plugins';
+import { checkAndUpdateProjectIfRequired } from './projects/update';
+import { initializeTask } from './tasks/taskExecutors';
+import { findSuitableTask } from './tasks/taskFinder';
+import { getTaskNameFromCommand, selectPlatformIfRequired } from './tasks/taskHelpers';
+import { runInteractiveWizard } from './tasks/wizard';
 
 export const exitRnvCore = async (code: number) => {
     const ctx = getContext();
@@ -31,14 +29,10 @@ export const executeRnvCore = async () => {
     const c = getContext();
     loadDefaultConfigTemplates();
     configureRuntimeDefaults();
-    checkAndMigrateProject();
     await updateRenativeConfigs();
     await checkAndUpdateProjectIfRequired();
 
-    // TODO: rename to something more meaningful or DEPRECATE entirely
-    if (c.program.opts().npxMode) {
-        return;
-    }
+    if (c.program.opts().npxMode) return;
 
     // for "rnv" we simply load all engines upfront
     const { configExists } = c.paths.project;
@@ -48,12 +42,10 @@ export const executeRnvCore = async () => {
         return await runInteractiveWizard();
     }
 
-    let initTask: RnvTask | undefined;
-
     // Special Case for engine-core tasks
     // they don't require other engines to be loaded if isGlobalScope = true
     // ie rnv link
-    initTask = await findSuitableTask();
+    let initTask = await findSuitableTask();
     if (initTask) {
         return await initializeTask(initTask);
     }
@@ -67,7 +59,6 @@ export const executeRnvCore = async () => {
             // we do it here so correct engine is registered properly
             await selectPlatformIfRequired(initTask, true);
         }
-
         return await initializeTask(initTask);
     }
 

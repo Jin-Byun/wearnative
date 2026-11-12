@@ -1,14 +1,17 @@
-import { RnvPlatforms, getContext, inquirerPrompt, logError } from '@rnv/core';
-import type { NewProjectData } from '../types';
+import { getContext, inquirerPrompt, logError, type RnvPlatformKey, RnvPlatforms } from '@rnv/core';
 import { checkInputValue } from '../questionHelpers';
+import type { NewProjectData } from '../types';
 
-const Question = async (data: NewProjectData) => {
+const Question = async ({ inputs, files }: NewProjectData) => {
     const c = getContext();
     const { platform } = c.program.opts();
-    const { inputs, files } = data;
 
-    const supportedPlatforms =
-        files.template.renativeConfig?.defaults?.supportedPlatforms || [];
+    const supportedPlatforms = files.template.renativeConfig?.defaults?.supportedPlatforms || [];
+    if (supportedPlatforms.length === 0) {
+        logError(
+            `Template ${inputs.template?.packageName} does not seem to export any default platforms to support. contact the author.`
+        );
+    }
 
     supportedPlatforms.sort((a, b) => RnvPlatforms.indexOf(a) - RnvPlatforms.indexOf(b));
 
@@ -18,26 +21,19 @@ const Question = async (data: NewProjectData) => {
         files.template.renativeTemplateConfig?.bootstrapConfig?.defaultSelectedPlatforms ||
         supportedPlatforms;
 
-    if (supportedPlatforms.length === 0) {
-        logError(
-            `Template ${inputs.template?.packageName} does not seem to export any default platforms to support. contact the author.`
-        );
-    }
-
     if (checkInputValue(platform)) {
-        inputs.supportedPlatforms = platform.split(',');
-    } else {
-        const answer = await inquirerPrompt({
-            name: 'inputSupportedPlatforms',
-            type: 'checkbox',
-            pageSize: 20,
-            message: 'What platforms would you like to use?',
-            validate: (val) => !!val.length || 'Please select at least a platform',
-            default: selectedPlatforms,
-            choices: supportedPlatforms,
-        });
-        inputs.supportedPlatforms = answer?.inputSupportedPlatforms || [];
+        inputs.supportedPlatforms = platform.split(',') as RnvPlatformKey[];
+        return;
     }
+    inputs.supportedPlatforms = (await inquirerPrompt({
+        name: 'inputSupportedPlatforms',
+        type: 'checkbox',
+        pageSize: 20,
+        message: 'What platforms would you like to use?',
+        validate: (val) => !!val.length || 'Please select at least a platform',
+        default: selectedPlatforms,
+        choices: supportedPlatforms
+    })) as RnvPlatformKey[];
 };
 
 export default Question;

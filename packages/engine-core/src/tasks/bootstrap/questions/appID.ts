@@ -1,11 +1,11 @@
-import type { NewProjectData } from '../types';
-import { validateAndAssign } from '../questionHelpers';
 import { getContext } from '../../../getContext';
+import { validateAndAssign } from '../questionHelpers';
+import type { NewProjectData } from '../types';
 
-const Question = async (data: NewProjectData): Promise<void> => {
+const Question = async ({ inputs }: NewProjectData): Promise<void> => {
     const c = getContext();
     const { id, ci } = c.program.opts();
-    const { inputs } = data;
+
     const validator = (appId: string) =>
         (typeof appId === 'string' && !!appId.match(/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+[0-9a-z_]$/)) ||
         'Please enter a valid app ID (com.test.app)';
@@ -20,7 +20,7 @@ const Question = async (data: NewProjectData): Promise<void> => {
                 return inputs.appID;
             },
             message: "What's your App ID?",
-            warning: `Command contains invalid appId : ${id}`,
+            warning: `Command contains invalid appId : ${id}`
         },
         ci
     );

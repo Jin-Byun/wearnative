@@ -8,23 +8,18 @@ export const confirmActiveBundler = async () => {
     if (c.runtime.skipActiveServerCheck) return true;
     const { port } = c.runtime;
 
-    if (c.program.opts().ci) {
-        //TODO: handle return codes properly
-        await killPort({ port });
-        return true;
-    }
+    if (!c.program.opts().ci) {
+        const choices = ['Restart the server (recommended)', 'Use existing session'];
 
-    const choices = ['Restart the server (recommended)', 'Use existing session'];
+        const selectedOption: string = await inquirerPrompt({
+            name: 'selectedOption',
+            type: 'list',
+            message: `Another ${c.platform} server at port ${chalk.bold.white(port)} already running`,
+            choices,
+            warningMessage: `Another ${c.platform} server at port ${chalk.bold.white(port)} already running`
+        });
 
-    const { selectedOption } = await inquirerPrompt({
-        name: 'selectedOption',
-        type: 'list',
-        choices,
-        warningMessage: `Another ${c.platform} server at port ${chalk.bold.white(port)} already running`
-    });
-
-    if (choices[0] !== selectedOption) {
-        return false;
+        if (selectedOption !== choices[0]) return false;
     }
     await killPort({ port });
     return true;

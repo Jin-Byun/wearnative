@@ -1,4 +1,4 @@
-import { applyTemplate, createTask, RnvTaskName, logInfo, inquirerPrompt } from '@rnv/core';
+import { applyTemplate, createTask, inquirerPrompt, logInfo, RnvTaskName } from '@rnv/core';
 
 export default createTask({
     description: 'Reapply template (if configured) to current project',
@@ -6,20 +6,19 @@ export default createTask({
     fn: async ({ ctx }) => {
         const { buildConfig } = ctx;
         if (buildConfig?.isTemplate) {
-            return Promise.reject('Template projects cannot use template apply command');
+            throw new Error('Template projects cannot use template apply command');
         }
         logInfo(
             'This command will reapply template to current project. files will be overwritten. make sure you backed up your project before proceeding.'
         );
-        const { confirm } = await inquirerPrompt({
+        const confirm = (await inquirerPrompt({
             type: 'confirm',
             name: 'confirm',
-            message: 'Proceed?',
-        });
-        if (!confirm) {
-            return;
+            message: 'Proceed?'
+        })) as boolean;
+        if (confirm) {
+            return applyTemplate();
         }
-        return applyTemplate();
     },
-    task: RnvTaskName.templateApply,
+    task: RnvTaskName.templateApply
 });

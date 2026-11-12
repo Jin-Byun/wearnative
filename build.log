@@ -1,0 +1,23 @@
+$ pnpm -r build
+packages/adapter build$ tsc -b tsconfig.json
+packages/renative build$ tsc -b tsconfig.json
+packages/core build$ tsc -b tsconfig.json
+packages/renative build: Done
+packages/adapter build: Done
+packages/core build: Done
+packages/sdk-utils build$ tsc -b tsconfig.json
+packages/build-hooks-schema build$ tsc -b tsconfig.json
+packages/build-hooks-schema build: Done
+packages/sdk-utils build: Done
+packages/sdk-react-native build$ tsc -b tsconfig.json
+packages/engine-core build$ tsc -b tsconfig.json
+packages/sdk-react-native build: Done
+packages/sdk-android build$ tsc -b tsconfig.json
+packages/engine-core build: Done
+packages/cli build$ tsc -b tsconfig.json
+packages/sdk-android build: Done
+packages/engine-rn build$ tsc -b tsconfig.json
+packages/cli build: Done
+packages/rnv build$ tsc -b tsconfig.json
+packages/engine-rn build: Done
+packages/rnv build: Done

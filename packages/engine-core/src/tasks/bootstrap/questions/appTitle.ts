@@ -1,11 +1,12 @@
-import type { NewProjectData } from '../types';
-import { checkInputValue, validateAndAssign } from '../questionHelpers';
+import type { RnvContextProgram } from '@rnv/core';
 import { getContext } from '../../../getContext';
+import type { EngineTaskOptionKey } from '../../../taskOptions';
+import { checkInputValue, validateAndAssign } from '../questionHelpers';
+import type { NewProjectData } from '../types';
 
-const Question = async (data: NewProjectData) => {
+const Question = async ({ inputs, defaults }: NewProjectData) => {
     const c = getContext();
-    const { title, ci } = c.program.opts();
-    const { inputs, defaults } = data;
+    const { title, ci } = (c.program as RnvContextProgram<EngineTaskOptionKey>).opts();
     const validator = (val: string) => checkInputValue(val) || 'Please enter a title';
 
     const result = await validateAndAssign(
@@ -15,7 +16,7 @@ const Question = async (data: NewProjectData) => {
             name: 'inputAppTitle',
             defaultVal: defaults.appTitle,
             message: "What's your project Title?",
-            warning: 'Title was not provided',
+            warning: 'Title was not provided'
         },
         ci
     );

@@ -1,10 +1,10 @@
-import path from 'path';
+import path from 'node:path';
 import { generateOptions, inquirerPrompt } from '../api';
 import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
 import { chalk, logDebug, logDefault, logInfo, logWarning } from '../logger';
 import type { ConfigFileWorkspace, ConfigFileWorkspaces } from '../schema/types';
-import { fsExistsSync, mkdirSync, readObjectSync, writeFileSync } from '../system/fs';
+import { fsExistsSync, fsMkdirSync, readObjectSync, writeFileSync } from '../system/fs';
 
 export const createWorkspace = async (workspaceID: string, workspacePath: string) => {
     const c = getContext();
@@ -24,7 +24,7 @@ export const createWorkspace = async (workspaceID: string, workspacePath: string
         defaultTargets: {}
     };
 
-    mkdirSync(workspacePath);
+    fsMkdirSync(workspacePath);
     writeFileSync(path.join(workspacePath, 'renative.json'), workspaceConfig);
 
     writeFileSync(c.paths.dotRnv.configWorkspaces, cnf);
@@ -35,46 +35,42 @@ export const getWorkspaceDirPath = async (c: RnvContext) => {
     logDefault('getWorkspaceDirPath');
     const wss = c.files.dotRnv.configWorkspaces;
     const ws = c.runtime.selectedWorkspace || c.buildConfig?.workspaceID;
-    let dirPath;
-    if (wss?.workspaces && ws) {
-        dirPath = wss.workspaces[ws]?.path;
-        if (!dirPath) {
-            const wsDir = path.join(c.paths.user.homeDir, `.${ws}`);
-            if (fsExistsSync(wsDir)) {
-                wss.workspaces[ws] = {
-                    path: wsDir
-                };
-                writeFileSync(c.paths.dotRnv.configWorkspaces, wss);
-                logInfo(
-                    `Found workspace id ${ws} and compatible directory ${wsDir}. Your ${c.paths.dotRnv.configWorkspaces} has been updated.`
-                );
-            } else if (!c.runtime.isWSConfirmed || c.program.opts().ci === true) {
-                let confirm = true;
-                if (c.program.opts().ci !== true) {
-                    const { conf } = await inquirerPrompt({
-                        name: 'conf',
-                        type: 'confirm',
-                        message: `Your project belongs to workspace ${chalk.bold.white(
-                            ws
-                        )}. do you want to add new workspace ${chalk.bold.white(
-                            ws
-                        )} to your local system at ${chalk.bold.white(wsDir)}?`,
-                        warningMessage: 'No app configs found for this project'
-                    });
-                    confirm = conf;
-                    c.runtime.isWSConfirmed = true;
-                }
-                if (confirm) {
-                    await createWorkspace(ws, wsDir);
-                }
-            }
-        }
+
+    if (!wss?.workspaces || !ws) return c.paths.dotRnv.dir;
+    if (wss.workspaces[ws]?.path) return wss.workspaces[ws].path;
+
+    const wsDir = path.join(c.paths.user.homeDir, `.${ws}`);
+    if (fsExistsSync(wsDir)) {
+        wss.workspaces[ws] = {
+            path: wsDir
+        };
+        writeFileSync(c.paths.dotRnv.configWorkspaces, wss);
+        logInfo(
+            `Found workspace id ${ws} and compatible directory ${wsDir}. Your ${c.paths.dotRnv.configWorkspaces} has been updated.`
+        );
+        return wsDir;
     }
 
-    if (!dirPath) {
-        return c.paths.dotRnv.dir;
+    if (!c.runtime.isWSConfirmed || c.program.opts().ci === true) {
+        let confirm = c.program.opts().ci === true;
+        if (!confirm) {
+            confirm = (await inquirerPrompt({
+                name: 'conf',
+                type: 'confirm',
+                message: `Your project belongs to workspace ${chalk.bold.white(
+                    ws
+                )}. do you want to add new workspace ${chalk.bold.white(
+                    ws
+                )} to your local system at ${chalk.bold.white(wsDir)}?`,
+                warningMessage: 'No app configs found for this project'
+            })) as boolean;
+            c.runtime.isWSConfirmed = true;
+        }
+        if (confirm) {
+            await createWorkspace(ws, wsDir);
+            return wsDir;
+        }
     }
-    return dirPath;
 };
 
 export const getWorkspaceConnectionString = (obj?: ConfigFileWorkspaces['workspaces'][string]) => {
@@ -85,7 +81,7 @@ export const getWorkspaceConnectionString = (obj?: ConfigFileWorkspaces['workspa
 
 export const getWorkspaceOptions = () => {
     const c = getContext();
-    return generateOptions(c.files.dotRnv.configWorkspaces?.workspaces, false, null, (i, obj, mapping, defaultVal) => {
+    return generateOptions(c.files.dotRnv.configWorkspaces?.workspaces, false, null, (i, obj, _mapping, defaultVal) => {
         logDebug('getWorkspaceOptions');
 
         return ` [${chalk.grey(i + 1)}]> ${chalk.bold.white(defaultVal)} ${getWorkspaceConnectionString(obj)}\n`;

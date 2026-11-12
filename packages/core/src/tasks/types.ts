@@ -10,7 +10,7 @@ export type UnionKey<T> = T extends string ? T : never;
 
 export type ParamKeys<Okey, T> = Partial<Record<ProgramOptionsKey | UnionKey<Okey>, T>>;
 
-export type CreateRnvTaskOpt<OKey> = {
+export type CreateRnvTaskOpt<OKey extends string = ProgramOptionsKey> = {
     task: string;
     dependsOn?: string[];
     options?: ReadonlyArray<RnvTaskOption<OKey>>;
@@ -26,7 +26,7 @@ export type CreateRnvTaskOpt<OKey> = {
     ignoreEngines?: boolean;
 };
 
-export type RnvTask<OKey = string, Payload = object> = {
+export type RnvTask<OKey extends string = ProgramOptionsKey, Payload = object> = {
     task: string;
     dependsOn?: string[];
     options?: ReadonlyArray<RnvTaskOption<OKey>>;
@@ -74,10 +74,13 @@ export type RnvTaskOption<OKey = string> = {
     examples?: Array<string>;
 };
 
-export type RnvTaskMap<OKey = string, Payload = object> = Record<string, RnvTask<OKey, Payload>>;
+export type RnvTaskMap<OKey extends string = ProgramOptionsKey, Payload = object> = Record<
+    string,
+    RnvTask<OKey, Payload>
+>;
 
 //Too many choices of return types
-export type RnvTaskFn<OKey, Payload = any> = (opts: {
+export type RnvTaskFn<OKey extends string = ProgramOptionsKey, Payload = any> = (opts: {
     ctx: RnvContext<Payload, OKey>;
     taskName: string;
     parentTaskName: string | undefined;

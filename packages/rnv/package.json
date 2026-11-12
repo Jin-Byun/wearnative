@@ -1,6 +1,6 @@
 {
     "name": "rnv",
-    "version": "1.10.0-rc.1",
+    "version": "0.0.1",
     "description": "fork of renative for wear os and active maintenance",
     "keywords": [
         "android wear",
@@ -32,9 +32,9 @@
         "url": "git://github.com/flexn-io/renative.git"
     },
     "scripts": {
-      "build": "tsc -b tsconfig.json",
-      "compile": "tsc -b tsconfig.json",
-      "watch": "tsc --watch --preserveWatchOutput"
+        "build": "tsc -b tsconfig.json",
+        "compile": "tsc -b tsconfig.json",
+        "watch": "tsc --watch --preserveWatchOutput"
     },
     "dependencies": {
         "@rnv/cli": "workspace:*",

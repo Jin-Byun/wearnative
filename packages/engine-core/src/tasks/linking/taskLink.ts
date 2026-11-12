@@ -1,13 +1,12 @@
 import {
     chalk,
     createTask,
-    fsExistsSync,
+    fsMkdirSync,
     fsRenameSync,
     fsSymlinkSync,
     fsUnlinkSync,
     inquirerPrompt,
     logInfo,
-    mkdirSync,
     RnvTaskName,
     removeDirSync
 } from '@rnv/core';
@@ -15,9 +14,7 @@ import { getSourceDir, traverseTargetProject } from './linker';
 import type { LinkablePackage } from './types';
 
 const _linkPackage = (pkg: LinkablePackage) => {
-    if (!fsExistsSync(pkg.cacheDir)) {
-        mkdirSync(pkg.cacheDir);
-    }
+    fsMkdirSync(pkg.cacheDir, { recursive: true });
 
     if (pkg.isBrokenLink) {
         logInfo(`${pkg.name} is a ${chalk.red('broken')} link. Attempting to fix...`);
@@ -31,7 +28,7 @@ const _linkPackage = (pkg: LinkablePackage) => {
             logInfo(`${pkg.name} found in existing cache. Removing and relinking...`);
             removeDirSync(pkg.unlinkedPath);
         }
-        mkdirSync(pkg.unlinkedPath);
+        fsMkdirSync(pkg.unlinkedPath);
         fsRenameSync(pkg.nmPath, pkg.unlinkedPath);
         fsSymlinkSync(pkg.sourcePath, pkg.nmPath);
         logInfo(`${chalk.green('✔')} ${pkg.name} (${chalk.gray(pkg.nmPath)})`);
@@ -70,19 +67,19 @@ export default createTask({
 
         const slpDefaults = linkablePackages.filter((pkg) => !runtimeLibs.includes(pkg.name));
 
-        const { selectedLinkableProjects } = await inquirerPrompt({
+        const selectedLinkableProjects = (await inquirerPrompt({
             name: 'selectedLinkableProjects',
             type: 'checkbox',
             message: `Found following packages to link?`,
             default: slpDefaults,
             loop: false,
             choices
-        });
+        })) as LinkablePackage[];
 
         logInfo('Linking packages...');
-        selectedLinkableProjects.forEach((pkg: LinkablePackage) => {
+        for (const pkg of selectedLinkableProjects) {
             _linkPackage(pkg);
-        });
+        }
 
         return true;
     },

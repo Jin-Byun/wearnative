@@ -3,8 +3,8 @@
   "compilerOptions": {
     "outDir": "./lib",
     "rootDir": "./src",
-    "lib": ["ES2021.String"],
   },
   "include": ["./src/**/*", "./src/**/*.json", "./types.d.ts"],
   "exclude": ["node_modules", "./src/**/*.test.ts"],
+  "references": [{ "path": "../core" }],
 }

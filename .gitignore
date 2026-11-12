@@ -99,3 +99,5 @@ vendor
 .rollup.cache
 
 .github
+
+*.tsbuildinfo

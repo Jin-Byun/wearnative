@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import { getConfigProp } from '../context/contextProps';
 import { fsExistsSync, fsReaddirSync, fsReadFileSync, fsWriteFileSync } from '../system/fs';
 import { doResolve } from '../system/resolve';
@@ -24,7 +24,7 @@ const defaultGetString = () => '';
 const defaultGetBool = () => false;
 
 export const generateApiDefaults = (): RnvApi => ({
-    isDefault: true,
+    isInitialized: true,
     doResolve,
     getConfigProp: getConfigProp,
     logger: {

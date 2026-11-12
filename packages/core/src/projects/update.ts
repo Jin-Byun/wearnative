@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import { inquirerPrompt } from '../api';
 import { getContext } from '../context/provider';
 import { chalk, logDefault, logError, logInfo } from '../logger';
@@ -12,95 +12,90 @@ import {
     writeFileSync
 } from '../system/fs';
 import { applyTemplate } from '../templates';
-import type { RnvPlatform } from '../types';
+import type { RnvPlatform, RnvPlatformKey } from '../types';
 
 export const checkAndUpdateProjectIfRequired = async () => {
     logDefault('checkAndUpdateIfRequired');
     const c = getContext();
-    const { platform } = c;
-    const supportedPlatforms = c.files.project.config?.defaults?.supportedPlatforms;
+    const { platform, buildConfig } = c;
+    if (!platform || !buildConfig) return;
+    if (buildConfig.isMonorepo || typeof platform === 'boolean') return true;
 
-    if (!platform) return;
-    const { isMonorepo } = c.buildConfig;
-    if (isMonorepo || typeof platform === 'boolean') return true;
     await applyTemplate();
 
-    const allPlatforms = Object.keys(c.buildConfig?.platforms || {});
-    if (!allPlatforms?.includes(platform)) {
+    if (!Object.hasOwn(buildConfig.platforms ?? {}, platform)) {
         logError(`Platform ${platform} is not supported!`);
-        return Promise.reject(`Platform ${platform} is not supported!`);
+        throw new Error(`Platform ${platform} is not supported!`);
     }
+
     const templateConfigFile = readObjectSync<ConfigFileTemplate>(c.paths.template.configTemplate);
+    if (!templateConfigFile) return true;
 
-    if (templateConfigFile) {
-        const missingFiles = _getMisFilesForPlatform({
-            templateConfigFile,
-            platform,
-            projectPath: c.paths.project.dir,
-            templatePath: c.paths.template.dir
-        });
+    const missingFiles = _getMisFilesForPlatform({
+        templateConfigFile,
+        platform,
+        projectPath: c.paths.project.dir,
+        templatePath: c.paths.template.dir
+    });
+    const supportedPlatforms = c.files.project.config?.defaults?.supportedPlatforms;
+    if (!missingFiles.length && supportedPlatforms?.includes(platform)) return true;
 
-        if (missingFiles.length || !supportedPlatforms?.includes(platform)) {
-            const { confirm } = await inquirerPrompt({
-                type: 'confirm',
-                message: `You are trying to run platform ${chalk.bold.magenta(
-                    platform
-                )} which is not configured. Do you want to configure it now?`
-            });
-            if (!confirm) {
-                return Promise.reject('Cancelled by user');
+    const confirm = (await inquirerPrompt({
+        type: 'confirm',
+        message: `You are trying to run platform ${chalk.bold.magenta(
+            platform
+        )} which is not configured. Do you want to configure it now?`
+    })) as boolean;
+    if (!confirm) {
+        throw new Error('Cancelled by user');
+    }
+
+    if (supportedPlatforms && !supportedPlatforms.includes(platform)) {
+        supportedPlatforms.push(platform);
+        if (c.files.project.config) {
+            writeFileSync(c.paths.project.config, c.files.project.config);
+        }
+    }
+    for (const mf of missingFiles) {
+        const destPath = path.join(c.paths.project.dir, mf);
+        const sourcePath = path.join(c.paths.template.dir, mf);
+        if (fsExistsSync(destPath) || !fsExistsSync(sourcePath)) continue;
+
+        try {
+            if (fsLstatSync(sourcePath).isDirectory()) {
+                logInfo(`Missing directory ${chalk.bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
+                copyFolderContentsRecursiveSync(sourcePath, destPath);
+            } else {
+                logInfo(`Missing file ${chalk.bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
+                copyFileSync(sourcePath, destPath);
             }
-
-            if (supportedPlatforms) {
-                if (!supportedPlatforms.includes(platform)) {
-                    supportedPlatforms.push(platform);
-                    if (c.files.project.config) {
-                        writeFileSync(c.paths.project.config, c.files.project.config);
-                    }
-                }
-            }
-
-            missingFiles.forEach((mf) => {
-                const destPath = path.join(c.paths.project.dir, mf);
-                const sourcePath = path.join(c.paths.template.dir, mf);
-
-                if (!fsExistsSync(destPath) && fsExistsSync(sourcePath)) {
-                    try {
-                        if (fsLstatSync(sourcePath).isDirectory()) {
-                            logInfo(`Missing directory ${chalk.bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
-                            copyFolderContentsRecursiveSync(sourcePath, destPath);
-                        } else {
-                            logInfo(`Missing file ${chalk.bold.white(destPath)}. COPYING from TEMPLATE...DONE`);
-                            copyFileSync(sourcePath, destPath);
-                        }
-                    } catch (e) {
-                        console.log(e);
-                    }
-                }
-            });
+        } catch (e) {
+            console.log(e);
         }
     }
 
     return true;
 };
 
-const _getMisFilesForPlatform = (opts: {
+const _getMisFilesForPlatform = ({
+    templateConfigFile,
+    platform,
+    projectPath,
+    templatePath
+}: {
     templateConfigFile: ConfigFileTemplate;
     platform: RnvPlatform;
     projectPath: string;
     templatePath: string;
 }) => {
-    const { templateConfigFile, platform, projectPath, templatePath } = opts;
-    const includedPaths = templateConfigFile.templateConfig?.includedPaths || [];
-    const result = includedPaths.find(
-        (item) => typeof item !== 'string' && item.platforms && item.platforms.includes(platform!)
-    );
+    const includedPaths = templateConfigFile.templateConfig?.includedPaths;
 
-    if (result && typeof result !== 'string') {
-        const nonExistingFiles = result.paths.filter(
-            (file) => !fsExistsSync(path.join(projectPath, file)) && fsExistsSync(path.join(templatePath, file))
-        );
-        return nonExistingFiles;
-    }
-    return [];
+    return (
+        includedPaths
+            ?.filter((item) => typeof item !== 'string')
+            .find((item) => item.platforms?.includes(platform as RnvPlatformKey))
+            ?.paths.filter(
+                (file) => !fsExistsSync(path.join(projectPath, file)) && fsExistsSync(path.join(templatePath, file))
+            ) ?? []
+    );
 };

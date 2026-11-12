@@ -1,3 +1,4 @@
+import path from 'node:path';
 import {
     chalk,
     cleanPlatformBuild,
@@ -12,14 +13,10 @@ import {
     logTask,
     logWarning,
     RnvTaskName,
-    // installPackageDependencies,
-    // overrideTemplatePlugins,
     resolveEngineDependencies
 } from '@rnv/core';
-import path from 'path';
 import { isBuildSchemeSupported } from '../../buildSchemes';
 import { checkAndInstallIfRequired } from '../../taskHelpers';
-// import { configureFonts } from '@rnv/sdk-utils';
 
 export default createTask({
     description: 'Low-level task used by engines to prepare platformBuilds folder',
@@ -49,7 +46,7 @@ export default createTask({
             isOptional: true
         });
 
-        await configureRuntimeDefaults();
+        configureRuntimeDefaults();
         await checkAndInstallIfRequired();
 
         const hasBuild = fsExistsSync(ctx.paths.project.builds.dir);
@@ -66,26 +63,6 @@ export default createTask({
 
         await createPlatformBuild(ctx.platform);
         await resolveEngineDependencies();
-        // TODO: check if this is needed or can be handled down the line
-        // if not monorepo && mutations were found
-        // await installPackageDependencies();
-        // await overrideTemplatePlugins();
-        // await configureFonts();
-
-        // OLD STUFFF
-        // await injectPlatformDependencies(
-        //     async () => {
-        //         await installPackageDependencies();
-        //         await overrideTemplatePlugins();
-        //         await configureFonts();
-        //     },
-        //     async () => {
-        //         await installPackageDependencies();
-        //         await overrideTemplatePlugins();
-        //         await configureFonts();
-        //     }
-        // );
-        // await _runCopyPlatforms(c);
         return true;
     },
     task: RnvTaskName.platformConfigure

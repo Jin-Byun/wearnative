@@ -1,4 +1,4 @@
-import { inquirerPrompt, logRaw, getWorkspaceConnectionString, createTask, RnvTaskName } from '@rnv/core';
+import { createTask, getWorkspaceConnectionString, inquirerPrompt, logRaw, RnvTaskName } from '@rnv/core';
 
 export default createTask({
     description: 'Connect project with selected workspace',
@@ -7,17 +7,19 @@ export default createTask({
         const cnf = ctx.files.dotRnv.configWorkspaces;
         if (!cnf) return;
 
-        const opts = Object.keys(cnf.workspaces).map((v) => `${v} ${getWorkspaceConnectionString(cnf.workspaces[v])}`);
+        const choices = Object.entries(cnf.workspaces).map(
+            ([key, wksp]) => `${key} ${getWorkspaceConnectionString(wksp)}`
+        );
 
-        const { selectedWS } = await inquirerPrompt({
+        const selectedWS = (await inquirerPrompt({
             type: 'list',
             name: 'selectedWS',
             message: 'Pick a workspace',
-            choices: opts,
-        });
+            choices
+        })) as string;
 
         logRaw(selectedWS);
     },
     task: RnvTaskName.workspaceConnect,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

@@ -4,7 +4,6 @@
     "outDir": "./lib",
     "rootDir": "./src",
     "resolveJsonModule": false,
-    "lib": ["ES2021.String"],
   },
   "include": [
     "./src/**/*",
@@ -12,4 +11,5 @@
     "./types.d.ts",
     "./package.json",
   ],
+  "references": [{ "path": "../core" }],
 }

@@ -1,7 +1,6 @@
 import {
     applyTemplate,
     chalk,
-    checkAndMigrateProject,
     checkForPluginDependencies,
     cleanPlaformAssets,
     configureEngines,
@@ -11,7 +10,6 @@ import {
     createTask,
     executeTask,
     findSuitableTask,
-    fsExistsSync,
     fsMkdirSync,
     generateLocalJsonSchemas,
     generatePlatformAssetsRuntimeConfig,
@@ -32,10 +30,9 @@ import { checkAndInstallIfRequired, installPackageDependenciesAndPlugins } from 
 import { checkCrypto } from '../crypto/common';
 
 const checkIsRenativeProject = async () => {
-    const c = getContext();
-    const { paths } = c;
+    const { paths } = getContext();
     if (!paths.project.configExists) {
-        return Promise.reject(
+        throw new Error(
             `This directory is not ReNative project. Project config ${chalk.bold.white(
                 paths.project.config
             )} is missing!. You can create new project with ${chalk.bold.white('rnv new')}`
@@ -45,11 +42,10 @@ const checkIsRenativeProject = async () => {
 };
 
 const configurePlatformBuilds = async () => {
-    const c = getContext();
-    const { paths } = c;
-    if (paths.project.builds.dir && !fsExistsSync(paths.project.builds.dir)) {
+    const { paths } = getContext();
+    if (paths.project.builds.dir) {
         logInfo(`Creating folder ${paths.project.builds.dir} ...DONE`);
-        fsMkdirSync(paths.project.builds.dir);
+        fsMkdirSync(paths.project.builds.dir, { recursive: true });
     }
 };
 
@@ -63,27 +59,24 @@ const checkProjectPathSpaces = async () => {
         projectDir
     )} contains spaces, which might cause issues with React Native and other tools. For more details, please visit: https://github.com/facebook/react-native/issues/34743.`;
 
-    const { confirm } = await inquirerPrompt({
+    const confirm = (await inquirerPrompt({
         type: 'confirm',
         name: 'confirm',
         message: `${warnMessage} Do you want to proceed? (yes/no)`
-    });
+    })) as boolean;
     if (!confirm) {
         logWarning(warnMessage, { skipSanitizePaths: true });
-        return Promise.reject(`Cancelled by user.`);
+        throw new Error(`Cancelled by user.`);
     }
     logWarning(warnMessage, { skipSanitizePaths: true });
 };
+
 export default createTask({
     description: 'Configure current project',
     fn: async ({ ctx, taskName, originTaskName, parentTaskName }) => {
         const { runtime, program } = ctx;
-        // if (!paths.project.configExists) {
-        //     return Promise.reject(`${RnvTaskName.projectConfigure} not supported outside of renative project`);
-        // }
         await checkProjectPathSpaces();
         await configurePlatformBuilds();
-        await checkAndMigrateProject();
         await updateRenativeConfigs();
         await checkIsRenativeProject();
         await generateLocalJsonSchemas();
@@ -91,7 +84,7 @@ export default createTask({
         await executeTask({ taskName: RnvTaskName.workspaceConfigure, parentTaskName: taskName, originTaskName });
 
         if (program.opts().only && parentTaskName) {
-            await configureRuntimeDefaults();
+            configureRuntimeDefaults();
             await executeTask({ taskName: RnvTaskName.appConfigure, parentTaskName: taskName, originTaskName });
 
             await generatePlatformAssetsRuntimeConfig();
@@ -105,7 +98,7 @@ export default createTask({
             await checkCrypto(parentTaskName, originTaskName);
         }
 
-        await configureRuntimeDefaults();
+        configureRuntimeDefaults();
 
         if (originTaskName !== RnvTaskName.templateApply) {
             if ((runtime.requiresBootstrap || !isTemplateInstalled()) && !ctx.buildConfig?.isTemplate) {
@@ -122,7 +115,7 @@ export default createTask({
             await applyTemplate();
             // We need to ensure appConfigs are populated from template before proceeding further
             // await configureTemplateFiles(); // NOTE: We only do this during bootstrap once
-            await configureRuntimeDefaults();
+            configureRuntimeDefaults();
             await checkAndInstallIfRequired();
 
             await executeTask({ taskName: RnvTaskName.appConfigure, parentTaskName: taskName, originTaskName });
@@ -133,7 +126,7 @@ export default createTask({
             await resolvePluginDependants();
             await configurePlugins();
 
-            await configureRuntimeDefaults();
+            configureRuntimeDefaults();
             if (!runtime.disableReset) {
                 if (program.opts().resetHard) {
                     logInfo(

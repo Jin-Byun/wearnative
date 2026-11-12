@@ -1,25 +1,25 @@
-import { AnyZodObject, z } from 'zod';
-import { zodPlatformReactNativeFragment } from './fragments/reactNative';
-import { zodPlatformBaseFragment } from './fragments/base';
+import { type ZodObject, z } from 'zod';
 import { zodCommonSchemaFragment } from '../common';
 import { zodPlatformAndroidFragment } from './fragments/android';
+import { zodPlatformBaseFragment } from './fragments/base';
+import { zodPlatformReactNativeFragment } from './fragments/reactNative';
 import { zodTemplateAndroidFragment } from './fragments/templateAndroid';
 
-const createPlatformSchema = (obj: AnyZodObject): AnyZodObject => {
-    const zodPlatformSchema = zodCommonSchemaFragment.merge(zodPlatformBaseFragment).merge(obj);
+const createPlatformSchema = <T extends z.ZodRawShape>(obj: ZodObject<T>) => {
+    const zodPlatformSchema = zodCommonSchemaFragment.extend(zodPlatformBaseFragment.shape).extend(obj.shape);
     return z
         .object({ buildSchemes: z.record(z.string(), zodPlatformSchema) })
-        .merge(zodPlatformSchema)
+        .extend(zodPlatformSchema.shape)
         .partial();
 };
 
 const androidSchema = createPlatformSchema(
-    zodPlatformAndroidFragment.merge(zodPlatformReactNativeFragment.merge(zodTemplateAndroidFragment))
+    zodPlatformAndroidFragment.extend(zodPlatformReactNativeFragment.extend(zodTemplateAndroidFragment.shape).shape)
 );
 
-export const zodPlatformsSchema: AnyZodObject = z
+export const zodPlatformsSchema = z
     .object({
-        androidwear: androidSchema,
+        androidwear: androidSchema
     })
     .partial()
     .describe('Object containing platform configurations');

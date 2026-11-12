@@ -277,7 +277,7 @@ const executeAsync = async (cmd: string | Array<string>, opts?: ExecOptions): Pr
     return String(result);
 };
 
-export const execaCommand = (cmd: string, options?: ExecaOptions) => {
+export const execaCommand = (cmd: string, options?: ExecaOptions): Subprocess => {
     return execa(cmd, Object.assign({ shell: true }, options));
 };
 

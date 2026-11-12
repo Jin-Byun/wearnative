@@ -1,7 +1,7 @@
 import { getWorkspaceOptions, inquirerPrompt } from '@rnv/core';
-import type { NewProjectData } from '../types';
-import { checkInputValue } from '../questionHelpers';
 import { getContext } from '../../../getContext';
+import { checkInputValue } from '../questionHelpers';
+import type { NewProjectData } from '../types';
 
 const Question = async (data: NewProjectData) => {
     const c = getContext();
@@ -11,15 +11,13 @@ const Question = async (data: NewProjectData) => {
     } else if (ci) {
         data.inputs.workspaceID = data.defaults.workspaceID;
     } else {
-        const answer = await inquirerPrompt({
+        data.inputs.workspaceID = (await inquirerPrompt({
             name: 'inputWorkspace',
             type: 'list',
             message: 'What workspace to use?',
             default: data.defaults.workspaceID,
-            choices: getWorkspaceOptions().keysAsArray,
-        });
-
-        data.inputs.workspaceID = answer?.inputWorkspace;
+            choices: getWorkspaceOptions().keysAsArray
+        })) as string;
     }
 
     c.runtime.selectedWorkspace = data.inputs.workspaceID;

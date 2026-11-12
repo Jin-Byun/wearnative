@@ -1,7 +1,8 @@
-import { RnvModuleType } from '../modules/types';
+import type { ProgramOptionsKey } from '..';
+import type { RnvModuleType } from '../modules/types';
 import type { CreateRnvTaskOpt, RnvTask, RnvTaskMap, RnvTaskOption } from './types';
 
-export const createTask = <OKey = never>(task: CreateRnvTaskOpt<OKey>) => {
+export const createTask = <OKey extends string = ProgramOptionsKey>(task: CreateRnvTaskOpt<OKey>) => {
     return { ...task, key: 'unknown', ownerID: 'unknown' };
 };
 
@@ -32,7 +33,11 @@ export const createTaskOptionsPreset = <OKey, PKey extends string>(
     return preset as TaskOptionsPreset<OKey, PKey>;
 };
 
-export const createTaskMap = <OKey, Payload>({ownerID, tasks, ownerType}: {
+export const createTaskMap = <OKey extends string, Payload>({
+    ownerID,
+    tasks,
+    ownerType
+}: {
     tasks: ReadonlyArray<RnvTask<OKey, Payload>>;
     ownerID: string;
     ownerType: RnvModuleType;
@@ -41,13 +46,13 @@ export const createTaskMap = <OKey, Payload>({ownerID, tasks, ownerType}: {
 
     if (!ownerID) throw new Error('generateRnvTaskMap() requires config.<packageName | name> to be defined!');
 
-    const idAndType = {ownerID, ownerType}
+    const idAndType = { ownerID, ownerType };
 
     tasks.forEach((taskBlueprint) => {
         const taskInstance = { ...taskBlueprint };
         const plts = taskInstance.platforms || [];
         const key = `${ownerID}:${plts.join('-')}:${taskInstance.task}`;
-        output[key] = Object.assign(taskInstance, idAndType, {key});
+        output[key] = Object.assign(taskInstance, idAndType, { key });
     });
     return output;
 };

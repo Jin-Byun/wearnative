@@ -1,27 +1,25 @@
 import type { RnvContext, RnvContextPathObj } from './types';
 
-export const generateRnvConfigPathObj = (): RnvContextPathObj => {
-    return {
-        configs: [],
-        configsPrivate: [],
-        configsLocal: [],
-        appConfigsDir: '',
-        config: '',
-        configLocal: '',
-        configPrivate: '',
-        dir: '',
-        dirs: [],
-        fontsDir: '',
-        fontsDirs: [],
-        pluginDirs: []
-    };
-};
-
 export const generateRnvConfigFileObj = () => {
     return {
         configs: [],
         configsLocal: [],
         configsPrivate: []
+    };
+};
+
+export const generateRnvConfigPathObj = (): RnvContextPathObj => {
+    return {
+        ...generateRnvConfigFileObj(),
+        appConfigsDir: '',
+        config: '',
+        configLocal: '',
+        configPrivate: '',
+        dir: '',
+        fontsDir: '',
+        dirs: [],
+        fontsDirs: [],
+        pluginDirs: []
     };
 };
 
@@ -54,7 +52,7 @@ const runtime: RnvContext['runtime'] = {
 };
 
 export const generateContextDefaults = (): RnvContext => ({
-    isDefault: true,
+    isInitialized: true,
     isSystemWin: false,
     isSystemLinux: false,
     isSystemMac: false,

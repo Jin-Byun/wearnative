@@ -1,19 +1,18 @@
-import path from 'path';
-
+import path from 'node:path';
 import {
+    type ConfigFileApp,
+    configureRuntimeDefaults,
     copyFolderContentsRecursive,
+    createTask,
     fsExistsSync,
     fsLstatSync,
     fsReaddirSync,
-    readObjectSync,
-    writeFileSync,
-    configureRuntimeDefaults,
     inquirerPrompt,
     logInfo,
     logTask,
-    ConfigFileApp,
     RnvTaskName,
-    createTask,
+    readObjectSync,
+    writeFileSync
 } from '@rnv/core';
 import { getContext } from '../../getContext';
 
@@ -22,7 +21,7 @@ export default createTask({
     fn: async () => {
         logTask('taskAppCreate');
 
-        await configureRuntimeDefaults();
+        configureRuntimeDefaults();
 
         let sourcePath: string | undefined;
 
@@ -65,7 +64,7 @@ export default createTask({
                         const key = `project>${v}`;
                         appConfigChoices.push(key);
                         appConfigChoicesObj[key] = {
-                            path: pth,
+                            path: pth
                         };
                     }
                 }
@@ -81,35 +80,33 @@ export default createTask({
                             const key = `template>${v}`;
                             appConfigChoices.push(key);
                             appConfigChoicesObj[key] = {
-                                path: pth,
+                                path: pth
                             };
                         }
                     }
                 });
             }
 
-            const { sourceAppConfig } = await inquirerPrompt({
+            const sourceAppConfig = (await inquirerPrompt({
                 name: 'sourceAppConfig',
                 type: 'list',
                 choices: appConfigChoices,
-                message: 'Which App config to use as copy source?',
-            });
+                message: 'Which App config to use as copy source?'
+            })) as string;
 
             sourcePath = appConfigChoicesObj[sourceAppConfig].path;
         }
 
-        let destPath;
-        let appConfigId;
-        if (c.program.opts().appConfigID) {
-            appConfigId = c.program.opts().appConfigID.toLowerCase();
-            destPath = path.join(c.paths.project.appConfigsDir, appConfigId);
-        } else {
-            const { confName } = await inquirerPrompt({
-                name: 'confName',
-                type: 'input',
-                message: 'Type name of app config (lowercase)',
-            });
-            appConfigId = confName.toLowerCase();
+        let appConfigId: string = c.program.opts().appConfigID?.toLowerCase();
+        let destPath: string = appConfigId && path.join(c.paths.project.appConfigsDir, appConfigId);
+        if (!appConfigId) {
+            appConfigId = (
+                (await inquirerPrompt({
+                    name: 'confName',
+                    type: 'input',
+                    message: 'Type name of app config (lowercase)'
+                })) as string
+            ).toLowerCase();
             destPath = path.join(c.paths.project.appConfigsDir, appConfigId);
         }
 
@@ -123,35 +120,25 @@ export default createTask({
         confObj.id = appConfigId;
         confObj.common = confObj.common || {};
 
-        let appConfigTitle;
-        if (c.program.opts().title) {
-            appConfigTitle = c.program.opts().title;
-        } else if (c.program.opts().ci) {
-            // Ignore
-        } else {
-            const { confTitle } = await inquirerPrompt({
+        let appConfigTitle = c.program.opts().title;
+        if (!appConfigTitle && !c.program.opts().ci) {
+            appConfigTitle = (await inquirerPrompt({
                 name: 'confTitle',
                 type: 'input',
                 default: confObj.common?.title || '',
-                message: 'Type the title of the app',
-            });
-            appConfigTitle = confTitle;
+                message: 'Type the title of the app'
+            })) as string;
         }
         confObj.common.title = appConfigTitle || confObj.common.title;
 
-        let bundleId;
-        if (c.program.opts().id) {
-            bundleId = c.program.opts().id;
-        } else if (c.program.opts().ci) {
-            // Ignore
-        } else {
-            const { confId } = await inquirerPrompt({
+        let bundleId: string | undefined = c.program.opts().id;
+        if (!bundleId && !c.program.opts().ci) {
+            bundleId = (await inquirerPrompt({
                 name: 'confId',
                 type: 'input',
                 default: confObj.common?.id || '',
-                message: 'Type the id of the app (bundle identifier)',
-            });
-            bundleId = confId;
+                message: 'Type the id of the app (bundle identifier)'
+            })) as string;
         }
         confObj.common.id = bundleId || confObj.common.id;
 
@@ -164,8 +151,8 @@ export default createTask({
             key: 'sourceAppConfigID',
             isValueType: true,
             isRequired: true,
-            description: 'name of source appConfig folder to copy from',
-        },
+            description: 'name of source appConfig folder to copy from'
+        }
     ],
-    task: RnvTaskName.appCreate,
+    task: RnvTaskName.appCreate
 });

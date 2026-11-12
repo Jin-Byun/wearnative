@@ -1,16 +1,16 @@
+import path from 'node:path';
 import {
-    RnvFileName,
-    RnvTaskName,
     createTask,
     fsExistsSync,
     fsReadFileSync,
     getConfigRootProp,
     logToSummary,
     logWarning,
+    RnvFileName,
+    RnvTaskName,
     removeDirSync,
-    revertOverrideToOriginal,
+    revertOverrideToOriginal
 } from '@rnv/core';
-import path from 'path';
 
 export default createTask({
     description: 'Reset applied overrides',
@@ -47,5 +47,5 @@ export default createTask({
         return true;
     },
     task: RnvTaskName.patchReset,
-    isGlobalScope: true,
+    isGlobalScope: true
 });

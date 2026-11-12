@@ -29,7 +29,7 @@ export const versionCheck = async (c: RnvContext) => {
             const actionWithUpdate = 'Continue and update package.json';
             const actionUpgrade = `Upgrade project to ${c.runtime.rnvVersionRunner}`;
 
-            const { chosenAction } = await inquirerPrompt({
+            const chosenAction = (await inquirerPrompt({
                 message: 'What to do next?',
                 type: 'list',
                 name: 'chosenAction',
@@ -40,7 +40,7 @@ export const versionCheck = async (c: RnvContext) => {
                     c.runtime.rnvVersionProject
                 )}. This might result in unexpected behaviour!
 It is recommended that you run your rnv command with npx prefix: ${recCmd} . or manually update your devDependencies.rnv version in your package.json.`
-            });
+            })) as string;
 
             c.runtime.versionCheckCompleted = true;
 

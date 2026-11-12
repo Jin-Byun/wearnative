@@ -1,14 +1,15 @@
-import { generateEngineExtensions } from '.';
 import { getContext } from '../context/provider';
 import type { RnvModule } from '../modules/types';
 import { createTaskMap } from '../tasks/creators';
-import { RnvPlatformKey } from '../types';
+import { generateEngineExtensions } from '.';
 import { extractEngineId } from './nameExtractor';
 import type { CreateRnvEngineOpts, RnvEngine, RnvEnginePlatforms } from './types';
 
+type AnyRnvModule = RnvModule<any, any>;
+
 export const createRnvEngine = <
     OKey extends string = never,
-    Modules extends [RnvModule, ...RnvModule[]] = [RnvModule<never, object>]
+    Modules extends [AnyRnvModule, ...AnyRnvModule[]] = [RnvModule<never, object>]
 >(
     opts: CreateRnvEngineOpts<OKey, Modules>
 ) => {
@@ -18,14 +19,10 @@ export const createRnvEngine = <
     // This allows users to use shortcut of the full engine names
     // ie: "-e engine-rn" instead of "-e @rnv/engine-rn"
     const id = extractEngineId(opts.config.name);
-    const platforms: RnvEnginePlatforms = opts?.platforms;
-    Object.keys(platforms).forEach((k) => {
-        const p = k as RnvPlatformKey;
-        const plat = platforms[p];
-        if (plat) {
-            plat.extensions = generateEngineExtensions(id, plat.extensions, opts.config.engineExtension);
-        }
-    });
+    const platforms: RnvEnginePlatforms = opts.platforms;
+    for (const plat of Object.values(platforms).filter(Boolean)) {
+        plat.extensions = generateEngineExtensions(id, plat.extensions, opts.config.engineExtension);
+    }
 
     const engine: RnvEngine<OKey, Modules> = {
         ...opts,
@@ -37,19 +34,14 @@ export const createRnvEngine = <
         tasks: createTaskMap<any, any>({
             tasks: [...opts.tasks, ...(opts.extendModules?.flatMap((m) => m.originalTasks) ?? [])],
             ownerID: opts.config.name,
-            ownerType: 'engine',
+            ownerType: 'engine'
         }),
         initContextPayload: () => {
-            // TODO: add contextPayload to engines
-            // const ctx = getContext();
-            // const payload = opts.contextPayload;
-            // if (payload) {
-            //     const ctxPayload = ctx.payload;
-            //     ctx.payload = { ...ctxPayload, ...payload };
-            // }
-            opts.extendModules?.forEach((m) => m.initContextPayload());
+            opts.extendModules?.forEach((m) => {
+                m.initContextPayload();
+            });
         },
-        getContext,
+        getContext
     };
 
     return engine;

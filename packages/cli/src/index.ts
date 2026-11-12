@@ -1,19 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+    type CreateContextOptions,
     createRnvApi,
     createRnvContext,
-    doResolve,
     executeRnvCore,
     exitRnvCore,
     generateStringFromTaskOption,
-    getConfigProp,
     getContext,
     loadWorkspacesConfigSync,
     type RnvApiLogger,
     type RnvApiPrompt,
     type RnvApiSpinner,
-    type RnvContextProgram,
     RnvTaskCoreOptionPresets,
     registerEngine
 } from '@rnv/core';
@@ -57,8 +55,8 @@ export const run = ({ RNV_HOME_DIR }: { RNV_HOME_DIR?: string }) => {
         cmdOption = '';
     }
     executeRnv({
-        cmd: cmdValue,
-        subCmd: cmdOption,
+        command: cmdValue,
+        subCommand: cmdOption,
         program,
         process,
         spinner: Spinner,
@@ -79,23 +77,14 @@ export const run = ({ RNV_HOME_DIR }: { RNV_HOME_DIR?: string }) => {
 };
 
 async function executeRnv({
-    cmd,
-    subCmd,
-    process,
-    program,
     spinner,
     prompt,
     logger,
-    RNV_HOME_DIR
-}: {
-    cmd: string;
-    subCmd: string;
-    process: NodeJS.Process;
-    program: RnvContextProgram;
+    ...createContextOptions
+}: CreateContextOptions & {
     spinner: RnvApiSpinner;
     prompt: RnvApiPrompt;
     logger: RnvApiLogger;
-    RNV_HOME_DIR?: string;
 }) {
     // set mono and ci if json is enabled
     if (program.opts().json) {
@@ -103,19 +92,12 @@ async function executeRnv({
         program.opts().ci = true;
     }
 
-    createRnvApi({
-        spinner,
-        prompt,
-        logger,
-        getConfigProp,
-        doResolve
-    });
-    createRnvContext({ program, process, cmd, subCmd, RNV_HOME_DIR });
+    createRnvApi({ spinner, prompt, logger });
+    createRnvContext(createContextOptions);
 
     Logger.logInitialize();
     loadWorkspacesConfigSync();
-
-    await registerEngine(EngineCore);
+    registerEngine(EngineCore);
 
     await executeRnvCore();
 }

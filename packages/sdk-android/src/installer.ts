@@ -89,12 +89,11 @@ const _attemptAutoFix = async (c: RnvContext, sdkPlatform: string, sdkKey: SDKKe
         logSuccess(`Found existing ${chalk.bold.white(sdkKey)} location at ${chalk.bold.white(result)}`);
         let confirmSdk = true;
         if (!c.program.opts().ci) {
-            const { confirm } = await inquirerPrompt({
+            confirmSdk = (await inquirerPrompt({
                 type: 'confirm',
                 name: 'confirm',
                 message: 'Do you want to use it?'
-            });
-            confirmSdk = confirm;
+            })) as boolean;
         }
         if (confirmSdk && c.files.workspace.config) {
             try {

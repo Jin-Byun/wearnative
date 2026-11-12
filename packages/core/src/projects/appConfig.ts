@@ -1,11 +1,11 @@
-import path from 'path';
-import { getAppConfigBuildsFolder, getAppFolder, getTimestampPathsConfig } from '../context/contextProps';
+import path from 'node:path';
+import { getAppConfigBuildsFolder, getAppFolder } from '../context/contextProps';
+import { getContext } from '../context/provider';
+import { logDefault, logWarning } from '../logger';
 import { isPlatformActive } from '../platforms';
 import { copyTemplatePluginsSync } from '../plugins';
 import { copyFolderContentsRecursiveSync, fsExistsSync } from '../system/fs';
-import { logDefault, logWarning } from '../logger';
 import { generateConfigPropInjects } from '../system/injectors';
-import { getContext } from '../context/provider';
 
 export const copyBuildsFolder = () =>
     new Promise<void>((resolve) => {
@@ -15,17 +15,16 @@ export const copyBuildsFolder = () =>
         if (!isPlatformActive(resolve)) return;
 
         const destPath = path.join(getAppFolder());
-        const tsPathsConfig = getTimestampPathsConfig();
-        generateConfigPropInjects();
+        generateConfigPropInjects(c);
         const allInjects = [...c.configPropsInjects, ...c.systemPropsInjects, ...c.runtimePropsInjects];
 
         // FOLDER MERGERS PROJECT CONFIG
         const sourcePath1 = getAppConfigBuildsFolder(c.paths.project.appConfigBase.dir);
-        copyFolderContentsRecursiveSync(sourcePath1, destPath, true, undefined, false, allInjects, tsPathsConfig);
+        copyFolderContentsRecursiveSync(sourcePath1, destPath, true, undefined, false, allInjects);
 
         // FOLDER MERGERS PROJECT CONFIG (PRIVATE)
         const sourcePath1sec = getAppConfigBuildsFolder(c.paths.workspace.project.appConfigBase.dir);
-        copyFolderContentsRecursiveSync(sourcePath1sec, destPath, true, undefined, false, allInjects, tsPathsConfig);
+        copyFolderContentsRecursiveSync(sourcePath1sec, destPath, true, undefined, false, allInjects);
 
         // DEPRECATED SHARED
         if (c.runtime.currentPlatform?.isWebHosted) {
@@ -40,7 +39,7 @@ export const copyBuildsFolder = () =>
         if (c.paths.appConfig.dirs) {
             c.paths.appConfig.dirs.forEach((v) => {
                 const sourceV = getAppConfigBuildsFolder(v);
-                copyFolderContentsRecursiveSync(sourceV, destPath, true, undefined, false, allInjects, tsPathsConfig);
+                copyFolderContentsRecursiveSync(sourceV, destPath, true, undefined, false, allInjects);
             });
         } else {
             copyFolderContentsRecursiveSync(
@@ -49,14 +48,13 @@ export const copyBuildsFolder = () =>
                 true,
                 undefined,
                 false,
-                allInjects,
-                tsPathsConfig
+                allInjects
             );
         }
 
         // FOLDER MERGERS FROM APP CONFIG (PRIVATE)
         const sourcePath0sec = getAppConfigBuildsFolder(c.paths.workspace.appConfig.dir);
-        copyFolderContentsRecursiveSync(sourcePath0sec, destPath, true, undefined, false, allInjects, tsPathsConfig);
+        copyFolderContentsRecursiveSync(sourcePath0sec, destPath, true, undefined, false, allInjects);
 
         copyTemplatePluginsSync(c);
 

@@ -1,7 +1,7 @@
 import { getConfigProp } from '../context/contextProps';
-import { getContext } from '../context/provider';
-import { ConfigPropKey } from '../schema/types';
-import { OverridesOptions } from './types';
+import type { RnvContext } from '../context/types';
+import type { ConfigPropKey } from '../schema/types';
+import type { OverridesOptions } from './types';
 
 const INJECTABLE_RUNTIME_PROPS = ['appId', 'scheme', 'timestamp', 'localhost', 'target', 'port'] as const;
 
@@ -15,33 +15,23 @@ const INJECTABLE_CONFIG_PROPS: Array<ConfigPropKey> = [
     'provisioningStyle',
     'bundleAssets',
     'multipleAPKs',
-    'pagesDir',
+    'pagesDir'
 ];
 
-export const generateConfigPropInjects = () => {
-    const ctx = getContext();
-    const configPropsInjects: OverridesOptions = [];
-    INJECTABLE_CONFIG_PROPS.forEach((v) => {
-        const configProp = getConfigProp(v);
-        if (!ctx.injectableConfigProps) ctx.injectableConfigProps = {};
-        ctx.injectableConfigProps[v] = configProp;
-        configPropsInjects.push({
-            pattern: `{{configProps.${v}}}`,
-            override: configProp,
-        });
-    });
-    ctx.configPropsInjects = configPropsInjects;
-};
-
-export const generateRuntimePropInjects = () => {
-    const ctx = getContext();
-
-    const rt = ctx.runtime;
-
-    INJECTABLE_RUNTIME_PROPS.forEach((key) => {
-        ctx.runtimePropsInjects.push({
-            pattern: `{{runtimeProps.${key}}}`,
-            override: rt[key],
-        });
+export const generateConfigPropInjects = (c: RnvContext) => {
+    if (!c.injectableConfigProps) c.injectableConfigProps = {};
+    c.configPropsInjects = INJECTABLE_CONFIG_PROPS.map((key) => {
+        const configProp = getConfigProp(key);
+        c.injectableConfigProps[key] = configProp;
+        return {
+            pattern: `{{configProps.${key}}}`,
+            override: configProp
+        };
     });
 };
+
+export const generateRuntimePropInjects = (rt: RnvContext['runtime']): OverridesOptions =>
+    INJECTABLE_RUNTIME_PROPS.map((key) => ({
+        pattern: `{{runtimeProps.${key}}}`,
+        override: rt[key]
+    }));

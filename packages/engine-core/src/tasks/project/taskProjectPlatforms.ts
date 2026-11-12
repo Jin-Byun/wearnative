@@ -1,4 +1,4 @@
-import { updateProjectPlatforms, inquirerPrompt, createTask, RnvTaskName } from '@rnv/core';
+import { createTask, inquirerPrompt, type RnvPlatformKey, RnvTaskName, updateProjectPlatforms } from '@rnv/core';
 
 export default createTask({
     description: 'Allows you to change supportedPlatforms for your project',
@@ -6,17 +6,17 @@ export default createTask({
     fn: async ({ ctx }) => {
         const currentPlatforms = ctx.files.project.config?.defaults?.supportedPlatforms || [];
 
-        const { inputSupportedPlatforms } = await inquirerPrompt({
+        const inputSupportedPlatforms = (await inquirerPrompt({
             name: 'inputSupportedPlatforms',
             type: 'checkbox',
             pageSize: 20,
             message: 'What platforms would you like to use?',
             validate: (val) => !!val.length || 'Please select at least a platform',
             default: currentPlatforms,
-            choices: ctx.runtime.availablePlatforms,
-        });
+            choices: ctx.runtime.availablePlatforms
+        })) as RnvPlatformKey[];
 
         updateProjectPlatforms(inputSupportedPlatforms);
     },
-    task: RnvTaskName.projectPlatforms,
+    task: RnvTaskName.projectPlatforms
 });

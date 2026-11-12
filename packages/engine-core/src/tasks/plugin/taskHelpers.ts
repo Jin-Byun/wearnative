@@ -12,75 +12,50 @@ export const getPluginList = (isUpdate = false) => {
     };
 
     let i = 1;
+    for (const { pluginTemplates: plugins } of Object.values(c.files.scopedConfigTemplates)) {
+        if (!plugins) continue;
 
-    Object.keys(c.files.scopedConfigTemplates).forEach((pk) => {
-        const plugins = c.files.scopedConfigTemplates[pk]?.pluginTemplates;
-        if (!plugins) return;
-        Object.keys(plugins).forEach((k) => {
-            const plugin = plugins[k];
+        for (const [k, plugin] of Object.entries(plugins)) {
+            if (plugin === null || typeof plugin === 'string') continue;
 
-            let platforms = '';
-            const pluginPlatforms = intersection(
+            const platforms = intersection(
                 c.runtime.supportedPlatforms.map((pl) => pl.platform),
                 Object.keys(plugin)
-            );
-            pluginPlatforms.forEach((v) => {
-                platforms += `${v}, `;
-            });
-            if (platforms.length) {
-                platforms = platforms.slice(0, platforms.length - 2);
-            }
-            const installedPlugin = c.buildConfig && c.buildConfig.plugins && c.buildConfig.plugins[k];
-            const installedString = installedPlugin ? chalk.yellow('installed') : chalk.green('not installed');
-            let versionString = plugin.version;
-            if (isUpdate && installedPlugin) {
-                output.plugins.push(k);
+            ).join(', ');
+            const installedPlugin = c.buildConfig?.plugins?.[k];
+            if (isUpdate) {
+                if (!installedPlugin) {
+                    output.allPlugins[k] = {
+                        name: `${k} ${plugin.version}`,
+                        value: k
+                    };
+                    continue;
+                }
 
                 const installedPluginVersion =
                     typeof installedPlugin !== 'string' ? installedPlugin.version : installedPlugin;
-                if (installedPluginVersion !== plugin.version) {
-                    versionString = `(${chalk.yellow(installedPluginVersion)}) => (${chalk.green(plugin.version)})`;
-                } else {
-                    versionString = `(${chalk.green(installedPluginVersion)})`;
-                }
+                const versionString = `${installedPluginVersion !== plugin.version ? `(${chalk.yellow(installedPluginVersion)}) => ` : ''}(${chalk.green(plugin.version)})`;
                 output.asString += ` [${i}]> ${chalk.bold.white(k)} ${versionString}\n`;
                 output.asArray.push({
                     name: `${k} ${versionString}`,
                     value: k
                 });
-
-                i++;
-            } else if (!isUpdate) {
-                output.plugins.push(k);
-                output.asString += ` [${i}]> ${chalk.bold.white(k)} (${chalk.grey(
+            } else {
+                const installedString = installedPlugin ? chalk.yellow('installed') : chalk.green('not installed');
+                const keyNameString = `(${chalk.grey(
                     plugin.disableNpm ? '(no npm)' : plugin.version
-                )}) [${platforms}] - ${installedString}\n`;
+                )}) [${platforms}] - ${installedString}`;
+                output.asString += ` [${i}]> ${chalk.bold.white(k)} ${keyNameString}\n`;
                 output.asArray.push({
-                    name: `${k} (${chalk.grey(
-                        plugin.disableNpm ? '(no npm)' : plugin.version
-                    )}) [${platforms}] - ${installedString}`,
+                    name: `${k} ${keyNameString}`,
                     value: k
                 });
-
-                i++;
             }
-            output.allPlugins[k] = {
-                name: `${k} ${versionString}`,
-                value: k
-            }; // this is used by taskPluginAdd
-            output.asArray.sort((a, b) => {
-                const aStr = a.name.toLowerCase();
-                const bStr = b.name.toLowerCase();
-                let com = 0;
-                if (aStr > bStr) {
-                    com = 1;
-                } else if (aStr < bStr) {
-                    com = -1;
-                }
-                return com;
-            });
-        });
-    });
+            output.plugins.push(k);
+            i++;
+        }
+    }
+    output.asArray.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
     return output;
 };

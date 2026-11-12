@@ -1,11 +1,9 @@
 import {
-    type ConfigPluginSchema,
     chalk,
     createTask,
     getApi,
     inquirerPrompt,
     logSuccess,
-    type PluginListResponseItem,
     RnvTaskName,
     resolvePluginDependants,
     writeRenativeConfigFile
@@ -17,71 +15,44 @@ export default createTask({
     description: 'Add selected plugin to the project',
     dependsOn: [RnvTaskName.projectConfigure],
     fn: async ({ ctx }) => {
-        const selPluginKey = ctx.program.rawArgs?.[4];
+        const cnfOriginal = ctx.files.project.config_original;
+        if (!cnfOriginal) return;
 
-        const o = getPluginList();
+        const { asArray, allPlugins } = getPluginList();
 
-        const selPlugin = selPluginKey && o.allPlugins[selPluginKey];
-        const selectedPlugins: Record<string, PluginListResponseItem> = {};
-        const installMessage = [];
-
+        let selPluginKey = ctx.program.rawArgs?.[4];
+        let selPlugin = selPluginKey && allPlugins[selPluginKey];
         if (!selPlugin) {
-            const { plugin } = await inquirerPrompt({
+            selPluginKey = (await inquirerPrompt({
                 name: 'plugin',
                 type: 'rawlist',
                 message: 'Select the plugins you want to add',
-                choices: o.asArray,
+                choices: asArray,
                 pageSize: 50
-            });
+            })) as string;
 
-            selectedPlugins[plugin] = o.allPlugins[plugin];
-            installMessage.push(`${chalk.bold.white(plugin)} v(${chalk.green(o.allPlugins[plugin].version)})`);
-        } else {
-            selectedPlugins[selPluginKey] = selPlugin;
-            installMessage.push(`${chalk.bold.white(selPluginKey)} v(${chalk.green(selPlugin.version)})`);
-        }
-
-        const questionPlugins: Record<string, PluginListResponseItem> = {};
-
-        const cnfOriginal = ctx.files.project.config_original;
-        if (!cnfOriginal) {
-            return;
+            selPlugin = allPlugins[selPluginKey];
         }
 
         const cnfPlugins = cnfOriginal.plugins || {};
-        cnfOriginal.plugins = cnfPlugins;
-
-        Object.keys(selectedPlugins).forEach((key) => {
-            // c.buildConfig.plugins[key] = 'source:rnv';
-            const plugin = selectedPlugins[key];
-            if (plugin.props) questionPlugins[key] = plugin;
-
-            cnfPlugins[key] = 'source:rnv';
-
-            // c.buildConfig.plugins[key] = selectedPlugins[key];
-        });
-
-        const pluginKeys = Object.keys(questionPlugins);
-        for (let i = 0; i < pluginKeys.length; i++) {
-            const pluginKey = pluginKeys[i];
-            const plugin = questionPlugins[pluginKey];
-            const pluginProps = Object.keys(plugin.props || {});
+        if (!selPlugin.props) {
+            cnfPlugins[selPluginKey as string] = 'source:rnv';
+        } else {
             const finalProps: Record<string, string> = {};
-            for (let i2 = 0; i2 < pluginProps.length; i2++) {
-                const { propValue } = await inquirerPrompt({
+            for (const propKey of Object.keys(selPlugin.props)) {
+                const propValue = (await inquirerPrompt({
                     name: 'propValue',
                     type: 'input',
-                    message: `${pluginKey}: Add value for ${pluginProps[i2]} (You can do this later in ./renative.json file)`
-                });
-                finalProps[pluginProps[i2]] = propValue;
+                    message: `${selPluginKey}: Add value for ${propKey} (You can do this later in ./renative.json file)`
+                })) as string;
+                finalProps[propKey] = propValue;
             }
-            const pluginToAdd: ConfigPluginSchema = {};
-            pluginToAdd.props = finalProps;
-            cnfPlugins[pluginKey] = pluginToAdd;
+            cnfPlugins[selPluginKey as string] = { props: finalProps };
         }
+        cnfOriginal.plugins = cnfPlugins;
 
         const spinner = getApi()
-            .spinner(`Installing: ${installMessage.join(', ')}`)
+            .spinner(`Installing: ${chalk.bold.white(selPluginKey)} v(${chalk.green(selPlugin.version)})`)
             .start('');
 
         writeRenativeConfigFile(ctx.paths.project.config, cnfOriginal);

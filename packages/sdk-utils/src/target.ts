@@ -1,9 +1,9 @@
-import { chalk, getContext, inquirerPrompt, type RnvContext, writeFileSync } from '@rnv/core';
+import { chalk, getContext, inquirerPrompt, type RnvContext, type RnvPlatformKey, writeFileSync } from '@rnv/core';
 
 export const getTargetWithOptionalPrompt = async () => {
     const ctx = getContext();
     const { platform, program } = ctx;
-    let target = program?.opts().target;
+    const target = program?.opts().target;
     const options = [];
 
     if (!platform || target) return target;
@@ -18,17 +18,14 @@ export const getTargetWithOptionalPrompt = async () => {
 
     options.push({ name: 'Pick from available targets...', value: true });
 
-    const { selectedOption } = await inquirerPrompt({
+    const selectedOption = await inquirerPrompt({
         name: 'selectedOption',
         type: 'list',
         message: 'Which target to use?',
         choices: options
     });
 
-    if (selectedOption) {
-        target = selectedOption;
-    }
-    return target;
+    return selectedOption || target;
 };
 
 export const updateDefaultTargets = async (c: RnvContext, currentTarget: string) => {
@@ -41,7 +38,7 @@ export const updateDefaultTargets = async (c: RnvContext, currentTarget: string)
     } default target for platform ${c.platform}`;
     const actionNoUpdate = "Don't update";
 
-    const { chosenAction } = await inquirerPrompt({
+    const chosenAction: string = await inquirerPrompt({
         message: 'What to do next?',
         type: 'list',
         name: 'chosenAction',
@@ -55,21 +52,25 @@ export const updateDefaultTargets = async (c: RnvContext, currentTarget: string)
 
     if (chosenAction === actionLocalUpdate || (chosenAction === actionGlobalUpdate && localOverridden)) {
         const configLocal = c.files.project.configLocal || {};
-        if (!configLocal.defaultTargets) configLocal.defaultTargets = {};
-        configLocal.defaultTargets[c.platform] = currentTarget;
-
+        if (!configLocal.defaultTargets) {
+            configLocal.defaultTargets = { [c.platform]: currentTarget } as Record<RnvPlatformKey, string>;
+        } else {
+            configLocal.defaultTargets[c.platform] = currentTarget;
+        }
         c.files.project.configLocal = configLocal;
         writeFileSync(c.paths.project.configLocal, JSON.stringify(configLocal, null, 2));
     }
 
-    if (chosenAction === actionGlobalUpdate) {
-        const configGlobal = c.files.workspace.config;
-        if (configGlobal) {
-            if (!configGlobal.defaultTargets) configGlobal.defaultTargets = {};
+    if (chosenAction !== actionGlobalUpdate) return;
+    const configGlobal = c.files.workspace.config;
+    if (configGlobal) {
+        if (!configGlobal.defaultTargets) {
+            configGlobal.defaultTargets = { [c.platform]: currentTarget } as Record<RnvPlatformKey, string>;
+        } else {
             configGlobal.defaultTargets[c.platform] = currentTarget;
-
-            c.files.workspace.config = configGlobal;
-            writeFileSync(c.paths.workspace.config, JSON.stringify(configGlobal, null, 2));
         }
+
+        c.files.workspace.config = configGlobal;
+        writeFileSync(c.paths.workspace.config, JSON.stringify(configGlobal, null, 2));
     }
 };

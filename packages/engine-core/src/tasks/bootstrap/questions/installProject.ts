@@ -1,20 +1,18 @@
-import { executeAsync, getContext, inquirerPrompt, isYarnInstalled } from '@rnv/core';
+import { executeAsync, getContext, getPacManCommand, inquirerPrompt } from '@rnv/core';
 import type { NewProjectData } from '../types';
 
-const Question = async (data: NewProjectData) => {
-    const { inputs } = data;
+const Question = async ({ inputs }: NewProjectData) => {
     const c = getContext();
 
-    const { confirmInstallProject } = await inquirerPrompt({
+    inputs.confirmProjectInstall = (await inquirerPrompt({
         name: 'confirmInstallProject',
         type: 'confirm',
-        message: 'Project is ready. Do you want to install all dependencies now?',
-    });
-    inputs.confirmProjectInstall = confirmInstallProject;
+        message: 'Project is ready. Do you want to install all dependencies now?'
+    })) as boolean;
 
-    if (confirmInstallProject) {
-        await executeAsync(`${isYarnInstalled() ? 'yarn' : 'npm install'}`, {
-            cwd: c.paths.project.dir,
+    if (inputs.confirmProjectInstall) {
+        await executeAsync(`${getPacManCommand(c, 'init')}`, {
+            cwd: c.paths.project.dir
         });
     }
 };

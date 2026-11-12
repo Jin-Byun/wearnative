@@ -11,44 +11,51 @@ import type { RnvTask } from './types';
 
 let executedTasks: Record<string, number> = {};
 const TASK_LIMIT = 20;
+const LimitReachedError = (
+    task: string
+) => `You reached maximum amount of executions per one task (${TASK_LIMIT}) task: ${task}.
+This is to warn you ended up in task loop.
+but issue might not be necessarily with this task
 
-export const executeTask = async (opts: {
-    taskName: string;
+Please test your task code against parentTask and avoid repeatedly executing same task`;
+type TaskOptions = {
     parentTaskName?: string;
     originTaskName?: string;
     isFirstTask?: boolean;
     isOptional?: boolean;
+    taskInstance?: RnvTask;
+};
+
+export const executeTask = async ({
+    taskName,
+    skipInOnlyMode,
+    alternativeTaskInOnlyMode,
+    ...opts
+}: {
+    taskName: string;
     skipInOnlyMode?: boolean;
     alternativeTaskInOnlyMode?: string;
-}) => {
-    const {
-        taskName,
-        parentTaskName,
-        originTaskName,
-        isOptional,
-        isFirstTask,
-        skipInOnlyMode,
-        alternativeTaskInOnlyMode
-    } = opts;
-    const ctx = getContext();
-    const inOnlyMode = ctx.program.opts().only;
-    if (skipInOnlyMode && inOnlyMode) {
-        const availableTasks = findTasksByTaskName(alternativeTaskInOnlyMode || RnvTaskName.configureSoft);
-        const taskInstance = await extractSingleExecutableTask(availableTasks.match, taskName);
-        return _executeTaskInstance({ taskInstance, parentTaskName, originTaskName, isOptional, isFirstTask });
+} & Omit<TaskOptions, 'taskInstance'>) => {
+    if (skipInOnlyMode) {
+        const ctx = getContext();
+        if (ctx.program.opts().only) {
+            const { match } = findTasksByTaskName(alternativeTaskInOnlyMode || RnvTaskName.configureSoft);
+            const taskInstance = await extractSingleExecutableTask(match, taskName);
+            return _executeTaskInstance({ taskInstance, ...opts });
+        }
     }
 
-    const availableTasks = findTasksByTaskName(taskName);
+    const { match, available } = findTasksByTaskName(taskName);
 
-    if (availableTasks.match.length === 0 && !isOptional) {
+    if (match.length === 0 && !opts.isOptional) {
         logToSummary(`Current task registry:
-${availableTasks.available.map((t) => `${t.task} ${chalk.gray(t.ownerID)}`).join('\n')}
+${available.map((t) => `${t.task} ${chalk.gray(t.ownerID)}`).join('\n')}
 `);
-        return Promise.reject(`Task "${taskName}" not found in registry!`);
+        throw new Error(`Task "${taskName}" not found in registry!`);
     }
 
-    const taskInstance = await extractSingleExecutableTask(availableTasks.match, taskName);
-    return _executeTaskInstance({ taskInstance, parentTaskName, originTaskName, isOptional, isFirstTask });
+    const taskInstance = await extractSingleExecutableTask(match, taskName);
+    return _executeTaskInstance({ taskInstance, ...opts });
 };
 
 export const initializeTask = async (taskInstance: RnvTask | undefined) => {
@@ -66,13 +73,13 @@ export const initializeTask = async (taskInstance: RnvTask | undefined) => {
         c.runtime.engine = getEngineRunnerByOwnerID(taskInstance);
         c.runtime.runtimeExtraProps = c.runtime.engine?.runtimeExtraProps || {};
     }
-    if (c.runtime.engine?.config) {
-        logInfo(
-            `Current engine: ${chalk.bold.white(c.runtime.engine?.id)} ${chalk.grey(`(${c.runtime.engine?.rootPath})`)}`
-        );
-    } else {
-        logInfo(`Current engine: n/a`);
-    }
+    logInfo(
+        `Current engine: ${
+            c.runtime.engine?.config
+                ? `${chalk.bold.white(c.runtime.engine.id)} ${chalk.grey(`(${c.runtime.engine.rootPath})`)}`
+                : 'n/a'
+        }`
+    );
 
     c.runtime.task = task;
     executedTasks = {};
@@ -81,78 +88,60 @@ export const initializeTask = async (taskInstance: RnvTask | undefined) => {
     return true;
 };
 
-const _executeTaskInstance = async (opts: {
-    taskInstance?: RnvTask;
-    parentTaskName?: string;
-    originTaskName?: string;
-    isFirstTask?: boolean;
-    isOptional?: boolean;
-}) => {
-    const { taskInstance, parentTaskName, originTaskName, isFirstTask, isOptional } = opts;
+const _executeTaskInstance = async ({
+    taskInstance,
+    parentTaskName,
+    originTaskName,
+    isFirstTask,
+    isOptional
+}: TaskOptions) => {
     const c = getContext();
     if (!taskInstance) {
-        if (isOptional) {
-            return;
-        }
-        throw new Error(`Task Instance is undefined`);
-    }
-    const needsHelp = c.program.opts().help;
-    const inOnlyMode = c.program.opts().only;
-
-    c._currentTask = taskInstance.task;
-    // logInitTask(`${pt}=> [${chalk.bold.rgb(170, 106, 170)(task)}]`);
-    logInitTask(`${taskInstance.task}`);
-
-    if (!executedTasks[taskInstance.task]) executedTasks[taskInstance.task] = 0;
-    if (executedTasks[taskInstance.task] > TASK_LIMIT) {
-        return Promise.reject(`You reached maximum amount of executions per one task (${TASK_LIMIT}) task: ${taskInstance.task}.
-This is to warn you ended up in task loop.
-(${taskInstance.task} calls same or another task which calls ${taskInstance.task} again)
-but issue migh not be necessarily with this task
-
-To avoid that test your task code against parentTask and avoid executing same task X from within task X`);
-    }
-
-    if (needsHelp && !parentTaskName && taskInstance) {
-        logRaw(`
-Description: ${taskInstance.description}
-  `);
-        c.program.outputHelp();
-
-        if (taskInstance.fnHelp) {
-            await taskInstance.fnHelp();
+        if (!isOptional) {
+            throw new Error(`Task Instance is undefined`);
         }
         return;
     }
-    if (!taskInstance.isGlobalScope && isFirstTask) {
-        if (c.files.project.package) {
+
+    const { help: needsHelp, only: inOnlyMode } = c.program.opts();
+    c._currentTask = taskInstance.task;
+    logInitTask(`${taskInstance.task}`);
+
+    if ((executedTasks[taskInstance.task] ?? 0) > TASK_LIMIT) {
+        throw new Error(LimitReachedError(taskInstance.task));
+    }
+
+    if (needsHelp && !parentTaskName && taskInstance) {
+        logRaw(`\nDescription: ${taskInstance.description}\n`);
+        c.program.outputHelp();
+        return await taskInstance.fnHelp?.();
+    }
+
+    if (isFirstTask) {
+        if (!taskInstance.isGlobalScope && c.files.project.package) {
             // This has to happen in order for hooks to be able to run
             await checkIfProjectAndNodeModulesExists();
         }
-    }
-    if (isFirstTask) {
         c.runtime.forceBuildHookRebuild = !!taskInstance?.forceBuildHookRebuild;
     }
 
-    const doPipe = !taskInstance.isGlobalScope && (!inOnlyMode || (inOnlyMode && isFirstTask));
+    const doPipe = !taskInstance.isGlobalScope && (isFirstTask || !inOnlyMode);
     if (doPipe) await _executePipe(taskInstance, 'before');
-    executedTasks[taskInstance.task]++;
+    executedTasks[taskInstance.task] = (executedTasks[taskInstance.task] ?? 0) + 1;
     c._currentTask = parentTaskName;
-    const shouldSkip = shouldSkipTask({ taskName: taskInstance.task });
     if (taskInstance.dependsOn) {
         for (const dep of taskInstance.dependsOn) {
-            if (taskInstance.beforeDependsOn) {
-                await taskInstance.beforeDependsOn({
-                    taskName: dep,
-                    parentTaskName: taskInstance.task,
-                    originTaskName,
-                    ctx: c,
-                    shouldSkip: false
-                });
-            }
+            await taskInstance.beforeDependsOn?.({
+                taskName: dep,
+                parentTaskName: taskInstance.task,
+                originTaskName,
+                ctx: c,
+                shouldSkip: false
+            });
             await executeTask({ taskName: dep, parentTaskName: taskInstance.task, originTaskName });
         }
     }
+    const shouldSkip = shouldSkipTask({ taskName: taskInstance.task });
     if (taskInstance.fn && !shouldSkip) {
         await taskInstance.fn({
             taskName: taskInstance.task,
@@ -164,20 +153,14 @@ Description: ${taskInstance.description}
     }
     if (doPipe) await _executePipe(taskInstance, 'after');
 
-    executedTasks[taskInstance.task]++;
-
-    c._currentTask = parentTaskName;
-
     logExitTask(`${taskInstance.task}`);
 };
 
-const _populateExtraParameters = (c: RnvContext, task: RnvTask) => {
-    // TODO: Enable strict mode before release
-    //c.program?.allowUnknownOption(false); // integration options are not known ahead of time
-    if (task.options) {
-        task.options.forEach((opt) => {
-            c.program.option?.(generateStringFromTaskOption(opt), opt.description);
-        });
+const _populateExtraParameters = (c: RnvContext, { options }: RnvTask) => {
+    if (c.program.option && options) {
+        for (const opt of options) {
+            c.program.option(generateStringFromTaskOption(opt), opt.description);
+        }
     }
     c.program.showHelpAfterError();
     c.program.parse?.(process.argv);

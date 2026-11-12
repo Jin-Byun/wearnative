@@ -1,4 +1,4 @@
-import { logToSummary, createTask, RnvTaskName } from '@rnv/core';
+import { createTask, logToSummary, RnvTaskName } from '@rnv/core';
 import { getPluginList } from './taskHelpers';
 
 export default createTask({
@@ -9,5 +9,5 @@ export default createTask({
         logToSummary(`Plugins:\n\n${o.asString}`);
         return true;
     },
-    task: RnvTaskName.pluginList,
+    task: RnvTaskName.pluginList
 });

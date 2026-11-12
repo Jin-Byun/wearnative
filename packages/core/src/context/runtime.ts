@@ -9,54 +9,45 @@ import type { RnvContext } from './types';
 
 export const configureRuntimeDefaults = () => {
     const c = getContext();
-
-    c.runtime.appId = c.files.project?.configLocal?._meta?.currentAppConfigId || _getAppId(c);
-    if (c.runtime.appId) {
-        c.runtime.appConfigDir = path.join(c.paths.project.appConfigsDir, c.runtime.appId);
+    const { platform, runtime } = c;
+    const { port: portOpt, target, scheme, hostIp, hosted } = c.program.opts();
+    runtime.appId = c.files.project?.configLocal?._meta?.currentAppConfigId || _getAppId(c);
+    if (runtime.appId) {
+        runtime.appConfigDir = path.join(c.paths.project.appConfigsDir, runtime.appId);
     }
     logDefault('configureRuntimeDefaults', `appId:${c.runtime.appId}`);
 
-    // TODO:
-    // version
-    // title
     let port: number | undefined;
     let defaultTarget: string | undefined;
-    if (c.platform) {
-        c.runtime.currentEngine = c.runtime.enginesByPlatform?.[c.platform];
-        c.runtime.currentPlatform = c.runtime.currentEngine?.platforms?.[c.platform];
-        port = c.buildConfig?.defaults?.ports?.[c.platform];
-        defaultTarget = c.buildConfig?.defaultTargets?.[c.platform];
+    if (platform) {
+        runtime.currentEngine = runtime.enginesByPlatform?.[platform];
+        runtime.currentPlatform = runtime.currentEngine?.platforms?.[platform];
+
+        port = c.buildConfig?.defaults?.ports?.[platform];
+        defaultTarget = c.buildConfig?.defaultTargets?.[platform];
     }
+
+    const portStart = Number(portOpt) || port || runtime.currentPlatform?.defaultPort;
+    const portOffset = c.buildConfig?.defaults?.portOffset || 0;
+    runtime.port = (portStart as number) + portOffset; // possibly NaN
 
     const defaultHost = isSystemWin ? '127.0.0.1' : '0.0.0.0';
-
-    const portString = c.program.opts().port || port || c.runtime.currentPlatform?.defaultPort; //  PLATFORMS[c.platform]?.defaultPort;
-
-    const portOffset = c.buildConfig?.defaults?.portOffset || 0;
-
-    c.runtime.port = Number(portString) + portOffset;
-
-    if (c.program.opts().target !== true) {
-        c.runtime.target = c.program.opts().target || defaultTarget;
-    } else c.runtime.isTargetTrue = c.program.opts().target;
-    c.runtime.scheme = c.program.opts().scheme || 'debug';
-    c.runtime.localhost = c.program.opts().hostIp || defaultHost;
-    c.runtime.timestamp = c.runtime.timestamp || Date.now();
+    runtime.localhost = hostIp || defaultHost;
+    runtime.target = target || defaultTarget;
+    runtime.scheme = scheme || 'debug';
+    runtime.timestamp = runtime.timestamp || Date.now();
     c.configPropsInjects = c.configPropsInjects || [];
     c.systemPropsInjects = c.systemPropsInjects || [];
-    c.runtimePropsInjects = [];
+    c.runtimePropsInjects = generateRuntimePropInjects(runtime);
 
-    generateRuntimePropInjects();
     if (c.buildConfig) {
-        c.runtime.bundleAssets = getConfigProp('bundleAssets') || false;
-        const { hosted } = c.program.opts();
-        c.runtime.hosted = hosted && c.runtime.currentPlatform?.isWebHosted;
+        runtime.bundleAssets = getConfigProp('bundleAssets') || false;
+        runtime.hosted = hosted && runtime.currentPlatform?.isWebHosted;
 
         if (c.buildConfig.defaults?.supportedPlatforms) {
-            c.runtime.availablePlatforms = c.buildConfig.defaults?.supportedPlatforms || [];
+            runtime.availablePlatforms = c.buildConfig.defaults.supportedPlatforms;
         }
     }
-    return true;
 };
 
 const _getAppId = (c: RnvContext) => {

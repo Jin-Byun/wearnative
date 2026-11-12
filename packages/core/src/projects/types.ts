@@ -1,4 +1,4 @@
-import { NpmDepKey } from '../configs/types';
+import type { NpmDepKey } from '../configs/types';
 
 export type ParseFontsCallback = (font: string, dir: string) => void;
 

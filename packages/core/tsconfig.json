@@ -1,17 +1,20 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "composite": true,
+    "types": ["node"],
     "outDir": "./lib",
     "rootDir": "./src",
     "resolveJsonModule": false,
-    "baseUrl": ".",
-    "paths": {
-      "@tasks/*": ["src/tasks/*"],
-      "@context/*": ["src/context/*"],
-      "@api/*": ["src/api/*"],
-      "@projects/*": ["src/projects/*"],
-    },
   },
   "include": ["./src/**/*"],
-  "exclude": ["./src/**/*.test.ts", "./lib/**/*", "./templateFiles/**/*"],
+  "exclude": [
+    "./src/**/*.test.ts",
+    "./lib/**/*",
+    "./templateFiles/**/*",
+    "node_modules",
+    "../node_modules",
+  ],
 }

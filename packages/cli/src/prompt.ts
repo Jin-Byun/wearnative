@@ -1,55 +1,83 @@
-import { getContext, type PromptOptions, type PromptParams, type PromptRenderFn } from '@rnv/core';
-import inquirer from 'inquirer';
-import inquirerAutocompletePrompt from 'inquirer-autocomplete-prompt';
+import { checkbox, confirm, input, password, rawlist, Separator, search, select } from '@inquirer/prompts';
+import {
+    getContext,
+    type PromptChoice,
+    type PromptOptions,
+    type PromptParams,
+    type PromptRenderFn,
+    type PromptSource
+} from '@rnv/core';
 import { chalk, logDebug, logTask, logWarning } from './logger';
 
-inquirer.registerPrompt('autocomplete', inquirerAutocompletePrompt);
-
-export const inquirerPrompt = async (params: PromptParams): Promise<Record<string, any>> => {
+export const inquirerPrompt = async (params: PromptParams): Promise<any> => {
     const c = getContext();
+    const { yes, ci } = c.program?.opts() ?? {};
+    const { type, name, default: paramDefault, message } = params;
 
-    if (c.program?.opts()?.yes) {
-        const key = params.name || params.type;
-        if (params.type === 'confirm') {
-            return { [key]: true };
+    if (yes) {
+        if (type === 'confirm') {
+            return true;
         }
-        if (params.default) {
-            return {
-                [key]: typeof params.default === 'function' ? params.default() : params.default
-            };
-        }
+        if (paramDefault) return typeof paramDefault === 'function' ? paramDefault() : paramDefault;
     }
 
-    const msg = params.logMessage || params.warningMessage || params.message;
-    if (c.program?.opts()?.ci) {
-        if (
-            Array.isArray(params.choices) &&
-            typeof params.default !== 'undefined' &&
-            params.choices.includes(params.default)
-        ) {
-            logDebug(`defaulting to choice '${params.default}' for prompt '${params.name}'`);
-
-            if (params.name) return { [params.name]: params.default };
+    const msg = params.logMessage || params.warningMessage || message;
+    if (ci) {
+        if (paramDefault !== undefined && Array.isArray(params.choices) && params.choices.includes(paramDefault)) {
+            logDebug(`defaulting to choice '${paramDefault}' for prompt '${name}'`);
+            if (name) return paramDefault;
         }
-        return Promise.reject(`--ci option does not allow prompts. question: ${msg}.`);
+        throw new Error(`--ci option does not allow prompts. question: ${msg}.`);
     }
     if (msg) {
         if (params.logMessage) logTask(msg, chalk.grey);
         if (params.warningMessage) logWarning(msg);
     }
 
-    // allow passing in just { type: 'prompt', ... } instead of { type: 'prompt', name: 'prompt', ... }
-    const { type, name } = params;
-    if (type === 'confirm' && !name) params.name = 'confirm';
-
-    const resp = inquirer.prompt(params as any);
-    if (params.initialValue) resp.ui.rl.input.push(params.initialValue);
-    return resp;
+    switch (type) {
+        case 'password':
+            return password({ message });
+        case 'confirm':
+            return confirm({ message, default: paramDefault });
+        case 'input':
+            return input({ message, default: paramDefault, validate: params.validate });
+        case 'checkbox':
+            return checkbox({
+                message,
+                choices: params.choices as PromptChoice,
+                pageSize: params.pageSize,
+                loop: params.loop
+            });
+        case 'rawlist':
+            return rawlist({
+                message,
+                choices: params.choices as PromptChoice,
+                default: paramDefault,
+                loop: params.loop
+            });
+        case 'select':
+        case 'list':
+            return select({
+                message,
+                choices: params.choices as PromptChoice,
+                default: paramDefault,
+                pageSize: params.pageSize,
+                loop: params.loop
+            });
+        case 'search':
+        case 'autocomplete':
+            return search({
+                message,
+                source: params.source as PromptSource,
+                default: paramDefault,
+                pageSize: params.pageSize,
+                initialValue: params.initialValue
+            });
+    }
+    throw new Error(`Prompt type: ${type} not available`);
 };
 
-export const inquirerSeparator = (text?: string) => {
-    return new inquirer.Separator(text);
-};
+export const inquirerSeparator = (text?: string): Separator => new Separator(text);
 
 export const generateOptions = (
     inputData: any,
@@ -99,23 +127,12 @@ export const generateOptions = (
 };
 
 const _sort = (a: any, b: any) => {
-    let aStr = '';
-    let bStr = '';
     if (typeof a === 'string') {
-        aStr = a.toLowerCase();
-        bStr = b.toLowerCase();
-    } else {
-        if (a?.name) aStr = a.name.toLowerCase();
-        if (b?.name) bStr = b.name.toLowerCase();
+        return a.toLowerCase().localeCompare(b.toLowerCase());
     }
-
-    let com = 0;
-    if (aStr > bStr) {
-        com = 1;
-    } else if (aStr < bStr) {
-        com = -1;
-    }
-    return com;
+    const aStr = a?.name?.toLowerCase() ?? '';
+    const bStr = b?.name?.toLowerCase() ?? '';
+    return aStr.localeCompare(bStr);
 };
 
 const _generateOptionString = (i: number, _obj: any, mapping: any, defaultVal: string) =>

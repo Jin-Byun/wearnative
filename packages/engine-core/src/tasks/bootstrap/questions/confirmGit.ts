@@ -1,45 +1,39 @@
+import path from 'node:path';
 import { commandExistsSync, executeAsync, fsExistsSync, inquirerPrompt, logInfo, logTask, logWarning } from '@rnv/core';
-import type { NewProjectData } from '../types';
-import path from 'path';
 import { getContext } from '../../../getContext';
+import type { NewProjectData } from '../types';
 
-const Question = async (data: NewProjectData) => {
+const Question = async ({ inputs }: NewProjectData) => {
     const c = getContext();
+    const projectPath = c.paths.project.dir;
+    if (fsExistsSync(path.join(projectPath, '.git'))) {
+        inputs.confirmEnableGit = true;
+        return;
+    }
     const { gitEnabled, ci } = c.program.opts();
-    const { inputs } = data;
     inputs.confirmEnableGit = !!gitEnabled;
 
     if (gitEnabled === undefined && !ci) {
-        const response = await inquirerPrompt({
+        inputs.confirmEnableGit = (await inquirerPrompt({
             name: 'gitEnabled',
             type: 'confirm',
-            message: 'Do you want to set-up git in your new project?',
-        });
-
-        inputs.confirmEnableGit = response.gitEnabled;
+            message: 'Do you want to set-up git in your new project?'
+        })) as boolean;
     }
 
     if (inputs.confirmEnableGit) {
-        await configureGit();
+        await configureGit(projectPath);
     }
 };
 
-const configureGit = async () => {
-    const c = getContext();
-    const projectPath = c.paths.project.dir;
+const configureGit = async (projectPath: string) => {
     logTask(`configureGit:${projectPath}`);
-
-    if (!fsExistsSync(path.join(projectPath, '.git'))) {
-        logInfo('Your project does not have a git repo. Creating one...DONE');
-        if (commandExistsSync('git')) {
-            await executeAsync('git init', { cwd: projectPath });
-            // NOTE: let user do this manually
-            // await executeAsync('git add -A', { cwd: projectPath });
-            // await executeAsync('git commit -m "Initial"', { cwd: projectPath });
-        } else {
-            logWarning("We tried to create a git repo inside your project but you don't seem to have git installed");
-        }
+    if (!commandExistsSync('git')) {
+        logWarning("We tried to create a git repo inside your project but you don't seem to have git installed");
+        return;
     }
+    logInfo('Your project does not have a git repo. Creating one...DONE');
+    await executeAsync('git init', { cwd: projectPath });
 };
 
 export default Question;

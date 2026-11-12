@@ -10,11 +10,9 @@ export const loadRnvModulesFromProject = () => {
     const c = getContext();
 
     const integrations = c.buildConfig?.integrations;
+    if (!integrations) return;
 
-    if (!integrations) {
-        return;
-    }
-    Object.keys(integrations).forEach((integration) => {
+    for (const integration of Object.keys(integrations)) {
         // Local node modules take precedence
         let intPath = path.join(c.paths.project.nodeModulesDir, integration);
         if (!fsExistsSync(intPath)) {
@@ -30,5 +28,5 @@ export const loadRnvModulesFromProject = () => {
         } catch (err) {
             logWarning(`You have integration ${integration} defined, but it wasn't found in package.json. ERR: ${err}`);
         }
-    });
+    }
 };

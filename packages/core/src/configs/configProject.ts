@@ -2,7 +2,7 @@ import { getContext } from '../context/provider';
 import { chalk, logDefault, logWarning } from '../logger';
 import type { ConfigFileProject } from '../schema/types';
 import { getRealPath, writeFileSync } from '../system/fs';
-import type { RnvPlatform, RnvPlatformKey } from '../types';
+import type { RnvPlatformKey } from '../types';
 import type { NpmPackageFile } from './types';
 
 const SYNCED_DEPS = [
@@ -104,53 +104,45 @@ export const generatePlatformTemplatePaths = () => {
             platformTemplatesDirs: {}
         };
     }
-
-    const pt = c.buildConfig.paths?.platformTemplatesDirs || {};
-    const result: Record<string, string> = {};
-
-    if (c.buildConfig.defaults) {
-        c.buildConfig.defaults?.supportedPlatforms?.forEach((platform: RnvPlatform) => {
-            if (platform) {
-                const engine = c.runtime.enginesByPlatform[platform];
-                if (engine) {
-                    const originalPath = engine.originalTemplatePlatformsDir;
-
-                    if (originalPath) {
-                        if (!pt[platform]) {
-                            const pt1 = getRealPath(originalPath, 'platformTemplatesDir', originalPath);
-                            if (pt1) {
-                                result[platform] = pt1;
-                            } else {
-                                logWarning(`Cannot resolve originalTemplatePlatformsDir: ${originalPath}. SKIPPING...`);
-                            }
-                        } else {
-                            const pt2 = getRealPath(pt[platform], 'platformTemplatesDir', originalPath);
-                            if (pt2) {
-                                result[platform] = pt2;
-                            } else {
-                                logWarning(
-                                    `Cannot resolve platformTemplatesDirs[${platform}] with original path: ${originalPath}. SKIPPING...`
-                                );
-                            }
-                        }
-                    } else {
-                        logWarning(
-                            `Platform ${chalk.red(platform)} not supported by any registered engine. SKIPPING...`
-                        );
-                    }
-                } else if (platform === c.platform && c.runtime.currentEngine) {
-                    //NOTE: only log warning if there is already registered engine but cannot be found by platform
-                    logWarning(
-                        `Could not find active engine for platform: ${chalk.red(
-                            platform
-                        )}. Available engine platforms: ${Object.keys(c.runtime.enginesByPlatform)}`
-                    );
-                }
-            }
-        });
-    } else {
+    if (!c.buildConfig.defaults?.supportedPlatforms) {
         logWarning(`Your renative.json is missing property: ${chalk.red('defaults.supportedPlatforms')} `);
+        return;
     }
 
+    const ptDirs = c.buildConfig.paths.platformTemplatesDirs as Partial<Record<'android' | 'androidwear', string>>;
+    const result: Record<string, string> = {};
+    for (const platform of c.buildConfig.defaults.supportedPlatforms.filter(Boolean)) {
+        const engine = c.runtime.enginesByPlatform[platform];
+        if (!engine) {
+            if (platform === c.platform && c.runtime.currentEngine) {
+                //NOTE: only log warning if there is already registered engine but cannot be found by platform
+                logWarning(
+                    `Could not find active engine for platform: ${chalk.red(
+                        platform
+                    )}. Available engine platforms: ${Object.keys(c.runtime.enginesByPlatform)}`
+                );
+            }
+            continue;
+        }
+
+        const originalPath = engine.originalTemplatePlatformsDir;
+        if (!originalPath) {
+            logWarning(`Platform ${chalk.red(platform)} not supported by any registered engine. SKIPPING...`);
+            continue;
+        }
+        const ptPath = ptDirs[platform] || originalPath;
+        const pt = getRealPath(ptPath, 'platformTemplatesDir', originalPath);
+        if (pt) {
+            result[platform] = pt;
+        } else {
+            logWarning(
+                `Cannot resolve ${
+                    ptPath === originalPath
+                        ? 'originalTemplatePlatformsDir'
+                        : `platformTemplatesDirs[${platform}] with original path`
+                }: ${originalPath}. SKIPPING...`
+            );
+        }
+    }
     c.paths.project.platformTemplatesDirs = result;
 };

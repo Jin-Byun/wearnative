@@ -22,63 +22,28 @@ export default createTask({
     description: 'Checks validity and config health of your project',
     dependsOn: [RnvTaskName.appConfigure],
     beforeDependsOn: async () => {
-        await configureRuntimeDefaults();
+        configureRuntimeDefaults();
     },
     fn: async ({ ctx }) => {
-        await configureRuntimeDefaults();
-
-        const configPaths: Array<string> = [];
-
-        configTargets.forEach((target) => {
-            const tPath = lGet(ctx.paths, target);
-
-            if (tPath) {
-                if (Array.isArray(tPath)) {
-                    configPaths.push(...tPath);
-                } else {
-                    configPaths.push(tPath);
-                }
-            }
-        });
+        configureRuntimeDefaults();
 
         let errMsg = 'RENATIVE JSON SCHEMA VALIDITY CHECK:\n\n';
-        let hasErrors = false;
-        configPaths.forEach((cPath) => {
-            if (fsExistsSync(cPath)) {
-                const cObj = readObjectSync(cPath);
-                const result = validateRenativeProjectSchema(cObj);
-                if (!result.success) {
-                    hasErrors = true;
-                    errMsg += chalk.yellow(`\nInvalid schema in ${cPath}. ISSUES:\n\n`);
-                    result.error.errors?.forEach((err) => {
-                        errMsg += chalk.yellow(`${chalk.grey(err.path)}: ${err.message}`);
-                    });
-                }
-                // if (!valid) {
-                //     hasErrors = true;
-                //     // console.log('ERROR', ajv.errors);
-                //     errMsg += chalk.yellow(
-                //         `\nInvalid schema in ${
-                //             // cPath}. ISSUES: ${JSON.stringify(ajv.errors, null, 2)}\n`);
-                //             cPath
-                //         }. ISSUES:\n\n`
-                //     );
-                //     if (typeof ajv !== 'boolean' && ajv) {
-                //         ajv.errors?.forEach((err) => {
-                //             errMsg += chalk.yellow(
-                //                 `${chalk.grey(err.dataPath === '' ? '/' : err.dataPath)}: ${err.message} ${Object.keys(
-                //                     err.params
-                //                 )
-                //                     .map((k) => `=> ${chalk.red(err.params[k])}`)
-                //                     .join('\n')}\n`
-                //             );
-                //         });
-                //     }
-                // }
-            }
-        });
+        const initialErrMsgLength = errMsg.length;
+        const configPaths: Array<string> = configTargets.flatMap((target) => lGet(ctx.paths, target));
 
-        if (!hasErrors) {
+        for (const cPath of configPaths) {
+            if (!fsExistsSync(cPath)) continue;
+            const cObj = readObjectSync(cPath);
+            const result = validateRenativeProjectSchema(cObj);
+            if (result.success) continue;
+
+            errMsg += chalk.yellow(`\nInvalid schema in ${cPath}. ISSUES:\n\n`);
+            result.error.issues?.forEach((err) => {
+                errMsg += chalk.yellow(`${chalk.grey(err.path)}: ${err.message}`);
+            });
+        }
+
+        if (errMsg.length > initialErrMsgLength) {
             errMsg += chalk.green(`PASSED ${configPaths.length} files`);
         }
 

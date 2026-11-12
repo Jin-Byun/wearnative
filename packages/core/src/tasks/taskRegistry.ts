@@ -2,13 +2,11 @@ import type { RnvTask, RnvTaskMap } from './types';
 
 const REGISTERED_TASKS: RnvTaskMap = {};
 
-export const registerRnvTasks = (tasks: RnvTaskMap<any>) => {
-    Object.values(tasks).forEach((task) => {
-        registerRnvTask(task);
-    });
+export const registerRnvTasks = <OKey extends string>(tasks: RnvTaskMap<OKey>) => {
+    Object.values(tasks).forEach(registerRnvTask);
 };
 
-const registerRnvTask = (taskInstance: RnvTask) => {
+const registerRnvTask = <OKey extends string>(taskInstance: RnvTask<OKey>) => {
     if (!taskInstance.key) {
         throw new Error('Task key is required');
     }
@@ -16,7 +14,7 @@ const registerRnvTask = (taskInstance: RnvTask) => {
         throw new Error(`Task key must be unique. Task with key ${taskInstance.key} already exists`);
     }
 
-    REGISTERED_TASKS[taskInstance.key] = taskInstance;
+    REGISTERED_TASKS[taskInstance.key] = taskInstance as RnvTask;
 };
 
 export const getRegisteredTasks = () => REGISTERED_TASKS;

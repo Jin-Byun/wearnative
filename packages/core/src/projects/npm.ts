@@ -1,10 +1,11 @@
 import path from 'node:path';
+import type { PackageJson } from 'type-fest';
 import { inquirerPrompt } from '../api';
 import { getContext } from '../context/provider';
 import type { RnvContext } from '../context/types';
 import { logDebug, logDefault, logError, logInfo, logSuccess, logWarning } from '../logger';
 import { commandExistsSync, executeAsync } from '../system/exec';
-import { fsExistsSync, removeDirs, writeFileSync } from '../system/fs';
+import { fsExistsSync, fsReadFileSync, removeDirs } from '../system/fs';
 import { doResolve } from '../system/resolve';
 import { handleMutations } from './mutations';
 import { isOfflineMode } from './utils';
@@ -13,12 +14,10 @@ export const checkIfProjectAndNodeModulesExists = async () => {
     logDefault('checkIfProjectAndNodeModulesExists');
 
     const c = getContext();
-
-    if (c.paths.project.configExists && !fsExistsSync(c.paths.project.nodeModulesDir)) {
-        c._requiresNpmInstall = false;
-        logInfo('node_modules folder is missing. INSTALLING...');
-        await installPackageDependencies();
-    }
+    if (!c.paths.project.configExists || fsExistsSync(c.paths.project.nodeModulesDir)) return;
+    c._requiresNpmInstall = false;
+    logInfo('node_modules folder is missing. INSTALLING...');
+    await installPackageDependencies();
 };
 
 export const checkNpxIsInstalled = async () => {
@@ -26,10 +25,10 @@ export const checkNpxIsInstalled = async () => {
     if (!commandExistsSync('npx')) {
         logWarning('npx is not installed, please install it before running this command');
 
-        const { confirm } = await inquirerPrompt({
+        const confirm = (await inquirerPrompt({
             type: 'confirm',
             message: 'Do you want to install npx it now?'
-        });
+        })) as boolean;
 
         if (confirm) {
             await executeAsync('npm install -g npx');
@@ -89,14 +88,14 @@ export const listAndSelectNpmVersion = async (npmPackage: string) => {
 
     const validVersionsCombined = validVersionsHead.concat(validVersionsStandard);
 
-    const { inputTemplateVersion } = await inquirerPrompt({
+    const inputTemplateVersion = (await inquirerPrompt({
         name: 'inputTemplateVersion',
         type: 'list',
         message: `What ${npmPackage} version to use?`,
         default: recommendedVersion.value,
         loop: false,
         choices: validVersionsCombined
-    });
+    })) as string;
 
     return inputTemplateVersion;
 };
@@ -110,10 +109,6 @@ const _getInstallScript = (c: RnvContext) => {
     return tasks.find((task) => task.name === 'install')?.script ?? null;
 };
 
-export const isYarnInstalled = () => commandExistsSync('yarn') || doResolve('yarn', false);
-
-export const isPnpmInstalled = () => commandExistsSync('pnpm') || doResolve('pnpm', false);
-
 export const checkAndInstallPackageDependenciesIfRequired = async () => {
     const ctx = getContext();
 
@@ -122,15 +117,89 @@ export const checkAndInstallPackageDependenciesIfRequired = async () => {
     }
 };
 
+export const isYarnInstalled = () => commandExistsSync('yarn') || doResolve('yarn', false);
+export const isPnpmInstalled = () => commandExistsSync('pnpm') || doResolve('pnpm', false);
+const isPacManInstalled = (pm: string) => commandExistsSync(pm) || doResolve(pm, false);
+
+const pacManData = {
+    pnpm: {
+        lockfile: 'pnpm-lock.yaml',
+        add: 'pnpm add',
+        init: 'pnpm install'
+    },
+    yarn: {
+        lockfile: 'yarn.lock',
+        add: 'yarn add',
+        init: 'yarn'
+    },
+    bun: {
+        lockfile: 'bun.lock',
+        add: 'bun add',
+        init: 'bun install'
+    },
+    npm: {
+        lockfile: 'package-lock.json',
+        add: 'npm add',
+        init: 'npm install'
+    }
+} as const;
+const PacManList = Object.keys(pacManData) as (keyof PacManData)[];
+type PacManData = typeof pacManData;
+
+export const getPacManCommand = async (c: RnvContext, targetCmd: 'add' | 'init' = 'add') => {
+    const packageJson: PackageJson = JSON.parse(fsReadFileSync(c.paths.project.package as string).toString());
+    const { packageManager } = packageJson;
+    let pm: keyof PacManData | undefined;
+    if (packageManager) {
+        // check packageManger field of package.json
+        pm = PacManList.find((name) => packageManager.startsWith(name));
+    }
+    if (!pm) {
+        // check for lock file
+        pm = PacManList.find((name) => fsExistsSync(path.join(c.paths.project.dir, pacManData[name].lockfile)));
+    }
+    if (pm) {
+        if (!isPacManInstalled(pm)) {
+            throw new Error(
+                `Your project uses ${pm} but you don't have ${pm} installed. Install it or if using other package manager, set up project for your package manager.`
+            );
+        }
+        return pacManData[pm][targetCmd];
+    }
+
+    // no lock file check cli option
+    if (c.program.opts().packageManager) {
+        pm = PacManList.find((name) => name === c.program.opts().packageManager);
+        if (!pm) {
+            throw new Error(
+                `Unsupported package manager ${
+                    c.program.opts().packageManager
+                }. ${PacManList.join(' | ')} are supported at the moment.`
+            );
+        }
+    } else {
+        // no cli option either, asking
+        const inquiredPm = (await inquirerPrompt({
+            type: 'list',
+            name: 'inquiredPm',
+            message: 'What package manager would you like to use?',
+            choices: PacManList,
+            default: 'npm' as keyof PacManData
+        })) as keyof PacManData;
+        pm = inquiredPm;
+    }
+    if (!isPacManInstalled(pm)) throw new Error(`You specified ${pm} as packageManager but it's not installed`);
+
+    return pacManData[pm][targetCmd];
+};
+
 export const installPackageDependencies = async (failOnError = false) => {
+    if (isOfflineMode('install package dependencies')) return;
+
     const c = getContext();
     const result = await handleMutations(c);
-
     if (!result) {
         c._requiresNpmInstall = false;
-        return;
-    }
-    if (isOfflineMode('install package dependencies')) {
         return;
     }
 
@@ -150,48 +219,10 @@ export const installPackageDependencies = async (failOnError = false) => {
         logSuccess(
             'This project is marked as part of monorepo and it has no custom install tasks. Run your usual monorepo bootstrap procedure and re-run command again.'
         );
-        return Promise.reject('Cancelled');
+        throw new Error('Cancelled');
     }
 
-    const pnpmLockPath = path.join(c.paths.project.dir, 'pnpm-lock.yaml');
-    const npmLockPath = path.join(c.paths.project.dir, 'package-lock.json');
-    let command = 'npm install';
-
-    const pnpmLockExists = fsExistsSync(pnpmLockPath);
-    const packageLockExists = fsExistsSync(npmLockPath);
-
-    if (pnpmLockExists || packageLockExists) {
-        // a lock file exists, defaulting to whichever is present
-        if (pnpmLockExists && !isPnpmInstalled())
-            throw new Error(
-                "You have a pnpm-lock.yaml file but you don't have pnpm installed. Install it or delete pnpm-lock.yaml"
-            );
-        command = pnpmLockPath ? 'pnpm install' : 'npm install';
-    } else if (c.program.opts().packageManager) {
-        // no lock file check cli option
-        if (['pnpm', 'npm'].includes(c.program.opts().packageManager)) {
-            command = c.program.opts().packageManager === 'pnpm' ? 'pnpm install' : 'npm install';
-            if (command === 'pnpm' && !isPnpmInstalled())
-                throw new Error("You specified pnpm as packageManager but it's not installed");
-        } else {
-            throw new Error(
-                `Unsupported package manager ${
-                    c.program.opts().packageManager
-                }. Only pnpm and npm are supported at the moment.`
-            );
-        }
-    } else {
-        // no cli option either, asking
-        const { packageManager } = await inquirerPrompt({
-            type: 'list',
-            name: 'packageManager',
-            message: 'What package manager would you like to use?',
-            choices: ['pnpm', 'npm'],
-            default: 'npm'
-        });
-        if (packageManager === 'pnpm') command = 'pnpm install';
-    }
-
+    const command = await getPacManCommand(c);
     logDefault('installPackageDependencies', `packageManager:(${command})`);
 
     try {
@@ -213,50 +244,23 @@ export const installPackageDependencies = async (failOnError = false) => {
             throw npmErr;
         }
     }
-    try {
-        const plats = c.files.project.config?.defaults?.supportedPlatforms;
-        if (Array.isArray(plats) && plats.includes('androidwear')) {
-            if (!c.files.project.configLocal) {
-                c.files.project.configLocal = {};
-            }
-            if (!c.files.project.configLocal?._meta) {
-                c.files.project.configLocal._meta = {};
-            }
-            c.files.project.configLocal._meta.requiresJetify = true;
-            writeFileSync(c.paths.project.configLocal, c.files.project.configLocal);
-        }
-        c._requiresNpmInstall = false;
-        return true;
-    } catch (jetErr) {
-        logError(jetErr);
-        return false;
-    }
+    c._requiresNpmInstall = false;
+    return true;
 };
 
-export const cleanNodeModules = () =>
-    new Promise<void>((resolve, reject) => {
-        logDefault('cleanNodeModules');
-        const dirs = [
-            'react-native-safe-area-view/.git',
-            '@react-navigation/native/node_modules/react-native-safe-area-view/.git',
-            'react-navigation/node_modules/react-native-safe-area-view/.git',
-            'react-native-safe-area-view/.git',
-            '@react-navigation/native/node_modules/react-native-safe-area-view/.git',
-            'react-navigation/node_modules/react-native-safe-area-view/.git'
-        ].reduce<Array<string>>((acc, dir) => {
-            const res = dir.match(/([^/]+)\/(.*)/);
-            if (res) {
-                const [_all, aPackage, aPath] = res;
-                logDebug(`Cleaning: ${_all}`);
-                const resolved = doResolve(aPackage, false);
-                if (resolved) {
-                    acc.push(`${resolved}/${aPath}`);
-                }
-            }
-
-            return acc;
-        }, []);
-        removeDirs(dirs)
-            .then(() => resolve())
-            .catch((e) => reject(e));
+export const cleanNodeModules = async () => {
+    logDefault('cleanNodeModules');
+    const dirs = [
+        ['react-native-safe-area-view', '.git'],
+        ['@react-navigation', 'native/node_modules/react-native-safe-area-view/.git'],
+        ['react-navigation', 'node_modules/react-native-safe-area-view/.git']
+    ].flatMap(([pkg, pth]) => {
+        logDebug(`Cleaning: ${pkg}/${pth}`);
+        const resolved = doResolve(pkg, false);
+        if (resolved) {
+            return `${resolved}/${pth}`;
+        }
+        return [];
     });
+    await removeDirs(dirs);
+};

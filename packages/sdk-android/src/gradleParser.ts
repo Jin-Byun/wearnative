@@ -449,7 +449,6 @@ const _fixAndroidLegacy = (c: RnvContext, modulePath: string) => {
             createOverridesOption(' provided "', '  compileOnly "'),
             createOverridesOption(' compile fileTree', '  implementation fileTree')
         ],
-        undefined,
         c
     );
 };

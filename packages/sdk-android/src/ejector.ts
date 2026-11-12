@@ -122,17 +122,7 @@ export const ejectGradleProject = async () => {
         }
 
         const destPath = path.join(appFolder, 'node_modules', key);
-        copyFolderContentsRecursiveSync(
-            pluginPath,
-            destPath,
-            false,
-            undefined,
-            false,
-            undefined,
-            undefined,
-            c,
-            extensionsFilter
-        );
+        copyFolderContentsRecursiveSync(pluginPath, destPath, false, undefined, false, undefined, c, extensionsFilter);
         copyFileSync(path.join(pluginPath, RnvFileName.package), path.join(destPath, RnvFileName.package));
     });
 

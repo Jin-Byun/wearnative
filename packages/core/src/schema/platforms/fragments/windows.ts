@@ -52,9 +52,9 @@ export const zodPlatformWindowsFragment = z
                 directDebugging: z.boolean(),
                 telemetry: z.boolean().describe('Send analytics data of @react-native-windows/cli usage to Microsoft'),
                 devPort: z.string(),
-                additionalMetroOptions: z.record(z.any()),
-                packageExtension: z.string(),
+                additionalMetroOptions: z.record(z.string(), z.any()),
+                packageExtension: z.string()
             })
-            .partial(),
+            .partial()
     })
     .partial();

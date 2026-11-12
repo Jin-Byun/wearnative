@@ -12,22 +12,13 @@ export default createTask({
     description: 'Display generic help',
     fn: async () => {
         // PARAMS
-        let optsString = '';
-
-        Object.values(RnvTaskOptions).forEach((param) => {
-            optsString += chalk.grey(`${generateStringFromTaskOption(param)}, ${param.description}\n`);
-        });
+        const optsString = Object.values(RnvTaskOptions)
+            .map((opt) => chalk.grey(`${generateStringFromTaskOption(opt)}, ${opt.description}`))
+            .join('\n');
 
         // TASKS
-        const commands: Array<string> = [];
         const engines = getRegisteredEngines();
-
-        engines.forEach((engine) => {
-            Object.values(engine.tasks).forEach(({ task }) => {
-                commands.push(task);
-            });
-        });
-        const cmdsString = commands.join(', ');
+        const cmdsString = engines.flatMap((engine) => Object.values(engine.tasks).map(({ task }) => task)).join(', ');
 
         logToSummary(`
 ${chalk.bold.white('COMMANDS:')}
@@ -37,6 +28,7 @@ ${cmdsString}
 ${chalk.bold.white('OPTIONS:')}
 
 ${optsString}
+
 `);
     },
     task: RnvTaskName.help,
